@@ -1,0 +1,355 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - WikiFactCheck{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-6">
+    <h1 class="text-3xl font-bold mb-6">Annotation Dashboard</h1>
+
+    <!-- Summary stats -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="text-gray-600 text-sm font-semibold mb-2">Total Pairs</div>
+            <div class="text-3xl font-bold" id="stat-total-pairs">—</div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="text-gray-600 text-sm font-semibold mb-2">Total Annotations</div>
+            <div class="text-3xl font-bold" id="stat-total-anno">—</div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="text-gray-600 text-sm font-semibold mb-2">1+ Annotations</div>
+            <div class="text-3xl font-bold" id="stat-anno-1">—</div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="text-gray-600 text-sm font-semibold mb-2">Target Completion</div>
+            <div class="text-3xl font-bold" id="stat-completion">—</div>
+        </div>
+    </div>
+
+    <!-- Project completion bar -->
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
+        <div class="flex justify-between items-center mb-2">
+            <h3 class="text-lg font-semibold">Project Progress (All)</h3>
+            <span id="completion-text" class="text-sm text-gray-600">—</span>
+        </div>
+        <div class="progress-bar">
+            <div id="completion-fill" class="progress-fill" style="width: 0%"></div>
+        </div>
+    </div>
+
+    <!-- Citation Type Breakdown -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <!-- Journal Citations -->
+        <div class="bg-blue-50 rounded-lg shadow p-6 border-l-4 border-blue-500">
+            <h3 class="text-lg font-semibold mb-4 text-blue-900">Journal Citations</h3>
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                    <div class="text-gray-600 text-sm mb-1">Total</div>
+                    <div class="text-2xl font-bold" id="stat-journal-total">—</div>
+                </div>
+                <div>
+                    <div class="text-gray-600 text-sm mb-1">Annotated</div>
+                    <div class="text-2xl font-bold" id="stat-journal-annotated">—</div>
+                </div>
+                <div>
+                    <div class="text-gray-600 text-sm mb-1">Complete</div>
+                    <div class="text-2xl font-bold" id="stat-journal-complete">—</div>
+                </div>
+                <div>
+                    <div class="text-gray-600 text-sm mb-1">Progress</div>
+                    <div class="text-2xl font-bold" id="stat-journal-pct">—</div>
+                </div>
+            </div>
+            <div class="progress-bar" style="height: 6px;">
+                <div id="journal-progress-fill" class="progress-fill" style="width: 0%; background-color: #3b82f6;"></div>
+            </div>
+        </div>
+
+        <!-- Web Citations -->
+        <div class="bg-purple-50 rounded-lg shadow p-6 border-l-4 border-purple-500">
+            <h3 class="text-lg font-semibold mb-4 text-purple-900">Web Citations</h3>
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                    <div class="text-gray-600 text-sm mb-1">Total</div>
+                    <div class="text-2xl font-bold" id="stat-web-total">—</div>
+                </div>
+                <div>
+                    <div class="text-gray-600 text-sm mb-1">Annotated</div>
+                    <div class="text-2xl font-bold" id="stat-web-annotated">—</div>
+                </div>
+                <div>
+                    <div class="text-gray-600 text-sm mb-1">Complete</div>
+                    <div class="text-2xl font-bold" id="stat-web-complete">—</div>
+                </div>
+                <div>
+                    <div class="text-gray-600 text-sm mb-1">Progress</div>
+                    <div class="text-2xl font-bold" id="stat-web-pct">—</div>
+                </div>
+            </div>
+            <div class="progress-bar" style="height: 6px;">
+                <div id="web-progress-fill" class="progress-fill" style="width: 0%; background-color: #a855f7;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <!-- Annotator breakdown -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold mb-4">Annotations per Annotator</h3>
+            <canvas id="annotatorChart" style="max-height: 300px"></canvas>
+        </div>
+
+        <!-- Label distribution -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold mb-4">Label Distribution</h3>
+            <canvas id="labelChart" style="max-height: 300px"></canvas>
+        </div>
+    </div>
+
+    <!-- Per-dataset breakdown -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-lg font-semibold mb-4">Dataset Progress</h3>
+        <canvas id="datasetChart" style="max-height: 300px"></canvas>
+    </div>
+
+    <!-- Annotator table -->
+    <div class="bg-white rounded-lg shadow p-6 mt-6">
+        <h3 class="text-lg font-semibold mb-4">Annotator Details</h3>
+        <table class="w-full text-sm">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-4 py-2 text-left font-semibold">Email</th>
+                    <th class="px-4 py-2 text-left font-semibold">Annotations</th>
+                    <th class="px-4 py-2 text-left font-semibold">Status</th>
+                </tr>
+            </thead>
+            <tbody id="annotatorTableBody" class="divide-y">
+                <tr>
+                    <td colspan="3" class="px-4 py-4 text-center text-gray-500">Loading...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+let annotatorChart, labelChart, datasetChart;
+
+document.addEventListener("DOMContentLoaded", async () => {
+    await loadSummary();
+    await loadCitationTypeData();
+    await loadAnnotatorData();
+    await loadLabelDistribution();
+    await loadDatasetData();
+});
+
+async function loadSummary() {
+    try {
+        const response = await fetch("/api/results/summary");
+        const data = await response.json();
+
+        document.getElementById("stat-total-pairs").textContent = data.total_pairs;
+        document.getElementById("stat-total-anno").textContent = data.total_annotations;
+        document.getElementById("stat-anno-1").textContent = data.pairs_with_1_annotation;
+        document.getElementById("stat-completion").textContent = `${data.completion_pct}%`;
+
+        document.getElementById("completion-text").textContent =
+            `${data.pairs_with_threshold_annotations} / ${data.min_target} samples meeting threshold`;
+        document.getElementById("completion-fill").style.width = `${Math.min(data.completion_pct, 100)}%`;
+    } catch (error) {
+        console.error("Error loading summary:", error);
+    }
+}
+
+async function loadCitationTypeData() {
+    try {
+        const response = await fetch("/api/results/per-citation-type");
+        const data = await response.json();
+
+        // Journal statistics
+        const journal = data.JOURNAL || {};
+        document.getElementById("stat-journal-total").textContent = journal.total_samples || 0;
+        document.getElementById("stat-journal-annotated").textContent = journal.annotated_samples || 0;
+        document.getElementById("stat-journal-complete").textContent = journal.complete_samples || 0;
+        document.getElementById("stat-journal-pct").textContent = `${journal.annotation_percentage || 0}%`;
+        document.getElementById("journal-progress-fill").style.width = `${Math.min(journal.annotation_percentage || 0, 100)}%`;
+
+        // Web statistics
+        const web = data.WEB || {};
+        document.getElementById("stat-web-total").textContent = web.total_samples || 0;
+        document.getElementById("stat-web-annotated").textContent = web.annotated_samples || 0;
+        document.getElementById("stat-web-complete").textContent = web.complete_samples || 0;
+        document.getElementById("stat-web-pct").textContent = `${web.annotation_percentage || 0}%`;
+        document.getElementById("web-progress-fill").style.width = `${Math.min(web.annotation_percentage || 0, 100)}%`;
+    } catch (error) {
+        console.error("Error loading citation type data:", error);
+    }
+}
+
+async function loadAnnotatorData() {
+    try {
+        const response = await fetch("/api/results/by-annotator");
+        const data = await response.json();
+
+        const labels = data.map((d) => d.email);
+        const counts = data.map((d) => d.annotation_count);
+        const colors = data.map((d) => {
+            if (d.qualification_status === "passed") return "#10b981";
+            if (d.qualification_status === "failed") return "#ef4444";
+            return "#999999";
+        });
+
+        const chartConfig = {
+            type: "bar",
+            data: {
+                labels,
+                datasets: [
+                    {
+                        label: "Annotations",
+                        data: counts,
+                        backgroundColor: colors,
+                    },
+                ],
+            },
+            options: {
+                indexAxis: "y",
+                plugins: {
+                    legend: {
+                        display: false,
+                    },
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                    },
+                },
+            },
+        };
+
+        const ctx = document.getElementById("annotatorChart").getContext("2d");
+        if (annotatorChart) annotatorChart.destroy();
+        annotatorChart = new Chart(ctx, chartConfig);
+
+        // Populate table
+        const tbody = document.getElementById("annotatorTableBody");
+        tbody.innerHTML = data
+            .map(
+                (d) => `
+            <tr>
+                <td class="px-4 py-2">${d.email}</td>
+                <td class="px-4 py-2">${d.annotation_count}</td>
+                <td class="px-4 py-2">
+                    <span class="px-2 py-1 rounded text-xs font-semibold
+                        ${
+                            d.qualification_status === "passed"
+                                ? "bg-green-100 text-green-800"
+                                : d.qualification_status === "failed"
+                                  ? "bg-red-100 text-red-800"
+                                  : "bg-gray-100 text-gray-800"
+                        }
+                    ">
+                        ${d.qualification_status}
+                    </span>
+                </td>
+            </tr>
+        `
+            )
+            .join("");
+    } catch (error) {
+        console.error("Error loading annotator data:", error);
+    }
+}
+
+async function loadLabelDistribution() {
+    try {
+        const response = await fetch("/api/results/label-distribution");
+        const data = await response.json();
+
+        const labels = Object.keys(data);
+        const values = labels.map((label) => data[label].percentage);
+        const colors = {
+            TRUE: "#10b981",
+            FALSE: "#ef4444",
+            MIXED: "#f59e0b",
+            NO_SUFFICIENT_INFO: "#f97316",
+            UNVERIFIABLE: "#999999",
+        };
+
+        const chartConfig = {
+            type: "pie",
+            data: {
+                labels: labels.map((l) => l.replace(/_/g, " ")),
+                datasets: [
+                    {
+                        data: values,
+                        backgroundColor: labels.map((l) => colors[l]),
+                    },
+                ],
+            },
+            options: {
+                plugins: {
+                    legend: {
+                        position: "bottom",
+                    },
+                },
+            },
+        };
+
+        const ctx = document.getElementById("labelChart").getContext("2d");
+        if (labelChart) labelChart.destroy();
+        labelChart = new Chart(ctx, chartConfig);
+    } catch (error) {
+        console.error("Error loading label distribution:", error);
+    }
+}
+
+async function loadDatasetData() {
+    try {
+        const response = await fetch("/api/results/per-dataset");
+        const data = await response.json();
+
+        const labels = data.map((d) => d.dataset_name);
+        const annotated = data.map((d) => d.annotated_samples);
+        const unannotated = data.map((d) => d.total_samples - d.annotated_samples);
+
+        const chartConfig = {
+            type: "bar",
+            data: {
+                labels,
+                datasets: [
+                    {
+                        label: "Annotated",
+                        data: annotated,
+                        backgroundColor: "#10b981",
+                    },
+                    {
+                        label: "Remaining",
+                        data: unannotated,
+                        backgroundColor: "#e5e7eb",
+                    },
+                ],
+            },
+            options: {
+                scales: {
+                    x: {
+                        stacked: true,
+                    },
+                    y: {
+                        stacked: true,
+                        beginAtZero: true,
+                    },
+                },
+            },
+        };
+
+        const ctx = document.getElementById("datasetChart").getContext("2d");
+        if (datasetChart) datasetChart.destroy();
+        datasetChart = new Chart(ctx, chartConfig);
+    } catch (error) {
+        console.error("Error loading dataset data:", error);
+    }
+}
+</script>
+{% endblock %}

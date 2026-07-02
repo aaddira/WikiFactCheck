@@ -1,194 +1,194 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WikiFactCheck - Citation Support Labeling</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-</head>
-<body class="bg-gray-50">
-    <!-- Navigation -->
-    <nav class="bg-white shadow-sm">
-        <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-            <div class="flex items-center gap-2">
-                <img src="{{ url_for('static', filename='images/wikipedia_logo.svg') }}" alt="Wikipedia" class="w-8 h-8">
-                <h1 class="text-2xl font-bold text-gray-900">WikiFactCheck</h1>
-            </div>
-            <button onclick="startAnnotating()" class="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition">
-                Start Annotating
-            </button>
-        </div>
-    </nav>
+{% extends "base.html" %}
 
-    <div class="max-w-6xl mx-auto px-4 py-12">
-        <!-- Hero section -->
-        <div class="bg-white rounded-lg shadow-md p-8 mb-12">
-            <h2 class="text-4xl font-bold text-gray-900 mb-4">Help Verify Wikipedia Citations</h2>
-            <p class="text-lg text-gray-600 mb-6">
-                We're building a dataset to measure whether Wikipedia citations actually support the claims they're cited for.
-                Your careful review helps improve the reliability of online information.
-            </p>
-            <div class="flex gap-4 mb-6">
-                <div class="flex-1">
-                    <div class="text-3xl font-bold text-blue-600 mb-2">150+</div>
-                    <div class="text-gray-600">Citations to review</div>
+{% block title %}WikiFactCheck - Fact-Checking Platform{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-6">
+    <!-- Login prompt banner -->
+    <div class="mb-6 bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
+        <p class="text-blue-900 font-semibold">
+            Log in to start annotating Wikipedia citations for accuracy.
+        </p>
+    </div>
+
+    <!-- Annotation interface (disabled demo) -->
+    <div>
+        <!-- Article Header -->
+        <div class="mb-6 bg-white rounded-lg shadow p-6">
+            <div class="flex flex-col items-center justify-center">
+                <div id="articleTitle" class="text-3xl font-bold text-gray-400 text-center">
+                    Loading example...
                 </div>
-                <div class="flex-1">
-                    <div class="text-3xl font-bold text-blue-600 mb-2">5 min</div>
-                    <div class="text-gray-600">Average per review</div>
-                </div>
-                <div class="flex-1">
-                    <div class="text-3xl font-bold text-blue-600 mb-2">$3-5</div>
-                    <div class="text-gray-600">Per review (if qualified)</div>
+                <div class="mt-3 flex items-center gap-2">
+                    <img src="{{ url_for('static', filename='images/wikipedia_logo.svg') }}" alt="Wikipedia" class="h-12 opacity-50">
                 </div>
             </div>
-            <button onclick="startAnnotating()" class="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition text-lg">
-                Get Started
-            </button>
         </div>
 
-        <!-- Preview section -->
-        <div class="bg-white rounded-lg shadow-md p-8">
-            <h3 class="text-2xl font-bold text-gray-900 mb-6">See It In Action</h3>
-            <p class="text-gray-600 mb-6">Try labeling a sample citation-passage pair below. You can't submit your answer yet, but this gives you a preview of the task.</p>
+        <!-- Main annotation panels -->
+        <div class="annotation-container">
+            <!-- Left panel: Passage -->
+            <div class="panel">
+                <div class="panel-title">Passage to Evaluate</div>
+                <div class="passage-text-box" id="passageText" style="color: #999;">
+                    <span class="empty-state">Loading example...</span>
+                </div>
 
-            <!-- Loading state -->
-            <div id="loading" class="text-center py-8">
-                <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                <p class="text-gray-600 mt-4">Loading sample...</p>
+                <div class="collapsible-section">
+                    <div class="collapsible-header" onclick="return false">
+                        <span>Full Passage Context</span>
+                        <span class="toggle-icon">▼</span>
+                    </div>
+                    <div class="collapsible-content" id="contextContent" style="color: #999;">
+                        <span class="empty-state">No context available</span>
+                    </div>
+                </div>
             </div>
 
-            <!-- Preview card (hidden initially) -->
-            <div id="previewContainer" class="hidden">
-                <div class="grid grid-cols-2 gap-6 mb-8">
-                    <!-- Passage -->
-                    <div>
-                        <h4 class="font-semibold text-sm mb-2 text-gray-700">Passage from Wikipedia</h4>
-                        <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded text-sm">
-                            <p id="passageText" class="text-gray-900"></p>
-                        </div>
-                        <p class="text-xs text-gray-500 mt-2">
-                            Article: <span id="articleTitle" class="font-semibold"></span>
-                        </p>
-                    </div>
-
-                    <!-- Citation -->
-                    <div>
-                        <h4 class="font-semibold text-sm mb-2 text-gray-700">Citation Text</h4>
-                        <div class="bg-green-50 border-l-4 border-green-500 p-4 rounded text-sm max-h-48 overflow-y-auto">
-                            <p id="citationText" class="text-gray-900 text-xs leading-relaxed"></p>
-                        </div>
-                        <p class="text-xs text-gray-500 mt-2" id="citationSource"></p>
-                    </div>
+            <!-- Right panel: Citation -->
+            <div class="panel">
+                <div class="panel-title">Citation Text (Reference)</div>
+                <div class="citation-text-box" id="citationText" style="color: #999;">
+                    <span class="empty-state">Loading example...</span>
                 </div>
 
-                <!-- Label selection -->
-                <div class="mb-8 bg-gray-50 p-6 rounded-lg">
-                    <label class="block font-semibold text-sm mb-4 text-gray-700">Does the citation support this passage?</label>
-                    <div class="space-y-3">
-                        <div>
-                            <input type="radio" id="label-true" name="preview_label" value="TRUE" disabled>
-                            <label for="label-true" class="ml-2 text-gray-900">True - Citation clearly supports the passage</label>
-                        </div>
-                        <div>
-                            <input type="radio" id="label-false" name="preview_label" value="FALSE" disabled>
-                            <label for="label-false" class="ml-2 text-gray-900">False - Citation contradicts the passage</label>
-                        </div>
-                        <div>
-                            <input type="radio" id="label-mixed" name="preview_label" value="MIXED" disabled>
-                            <label for="label-mixed" class="ml-2 text-gray-900">Mixed - Some parts supported, others not</label>
-                        </div>
-                        <div>
-                            <input type="radio" id="label-insufficient" name="preview_label" value="NO_SUFFICIENT_INFO" disabled>
-                            <label for="label-insufficient" class="ml-2 text-gray-900">No Sufficient Information - Cannot determine</label>
-                        </div>
-                        <div>
-                            <input type="radio" id="label-unverifiable" name="preview_label" value="UNVERIFIABLE" disabled>
-                            <label for="label-unverifiable" class="ml-2 text-gray-900">Unverifiable - No factual claims to verify</label>
+                <div class="metadata-section">
+                    <div class="metadata-item">
+                        <div class="metadata-label">Citation</div>
+                        <div class="metadata-value" id="citationMeta">—</div>
+                    </div>
+                    <div class="metadata-item">
+                        <div class="metadata-label">Citation URL</div>
+                        <div class="citation-url-box">
+                            <a href="#" onclick="return false" style="color: #999; cursor: not-allowed;">View Source</a>
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
 
-                <!-- Quote & Explanation (disabled) -->
-                <div class="mb-8 space-y-4 bg-gray-50 p-6 rounded-lg">
-                    <div>
-                        <label class="block font-semibold text-sm mb-2 text-gray-700">Quote from citation (optional)</label>
-                        <textarea
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-500 cursor-not-allowed"
-                            rows="2"
-                            placeholder="This field is disabled in preview mode"
-                            disabled>
-                        </textarea>
+        <!-- Annotation form (disabled) -->
+        <div class="annotation-form" id="annotationForm">
+            <!-- Instructions -->
+            <div class="instructions">
+                <h4>📋 How to Fact-Check This Citation</h4>
+                <ol>
+                    <li><strong>Carefully read</strong> the quoted Wikipedia passage and compare it to the source content</li>
+                    <li><strong>Select a label:</strong> True, False, Mixed, No sufficient information, or Unverifiable</li>
+                    <li><strong>Quote exact verbatim</strong> text from the source that supports or contradicts the passage</li>
+                    <li><strong>Explain</strong> how the quote relates to the passage, note any uncertainties</li>
+                    <li><strong>Skip</strong> any statement you're unsure about or don't wish to evaluate</li>
+                </ol>
+            </div>
+
+            <!-- Label selection -->
+            <div class="form-section">
+                <div class="form-section-title">Fact-Check Decision</div>
+                <div class="label-options">
+                    <div class="label-radio">
+                        <input type="radio" id="label-true" name="label" value="TRUE" disabled>
+                        <label for="label-true" style="opacity: 0.5; cursor: not-allowed;">
+                            <span>✅ True</span>
+                            <span class="label-shortcut">Press 1</span>
+                        </label>
                     </div>
-                    <div>
-                        <label class="block font-semibold text-sm mb-2 text-gray-700">Brief explanation (optional)</label>
-                        <textarea
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-500 cursor-not-allowed"
-                            rows="3"
-                            placeholder="This field is disabled in preview mode"
-                            disabled>
-                        </textarea>
+                    <div class="label-radio">
+                        <input type="radio" id="label-false" name="label" value="FALSE" disabled>
+                        <label for="label-false" style="opacity: 0.5; cursor: not-allowed;">
+                            <span>❌ False</span>
+                            <span class="label-shortcut">Press 2</span>
+                        </label>
+                    </div>
+                    <div class="label-radio">
+                        <input type="radio" id="label-mixed" name="label" value="MIXED" disabled>
+                        <label for="label-mixed" style="opacity: 0.5; cursor: not-allowed;">
+                            <span>⚠️ Mixed</span>
+                            <span class="label-shortcut">Press 3</span>
+                        </label>
+                    </div>
+                    <div class="label-radio">
+                        <input type="radio" id="label-insufficient" name="label" value="NO_SUFFICIENT_INFO" disabled>
+                        <label for="label-insufficient" style="opacity: 0.5; cursor: not-allowed;">
+                            <span>❓ No Sufficient Info</span>
+                            <span class="label-shortcut">Press 4</span>
+                        </label>
+                    </div>
+                    <div class="label-radio">
+                        <input type="radio" id="label-unverifiable" name="label" value="UNVERIFIABLE" disabled>
+                        <label for="label-unverifiable" style="opacity: 0.5; cursor: not-allowed;">
+                            <span>🔍 Unverifiable</span>
+                            <span class="label-shortcut">Press 5</span>
+                        </label>
                     </div>
                 </div>
+            </div>
 
-                <!-- Action buttons -->
-                <div class="flex gap-4">
-                    <button onclick="startAnnotating()" class="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition">
-                        Log In to Submit
-                    </button>
-                    <button onclick="loadPreviewSample()" class="flex-1 bg-gray-300 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-400 transition">
-                        Load Another Sample
-                    </button>
+            <!-- Quote field -->
+            <div class="form-field">
+                <label for="quote">Supporting or Contradicting Quote</label>
+                <textarea
+                    id="quote"
+                    name="quote"
+                    placeholder="Paste exact verbatim text from the citation that supports or contradicts the passage..."
+                    disabled
+                ></textarea>
+                <div class="form-field-hint">
+                    Copy and paste the exact text from the source. This is required unless you skip.
                 </div>
+            </div>
 
-                <!-- Info box -->
-                <div class="mt-8 bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
-                    <p class="text-sm text-blue-900">
-                        <strong>To submit your answers:</strong> Log in with your email. You'll take a brief qualification test to demonstrate your understanding.
-                        If approved by our research team, you'll start earning $3-5 per verified review.
-                    </p>
+            <!-- Explanation field -->
+            <div class="form-field">
+                <label for="explanation">Explanation</label>
+                <textarea
+                    id="explanation"
+                    name="explanation"
+                    placeholder="Briefly explain how the quote supports or contradicts the passage. Mention uncertainties or difficulties if any."
+                    disabled
+                ></textarea>
+                <div class="form-field-hint">
+                    Provide context for your decision. This is required unless you skip.
                 </div>
+            </div>
+
+            <!-- Buttons -->
+            <div class="btn-group">
+                <button type="button" class="btn btn-secondary" disabled onclick="return false">
+                    Skip
+                </button>
+                <button type="button" class="btn btn-primary" disabled onclick="return false">
+                    Save & Next
+                </button>
+            </div>
+
+            <!-- Login prompt -->
+            <div style="text-align: center; margin-top: 4rem; padding: 2rem; border-top: 1px solid #eee;">
+                <p style="color: #666; margin-bottom: 1rem;">Log in to start fact-checking Wikipedia citations</p>
+                <a href="{{ url_for('login_page') }}" class="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition">
+                    Log In to Start
+                </a>
             </div>
         </div>
     </div>
+</div>
 
-    <script>
-        function startAnnotating() {
-            window.location.href = "{{ url_for('login_page') }}";
+<script>
+async function loadExamplePair() {
+    try {
+        const res = await fetch('/api/pair/preview');
+        const data = await res.json();
+        if (data.pair) {
+            document.getElementById('articleTitle').textContent = data.pair.article_title || 'Wikipedia Article';
+            document.getElementById('passageText').innerHTML = data.pair.passage_text;
+            document.getElementById('citationText').innerHTML = data.pair.citation_raw_text;
+            const citation = data.pair.citation_title || 'Citation';
+            document.getElementById('citationMeta').textContent = citation;
         }
+    } catch (err) {
+        console.error('Error loading example:', err);
+    }
+}
 
-        async function loadPreviewSample() {
-            document.getElementById("previewContainer").classList.add("hidden");
-            document.getElementById("loading").classList.remove("hidden");
-
-            try {
-                const response = await fetch("/api/pair/preview");
-                const data = await response.json();
-
-                if (!response.ok || data.status !== "ok") {
-                    document.getElementById("loading").innerHTML = '<p class="text-red-600">No samples available yet. Please check back later.</p>';
-                    return;
-                }
-
-                const pair = data.pair;
-                document.getElementById("passageText").textContent = pair.passage_text;
-                document.getElementById("articleTitle").textContent = pair.article_title;
-                document.getElementById("citationText").textContent = pair.citation_raw_text ? pair.citation_raw_text.substring(0, 1000) : "No text available";
-                document.getElementById("citationSource").textContent = pair.citation_title || pair.citation_journal || "Citation";
-
-                // Clear any previous selection
-                document.querySelectorAll("input[name='preview_label']").forEach(r => r.checked = false);
-
-                document.getElementById("loading").classList.add("hidden");
-                document.getElementById("previewContainer").classList.remove("hidden");
-            } catch (error) {
-                document.getElementById("loading").innerHTML = '<p class="text-red-600">Error loading sample: ' + error.message + '</p>';
-            }
-        }
-
-        // Load sample on page load
-        window.addEventListener("load", loadPreviewSample);
-    </script>
-</body>
-</html>
+window.addEventListener('load', loadExamplePair);
+</script>
+{% endblock %}

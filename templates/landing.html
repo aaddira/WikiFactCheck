@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WikiFactCheck - Citation Support Labeling</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-50">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm">
+        <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <img src="{{ url_for('static', filename='images/wikipedia_logo.svg') }}" alt="Wikipedia" class="w-8 h-8">
+                <h1 class="text-2xl font-bold text-gray-900">WikiFactCheck</h1>
+            </div>
+            <button onclick="startAnnotating()" class="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition">
+                Start Annotating
+            </button>
+        </div>
+    </nav>
+
+    <div class="max-w-6xl mx-auto px-4 py-12">
+        <!-- Hero section -->
+        <div class="bg-white rounded-lg shadow-md p-8 mb-12">
+            <h2 class="text-4xl font-bold text-gray-900 mb-4">Help Verify Wikipedia Citations</h2>
+            <p class="text-lg text-gray-600 mb-6">
+                We're building a dataset to measure whether Wikipedia citations actually support the claims they're cited for.
+                Your careful review helps improve the reliability of online information.
+            </p>
+            <div class="flex gap-4 mb-6">
+                <div class="flex-1">
+                    <div class="text-3xl font-bold text-blue-600 mb-2">150+</div>
+                    <div class="text-gray-600">Citations to review</div>
+                </div>
+                <div class="flex-1">
+                    <div class="text-3xl font-bold text-blue-600 mb-2">5 min</div>
+                    <div class="text-gray-600">Average per review</div>
+                </div>
+                <div class="flex-1">
+                    <div class="text-3xl font-bold text-blue-600 mb-2">$3-5</div>
+                    <div class="text-gray-600">Per review (if qualified)</div>
+                </div>
+            </div>
+            <button onclick="startAnnotating()" class="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition text-lg">
+                Get Started
+            </button>
+        </div>
+
+        <!-- Preview section -->
+        <div class="bg-white rounded-lg shadow-md p-8">
+            <h3 class="text-2xl font-bold text-gray-900 mb-6">See It In Action</h3>
+            <p class="text-gray-600 mb-6">Try labeling a sample citation-passage pair below. You can't submit your answer yet, but this gives you a preview of the task.</p>
+
+            <!-- Loading state -->
+            <div id="loading" class="text-center py-8">
+                <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <p class="text-gray-600 mt-4">Loading sample...</p>
+            </div>
+
+            <!-- Preview card (hidden initially) -->
+            <div id="previewContainer" class="hidden">
+                <div class="grid grid-cols-2 gap-6 mb-8">
+                    <!-- Passage -->
+                    <div>
+                        <h4 class="font-semibold text-sm mb-2 text-gray-700">Passage from Wikipedia</h4>
+                        <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded text-sm">
+                            <p id="passageText" class="text-gray-900"></p>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-2">
+                            Article: <span id="articleTitle" class="font-semibold"></span>
+                        </p>
+                    </div>
+
+                    <!-- Citation -->
+                    <div>
+                        <h4 class="font-semibold text-sm mb-2 text-gray-700">Citation Text</h4>
+                        <div class="bg-green-50 border-l-4 border-green-500 p-4 rounded text-sm max-h-48 overflow-y-auto">
+                            <p id="citationText" class="text-gray-900 text-xs leading-relaxed"></p>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-2" id="citationSource"></p>
+                    </div>
+                </div>
+
+                <!-- Label selection -->
+                <div class="mb-8 bg-gray-50 p-6 rounded-lg">
+                    <label class="block font-semibold text-sm mb-4 text-gray-700">Does the citation support this passage?</label>
+                    <div class="space-y-3">
+                        <div>
+                            <input type="radio" id="label-true" name="preview_label" value="TRUE" disabled>
+                            <label for="label-true" class="ml-2 text-gray-900">True - Citation clearly supports the passage</label>
+                        </div>
+                        <div>
+                            <input type="radio" id="label-false" name="preview_label" value="FALSE" disabled>
+                            <label for="label-false" class="ml-2 text-gray-900">False - Citation contradicts the passage</label>
+                        </div>
+                        <div>
+                            <input type="radio" id="label-mixed" name="preview_label" value="MIXED" disabled>
+                            <label for="label-mixed" class="ml-2 text-gray-900">Mixed - Some parts supported, others not</label>
+                        </div>
+                        <div>
+                            <input type="radio" id="label-insufficient" name="preview_label" value="NO_SUFFICIENT_INFO" disabled>
+                            <label for="label-insufficient" class="ml-2 text-gray-900">No Sufficient Information - Cannot determine</label>
+                        </div>
+                        <div>
+                            <input type="radio" id="label-unverifiable" name="preview_label" value="UNVERIFIABLE" disabled>
+                            <label for="label-unverifiable" class="ml-2 text-gray-900">Unverifiable - No factual claims to verify</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quote & Explanation (disabled) -->
+                <div class="mb-8 space-y-4 bg-gray-50 p-6 rounded-lg">
+                    <div>
+                        <label class="block font-semibold text-sm mb-2 text-gray-700">Quote from citation (optional)</label>
+                        <textarea
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-500 cursor-not-allowed"
+                            rows="2"
+                            placeholder="This field is disabled in preview mode"
+                            disabled>
+                        </textarea>
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm mb-2 text-gray-700">Brief explanation (optional)</label>
+                        <textarea
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-500 cursor-not-allowed"
+                            rows="3"
+                            placeholder="This field is disabled in preview mode"
+                            disabled>
+                        </textarea>
+                    </div>
+                </div>
+
+                <!-- Action buttons -->
+                <div class="flex gap-4">
+                    <button onclick="startAnnotating()" class="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition">
+                        Log In to Submit
+                    </button>
+                    <button onclick="loadPreviewSample()" class="flex-1 bg-gray-300 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-400 transition">
+                        Load Another Sample
+                    </button>
+                </div>
+
+                <!-- Info box -->
+                <div class="mt-8 bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
+                    <p class="text-sm text-blue-900">
+                        <strong>To submit your answers:</strong> Log in with your email. You'll take a brief qualification test to demonstrate your understanding.
+                        If approved by our research team, you'll start earning $3-5 per verified review.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function startAnnotating() {
+            window.location.href = "{{ url_for('login_page') }}";
+        }
+
+        async function loadPreviewSample() {
+            document.getElementById("previewContainer").classList.add("hidden");
+            document.getElementById("loading").classList.remove("hidden");
+
+            try {
+                const response = await fetch("/api/pair/preview");
+                const data = await response.json();
+
+                if (!response.ok || data.status !== "ok") {
+                    document.getElementById("loading").innerHTML = '<p class="text-red-600">No samples available yet. Please check back later.</p>';
+                    return;
+                }
+
+                const pair = data.pair;
+                document.getElementById("passageText").textContent = pair.passage_text;
+                document.getElementById("articleTitle").textContent = pair.article_title;
+                document.getElementById("citationText").textContent = pair.citation_raw_text ? pair.citation_raw_text.substring(0, 1000) : "No text available";
+                document.getElementById("citationSource").textContent = pair.citation_title || pair.citation_journal || "Citation";
+
+                // Clear any previous selection
+                document.querySelectorAll("input[name='preview_label']").forEach(r => r.checked = false);
+
+                document.getElementById("loading").classList.add("hidden");
+                document.getElementById("previewContainer").classList.remove("hidden");
+            } catch (error) {
+                document.getElementById("loading").innerHTML = '<p class="text-red-600">Error loading sample: ' + error.message + '</p>';
+            }
+        }
+
+        // Load sample on page load
+        window.addEventListener("load", loadPreviewSample);
+    </script>
+</body>
+</html>

@@ -1,18 +1,24 @@
 from flask import Blueprint, jsonify, request
-from models import db, User, Pair, Annotation, Config
+from models import db, User, Pair, Annotation, Config, TestSubmission, Skip
 from auth import login_required, get_current_user, admin_required
 from assignment import get_next_pair, release_claim, get_annotators_per_sample
 from datetime import datetime
+import uuid
 
 annotate_bp = Blueprint("annotate", __name__, url_prefix="/api")
 
 
 @annotate_bp.route("/pair/preview", methods=["GET"])
-@admin_required
 def api_pair_preview():
-    """Get a sample pair for admin preview (no authentication required for preview mode)."""
-    # Return the first non-test pair from the database for preview
-    pair = Pair.query.filter_by(is_test_sample=False).first()
+    """Get a random non-test pair for landing page preview (public access)."""
+    # Return a random non-test pair from the database for preview
+    import random
+    total = Pair.query.filter_by(is_test_sample=False).count()
+    if total == 0:
+        pair = None
+    else:
+        offset = random.randint(0, max(0, total - 1))
+        pair = Pair.query.filter_by(is_test_sample=False).offset(offset).first()
 
     if not pair:
         return jsonify({
@@ -94,8 +100,8 @@ def api_pair_next():
     """Get the next pair to annotate using smart assignment."""
     user = get_current_user()
 
-    if not user.qualification_passed:
-        return jsonify({"error": "Must pass qualification test first"}), 403
+    if not user.test_approved_by_admin:
+        return jsonify({"error": "Must be approved by admin to annotate"}), 403
 
     result = get_next_pair(user.id)
     status = result["status"]
@@ -273,50 +279,160 @@ def api_progress():
     })
 
 
+@annotate_bp.route("/test/save-progress", methods=["POST"])
+@login_required
+def api_test_save_progress():
+    """Save test answers without submitting (resumes later)."""
+    user = get_current_user()
+    data = request.get_json() or {}
+    answers = data.get("answers", {})  # {pair_id_str: {label, quote, explanation}, ...}
+
+    if not answers:
+        return jsonify({"error": "No answers provided"}), 400
+
+    # Use or create a batch ID for this test attempt
+    batch_id = request.headers.get("X-Test-Batch-ID") or str(uuid.uuid4())
+
+    try:
+        for pair_id_str, answer_data in answers.items():
+            pair_id = int(pair_id_str)
+            pair = Pair.query.get(pair_id)
+            if not pair or not pair.is_test_sample:
+                continue
+
+            label = answer_data.get("label")
+            quote = answer_data.get("quote", "").strip()
+            explanation = answer_data.get("explanation", "").strip()
+
+            # Check if already exists
+            existing = TestSubmission.query.filter_by(
+                user_id=user.id,
+                pair_id=pair_id,
+                submission_batch_id=batch_id
+            ).first()
+
+            if existing:
+                existing.label = label
+                existing.quote = quote
+                existing.explanation = explanation
+                existing.updated_at = datetime.utcnow()
+            else:
+                submission = TestSubmission(
+                    user_id=user.id,
+                    pair_id=pair_id,
+                    label=label,
+                    quote=quote,
+                    explanation=explanation,
+                    submission_batch_id=batch_id,
+                    is_submitted=False,
+                )
+                db.session.add(submission)
+
+        db.session.commit()
+        return jsonify({
+            "status": "saved",
+            "batch_id": batch_id,
+            "answers_saved": len(answers)
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+
 @annotate_bp.route("/test/submit", methods=["POST"])
 @login_required
 def api_test_submit():
-    """Submit qualification test answers and compute score."""
+    """Submit qualification test answers for admin review."""
     user = get_current_user()
     data = request.get_json() or {}
-    answers = data.get("answers", {})  # {pair_id: label, ...}
+    answers = data.get("answers", {})  # {pair_id_str: {label, quote, explanation}, ...}
 
-    # Get test pairs
+    if not answers:
+        return jsonify({"error": "No answers provided"}), 400
+
+    # Create a batch ID for this submission
+    batch_id = str(uuid.uuid4())
+
+    # Get test pairs for scoring
     test_pairs = Pair.query.filter_by(is_test_sample=True).all()
-    test_pair_ids = {str(p.id): p for p in test_pairs}
+    test_pair_ids = {p.id: p for p in test_pairs}
 
-    # Compute score
     correct = 0
     total = len(test_pairs)
 
-    for pair_id_str, given_label in answers.items():
-        try:
+    try:
+        for pair_id_str, answer_data in answers.items():
             pair_id = int(pair_id_str)
-            pair = test_pair_ids.get(str(pair_id))
-            if pair and pair.correct_label == given_label:
+            pair = test_pair_ids.get(pair_id)
+            if not pair:
+                continue
+
+            label = answer_data.get("label")
+            quote = answer_data.get("quote", "").strip()
+            explanation = answer_data.get("explanation", "").strip()
+
+            # Check if they got it correct
+            if pair.correct_label == label:
                 correct += 1
-        except (ValueError, KeyError):
-            pass
 
-    # Get threshold
-    threshold = Config.get("QUALIFICATION_THRESHOLD", 80)
-    if isinstance(threshold, str):
-        threshold = int(threshold)
+            # Save to TestSubmission
+            existing = TestSubmission.query.filter_by(
+                user_id=user.id,
+                pair_id=pair_id,
+                submission_batch_id=batch_id
+            ).first()
 
-    score_pct = (correct / total * 100) if total > 0 else 0
-    passed = score_pct >= threshold
+            if existing:
+                existing.label = label
+                existing.quote = quote
+                existing.explanation = explanation
+                existing.is_submitted = True
+            else:
+                submission = TestSubmission(
+                    user_id=user.id,
+                    pair_id=pair_id,
+                    label=label,
+                    quote=quote,
+                    explanation=explanation,
+                    submission_batch_id=batch_id,
+                    is_submitted=True,
+                )
+                db.session.add(submission)
 
-    # Save to user
-    user.qualification_score = correct
-    user.qualification_passed = passed
-    user.qualification_date = datetime.utcnow()
+        # Mark user test as submitted (but NOT qualified yet - waiting for admin)
+        user.test_submitted = True
+        user.test_submission_date = datetime.utcnow()
+        user.qualification_score = correct  # Store score for display
 
-    db.session.commit()
+        db.session.commit()
 
-    return jsonify({
-        "score": correct,
-        "total": total,
-        "score_pct": round(score_pct, 1),
-        "threshold_pct": threshold,
-        "passed": passed,
-    })
+        return jsonify({
+            "status": "submitted",
+            "score": correct,
+            "total": total,
+            "message": "Your test has been submitted for review. The research team will notify you within 1-2 business days."
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+
+@annotate_bp.route("/test/retake", methods=["POST"])
+@login_required
+def api_test_retake():
+    """Reset test submission to allow retaking."""
+    user = get_current_user()
+
+    try:
+        # Delete all test submissions for this user
+        TestSubmission.query.filter_by(user_id=user.id).delete()
+
+        # Reset test submitted flag (but keep scores for history)
+        user.test_submitted = False
+        user.test_submission_date = None
+
+        db.session.commit()
+        return jsonify({"status": "reset"})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500

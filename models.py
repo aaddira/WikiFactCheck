@@ -18,6 +18,12 @@ class User(db.Model):
     qualification_score = db.Column(db.Integer)  # # correct out of total test samples
     qualification_date = db.Column(db.DateTime)
 
+    # Test submission workflow (new)
+    test_submitted = db.Column(db.Boolean, default=False)  # has user submitted test (pending admin review)
+    test_submission_date = db.Column(db.DateTime)  # when test was submitted
+    test_approved_by_admin = db.Column(db.Boolean, default=False)  # admin approved this user
+    test_approval_date = db.Column(db.DateTime)  # when admin approved
+
     # Per-user annotation cap
     max_annotations_cap = db.Column(db.Integer)  # NULL = no cap
     annotations_count = db.Column(db.Integer, default=0)
@@ -140,6 +146,28 @@ class Skip(db.Model):
 
     # Constraint: unique (pair_id, user_id) — one skip per user per pair
     __table_args__ = (db.UniqueConstraint("pair_id", "user_id", name="uq_skip_pair_user"),)
+
+
+class TestSubmission(db.Model):
+    __tablename__ = "test_submissions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    pair_id = db.Column(db.Integer, db.ForeignKey("pairs.id"), nullable=False)
+    label = db.Column(db.String(50))  # their answer (TRUE, FALSE, MIXED, etc.)
+    quote = db.Column(db.Text)  # exact verbatim from citation
+    explanation = db.Column(db.Text)  # annotator's reasoning
+    is_submitted = db.Column(db.Boolean, default=False)  # True = part of a finalized submission
+    submission_batch_id = db.Column(db.String(255))  # groups answers from same test attempt
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Constraint: only one answer per user per pair per attempt
+    __table_args__ = (db.UniqueConstraint("user_id", "pair_id", "submission_batch_id", name="uq_test_submission"),)
+
+    # Relationships
+    user = db.relationship("User", backref="test_submissions", lazy=True)
+    pair = db.relationship("Pair", foreign_keys=[pair_id], backref="test_submissions", lazy=True)
 
 
 class Config(db.Model):

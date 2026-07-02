@@ -1,0 +1,323 @@
+{% extends "base.html" %}
+
+{% block title %}Qualification Test - WikiFactCheck{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-6">
+    <!-- Instructions card -->
+    <div class="bg-blue-50 border-l-4 border-blue-500 p-6 mb-6 rounded">
+        <h2 class="text-xl font-bold text-blue-900 mb-3">Next Step: Submit Your Qualification Test</h2>
+        <div class="text-blue-900 space-y-2 text-sm">
+            <p>
+                <strong>How it works:</strong> We'll show you 5 citation-passage pairs to label.
+                The research team will manually review your answers to make sure you understand the task correctly.
+            </p>
+            <p>
+                <strong>Timeline:</strong> Expect a decision within 1-2 business days.
+            </p>
+            <p>
+                <strong>Payment:</strong> If you pass, you'll be accepted to the platform and earn <strong>$3-5 per annotation</strong> as agreed.
+            </p>
+            <p class="text-xs text-blue-800 mt-3 bg-blue-100 p-2 rounded">
+                💡 Tip: You can save your progress and come back later. Use "Save Progress" to store your answers without submitting.
+            </p>
+        </div>
+    </div>
+
+    <!-- Status badge -->
+    <div id="statusBadge" class="mb-6 hidden">
+        <div class="inline-block px-4 py-2 rounded-full text-sm font-semibold" id="statusContent"></div>
+    </div>
+
+    <div id="status-container"></div>
+
+    {% if not test_pairs %}
+    <div class="bg-yellow-50 border-l-4 border-yellow-400 p-6 max-w-4xl mx-auto">
+        <h3 class="text-lg font-semibold text-yellow-800 mb-2">⚠️ No Test Samples Set Up Yet</h3>
+        <p class="text-yellow-700">
+            The admin hasn't created a qualification test yet. Please check back later.
+        </p>
+    </div>
+    {% else %}
+    <form id="testForm" class="space-y-8">
+        {% for pair in test_pairs %}
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold">Question {{ loop.index }} of {{ test_pairs|length }}</h3>
+                <span class="text-sm text-gray-500">ID: {{ pair.pair_id }}</span>
+            </div>
+
+            <!-- Pair content -->
+            <div class="grid grid-cols-2 gap-6 mb-6">
+                <!-- Passage -->
+                <div>
+                    <h4 class="font-semibold text-sm mb-2 text-gray-700">Passage</h4>
+                    <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded text-sm">
+                        {{ pair.passage_text }}
+                    </div>
+                </div>
+
+                <!-- Citation snippet -->
+                <div>
+                    <h4 class="font-semibold text-sm mb-2 text-gray-700">Citation</h4>
+                    <div class="bg-green-50 border-l-4 border-green-500 p-4 rounded text-sm max-h-40 overflow-y-auto">
+                        {{ pair.citation_raw_text[:500] if pair.citation_raw_text else "No text" }}...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Label selection -->
+            <div class="mb-6">
+                <label class="block font-semibold text-sm mb-3 text-gray-700">Your Answer</label>
+                <div class="space-y-2">
+                    <div>
+                        <input type="radio" id="q{{ pair.id }}-true" name="answer_{{ pair.id }}" value="TRUE">
+                        <label for="q{{ pair.id }}-true" class="ml-2">True - Citation clearly supports the passage</label>
+                    </div>
+                    <div>
+                        <input type="radio" id="q{{ pair.id }}-false" name="answer_{{ pair.id }}" value="FALSE">
+                        <label for="q{{ pair.id }}-false" class="ml-2">False - Citation contradicts the passage</label>
+                    </div>
+                    <div>
+                        <input type="radio" id="q{{ pair.id }}-mixed" name="answer_{{ pair.id }}" value="MIXED">
+                        <label for="q{{ pair.id }}-mixed" class="ml-2">Mixed - Some parts supported, others not</label>
+                    </div>
+                    <div>
+                        <input type="radio" id="q{{ pair.id }}-insufficient" name="answer_{{ pair.id }}" value="NO_SUFFICIENT_INFO">
+                        <label for="q{{ pair.id }}-insufficient" class="ml-2">No Sufficient Information - Cannot determine</label>
+                    </div>
+                    <div>
+                        <input type="radio" id="q{{ pair.id }}-unverifiable" name="answer_{{ pair.id }}" value="UNVERIFIABLE">
+                        <label for="q{{ pair.id }}-unverifiable" class="ml-2">Unverifiable - No factual claims to verify</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quote & Explanation -->
+            <div class="space-y-4">
+                <div>
+                    <label class="block font-semibold text-sm mb-2 text-gray-700">Quote from citation (optional)</label>
+                    <textarea
+                        id="quote_{{ pair.id }}"
+                        name="quote_{{ pair.id }}"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        rows="2"
+                        placeholder="Exact text from the citation that supports or contradicts the passage">
+                    </textarea>
+                </div>
+                <div>
+                    <label class="block font-semibold text-sm mb-2 text-gray-700">Brief explanation (optional)</label>
+                    <textarea
+                        id="explanation_{{ pair.id }}"
+                        name="explanation_{{ pair.id }}"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        rows="3"
+                        placeholder="Why you chose this label (e.g., 'The citation states X, which supports/contradicts the passage because Y')">
+                    </textarea>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+
+        <!-- Action buttons -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex gap-4">
+                <button
+                    type="button"
+                    onclick="saveProgress()"
+                    class="flex-1 bg-gray-300 text-gray-900 py-3 rounded-lg font-semibold hover:bg-gray-400 transition"
+                >
+                    💾 Save Progress
+                </button>
+                <button
+                    type="button"
+                    onclick="confirmSubmit()"
+                    class="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
+                >
+                    ✓ Submit Test
+                </button>
+            </div>
+            <p class="text-xs text-gray-600 mt-4 text-center">
+                Your answers will be manually reviewed by our research team.
+            </p>
+        </div>
+    </form>
+    {% endif %}
+
+    <!-- Results (shown after submission) -->
+    <div id="resultsContainer" class="hidden">
+        <div class="bg-white rounded-lg shadow p-8">
+            <h2 class="text-2xl font-bold mb-4">✓ Test Submitted</h2>
+
+            <div class="bg-green-50 border-l-4 border-green-500 p-6 rounded-lg mb-6">
+                <div class="text-lg font-semibold text-green-900 mb-2">Your test has been submitted</div>
+                <div class="text-green-900 space-y-2 text-sm">
+                    <p>
+                        Thank you! Our research team will now review your answers to verify that you understand the task.
+                    </p>
+                    <p>
+                        <strong>Next steps:</strong>
+                    </p>
+                    <ul class="list-disc list-inside ml-2 space-y-1">
+                        <li>We'll email you within 1-2 business days with a decision</li>
+                        <li>If approved: You'll be able to start annotating and earning $3-5 per review</li>
+                        <li>If not approved: You can retake the test (we'll provide feedback)</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div id="resultActions" class="flex gap-4">
+                <button
+                    onclick="location.href='/'"
+                    class="flex-1 bg-gray-300 text-gray-900 py-2 rounded-lg font-semibold hover:bg-gray-400 transition"
+                >
+                    Return Home
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation modal -->
+<div id="confirmModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-lg p-8 max-w-md">
+        <h3 class="text-xl font-bold text-gray-900 mb-4">Submit Your Test?</h3>
+        <p class="text-gray-600 mb-6">
+            Once you submit, your answers will be sent to our research team for review. <strong>You can retake the test later if needed, but your previous submission will be replaced.</strong>
+        </p>
+        <div class="flex gap-4">
+            <button
+                onclick="closeModal()"
+                class="flex-1 bg-gray-300 text-gray-900 py-2 rounded-lg font-semibold hover:bg-gray-400 transition"
+            >
+                Cancel
+            </button>
+            <button
+                onclick="submitTest()"
+                class="flex-1 bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition"
+            >
+                Confirm & Submit
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    async function saveProgress() {
+        const form = document.getElementById("testForm");
+        const answers = {};
+
+        // Collect all answers
+        const pairs = document.querySelectorAll("input[type='radio']");
+        pairs.forEach((input) => {
+            if (input.checked) {
+                const answerName = input.name;
+                const pairId = answerName.replace("answer_", "");
+                answers[pairId] = {
+                    label: input.value,
+                    quote: document.getElementById(`quote_${pairId}`)?.value || "",
+                    explanation: document.getElementById(`explanation_${pairId}`)?.value || "",
+                };
+            }
+        });
+
+        try {
+            const response = await fetch("/api/test/save-progress", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ answers }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                showStatus("error", "Error saving progress: " + (data.error || "Unknown error"));
+                return;
+            }
+
+            showStatus("success", `✓ Progress saved (${Object.keys(answers).length} answers)`);
+        } catch (error) {
+            showStatus("error", `Error: ${error.message}`);
+        }
+    }
+
+    function confirmSubmit() {
+        document.getElementById("confirmModal").classList.remove("hidden");
+    }
+
+    function closeModal() {
+        document.getElementById("confirmModal").classList.add("hidden");
+    }
+
+    async function submitTest() {
+        closeModal();
+        const form = document.getElementById("testForm");
+        const answers = {};
+
+        // Collect all answers
+        const pairs = document.querySelectorAll("input[type='radio']");
+        pairs.forEach((input) => {
+            if (input.checked) {
+                const answerName = input.name;
+                const pairId = answerName.replace("answer_", "");
+                answers[pairId] = {
+                    label: input.value,
+                    quote: document.getElementById(`quote_${pairId}`)?.value || "",
+                    explanation: document.getElementById(`explanation_${pairId}`)?.value || "",
+                };
+            }
+        });
+
+        if (Object.keys(answers).length === 0) {
+            showStatus("error", "Please answer all questions before submitting");
+            return;
+        }
+
+        try {
+            const response = await fetch("/api/test/submit", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ answers }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                showStatus("error", "Error submitting test: " + (data.error || "Unknown error"));
+                return;
+            }
+
+            // Show results
+            showResults(data);
+        } catch (error) {
+            showStatus("error", `Error: ${error.message}`);
+        }
+    }
+
+    function showResults(data) {
+        document.getElementById("testForm").classList.add("hidden");
+        document.getElementById("resultsContainer").classList.remove("hidden");
+    }
+
+    function showStatus(type, message) {
+        const container = document.getElementById("status-container");
+        const classes = {
+            success: "bg-green-100 border border-green-500 text-green-700",
+            error: "bg-red-100 border border-red-500 text-red-700",
+            info: "bg-blue-100 border border-blue-500 text-blue-700",
+        };
+        const className = classes[type] || "status-info";
+
+        const el = document.createElement("div");
+        el.className = `p-4 rounded mb-4 ${className}`;
+        el.textContent = message;
+        container.innerHTML = "";
+        container.appendChild(el);
+    }
+
+    // Close modal when clicking outside
+    document.getElementById("confirmModal").addEventListener("click", function(e) {
+        if (e.target === this) closeModal();
+    });
+</script>
+{% endblock %}

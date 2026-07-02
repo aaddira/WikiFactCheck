@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+
+{% block title %}Test Results - WikiFactCheck{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-6">
+    <!-- Status card -->
+    <div class="bg-white rounded-lg shadow-md p-8 mb-6">
+        <h1 class="text-3xl font-bold mb-4">Test Submission Status</h1>
+
+        {% if user.test_approved_by_admin %}
+        <div class="bg-green-50 border-l-4 border-green-500 p-6 rounded-lg mb-6">
+            <div class="text-lg font-semibold text-green-900 mb-2">✓ You've Been Approved!</div>
+            <div class="text-green-900 space-y-2">
+                <p>
+                    Congratulations! Our research team has approved your test submission. You're now eligible to start annotating and earning $3-5 per review.
+                </p>
+                <p class="font-semibold">
+                    Your test score: <span class="text-2xl">{{ user.qualification_score }}/5</span>
+                </p>
+                <p class="text-sm">
+                    Approved on: {{ user.test_approval_date.strftime('%B %d, %Y') if user.test_approval_date else 'Recently' }}
+                </p>
+            </div>
+        </div>
+
+        <div class="flex gap-4">
+            <a href="{{ url_for('annotate_page') }}" class="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition text-center">
+                Start Annotating →
+            </a>
+        </div>
+
+        {% else %}
+        <div class="bg-yellow-50 border-l-4 border-yellow-500 p-6 rounded-lg mb-6">
+            <div class="text-lg font-semibold text-yellow-900 mb-2">⏳ Pending Review</div>
+            <div class="text-yellow-900 space-y-2">
+                <p>
+                    Thank you for submitting your test! Our research team is manually reviewing your answers.
+                </p>
+                <p>
+                    <strong>Expected timeline:</strong> 1-2 business days
+                </p>
+                <p class="text-sm">
+                    Submitted on: {{ user.test_submission_date.strftime('%B %d, %Y at %I:%M %p') if user.test_submission_date else 'Recently' }}
+                </p>
+                <p class="text-xs text-yellow-800 mt-3 bg-yellow-100 p-2 rounded">
+                    We'll email you as soon as we've made a decision. Make sure to check your spam folder!
+                </p>
+            </div>
+        </div>
+
+        {% endif %}
+    </div>
+
+    <!-- Test details -->
+    <div class="bg-white rounded-lg shadow-md p-8">
+        <h2 class="text-2xl font-bold mb-4">Test Details</h2>
+
+        <div class="space-y-4 mb-6">
+            <div class="border-b pb-4">
+                <label class="block text-sm font-semibold text-gray-700 mb-1">Submission Status</label>
+                <div class="text-gray-900">
+                    {% if user.test_submitted %}
+                        <span class="inline-block bg-blue-100 text-blue-900 px-3 py-1 rounded-full text-sm font-semibold">
+                            ✓ Submitted
+                        </span>
+                    {% else %}
+                        <span class="inline-block bg-yellow-100 text-yellow-900 px-3 py-1 rounded-full text-sm font-semibold">
+                            Pending Submission
+                        </span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="border-b pb-4">
+                <label class="block text-sm font-semibold text-gray-700 mb-1">Approval Status</label>
+                <div class="text-gray-900">
+                    {% if user.test_approved_by_admin %}
+                        <span class="inline-block bg-green-100 text-green-900 px-3 py-1 rounded-full text-sm font-semibold">
+                            ✓ Approved by Admin
+                        </span>
+                    {% else %}
+                        <span class="inline-block bg-gray-100 text-gray-900 px-3 py-1 rounded-full text-sm font-semibold">
+                            Awaiting Review
+                        </span>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if user.qualification_score %}
+            <div class="border-b pb-4">
+                <label class="block text-sm font-semibold text-gray-700 mb-1">Your Score</label>
+                <div class="text-gray-900 text-lg">
+                    {{ user.qualification_score }} / 5 correct
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="pb-4">
+                <label class="block text-sm font-semibold text-gray-700 mb-1">Important Note</label>
+                <p class="text-gray-900 text-sm">
+                    In addition to your score, our research team will manually review the explanations you provided to ensure you understand the task correctly. This is why approval may take 1-2 business days.
+                </p>
+            </div>
+        </div>
+
+        <!-- Action buttons -->
+        <div class="flex gap-4">
+            <button
+                onclick="goHome()"
+                class="flex-1 bg-gray-300 text-gray-900 py-2 rounded-lg font-semibold hover:bg-gray-400 transition"
+            >
+                Return Home
+            </button>
+            {% if not user.test_approved_by_admin %}
+            <button
+                onclick="confirmRetake()"
+                class="flex-1 bg-red-600 text-white py-2 rounded-lg font-semibold hover:bg-red-700 transition"
+            >
+                Retake Test
+            </button>
+            {% endif %}
+        </div>
+
+        {% if not user.test_approved_by_admin %}
+        <p class="text-xs text-gray-600 mt-4 text-center">
+            ⚠️ If you retake the test, your previous submission will be replaced.
+        </p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Retake confirmation modal -->
+<div id="retakeModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-lg p-8 max-w-md">
+        <h3 class="text-xl font-bold text-gray-900 mb-4">Retake the Test?</h3>
+        <p class="text-gray-600 mb-6">
+            <strong>⚠️ Warning:</strong> If you retake the test, your current submission will be replaced and the research team will review your new submission instead. This will extend your approval timeline.
+        </p>
+        <div class="flex gap-4">
+            <button
+                onclick="closeModal()"
+                class="flex-1 bg-gray-300 text-gray-900 py-2 rounded-lg font-semibold hover:bg-gray-400 transition"
+            >
+                Cancel
+            </button>
+            <button
+                onclick="retakeTest()"
+                class="flex-1 bg-red-600 text-white py-2 rounded-lg font-semibold hover:bg-red-700 transition"
+            >
+                Yes, Retake
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function confirmRetake() {
+        document.getElementById("retakeModal").classList.remove("hidden");
+    }
+
+    function closeModal() {
+        document.getElementById("retakeModal").classList.add("hidden");
+    }
+
+    function retakeTest() {
+        closeModal();
+        // Reset test submission state and redirect to test page
+        fetch("/api/test/retake", { method: "POST" })
+            .then(() => {
+                window.location.href = "{{ url_for('test_post_login_page') }}";
+            })
+            .catch(err => alert("Error: " + err.message));
+    }
+
+    function goHome() {
+        window.location.href = "/";
+    }
+
+    // Close modal when clicking outside
+    document.getElementById("retakeModal").addEventListener("click", function(e) {
+        if (e.target === this) closeModal();
+    });
+</script>
+{% endblock %}

@@ -5,7 +5,7 @@ from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
 from datetime import datetime
 
-from models import db, User, Dataset, Pair, Annotation, Claim, Skip, Config
+from models import db, User, Dataset, Pair, Annotation, Claim, Skip, Config, TestSubmission
 from auth import do_login, do_logout, login_required, admin_required, get_current_user
 from data_loader import parse_jsonl_file, seed_default_config
 
@@ -72,16 +72,20 @@ def import_jsonl():
 
 @app.route("/")
 def index():
-    """Home page — redirect based on login state."""
+    """Home page — landing page if not logged in, otherwise redirect based on status."""
     user = get_current_user()
     if not user:
-        return redirect(url_for("login_page"))
+        return render_template("landing.html")
     # Check if session has admin token auth (from /admin/login)
     if session.get("admin_authenticated"):
         return redirect(url_for("admin_page"))
-    # Annotators must pass qualification test first
-    if not user.qualification_passed:
-        return redirect(url_for("test_page"))
+    # If test not submitted yet, go to test post-login page
+    if not user.test_submitted:
+        return redirect(url_for("test_post_login_page"))
+    # If test submitted but not approved yet, show test results
+    if not user.test_approved_by_admin:
+        return redirect(url_for("test_results_page"))
+    # If approved, go to annotation page
     return redirect(url_for("annotate_page"))
 
 
@@ -94,12 +98,41 @@ def login_page():
         if email:
             do_login(email, wiki_username=wiki_username)
             user = get_current_user()
-            # All users from this route go through qualification (no email-based admin bypass)
-            if user.qualification_passed:
-                return redirect(url_for("annotate_page"))
+            # Route to test post-login page or annotation based on status
+            if not user.test_submitted:
+                return redirect(url_for("test_post_login_page"))
+            elif not user.test_approved_by_admin:
+                return redirect(url_for("test_results_page"))
             else:
-                return redirect(url_for("test_page"))
+                return redirect(url_for("annotate_page"))
     return render_template("login.html")
+
+
+@app.route("/test/post-login")
+@login_required
+def test_post_login_page():
+    """Qualification test page (after login, before test submission)."""
+    user = get_current_user()
+    # If already approved, go to annotation
+    if user.test_approved_by_admin:
+        return redirect(url_for("annotate_page"))
+    # Get test samples
+    test_pairs = Pair.query.filter_by(is_test_sample=True).all()
+    return render_template("test_post_login.html", test_pairs=test_pairs)
+
+
+@app.route("/test/results")
+@login_required
+def test_results_page():
+    """Show test results (after submission, waiting for admin review)."""
+    user = get_current_user()
+    # If approved, go to annotation
+    if user.test_approved_by_admin:
+        return redirect(url_for("annotate_page"))
+    # If never submitted, go back to test
+    if not user.test_submitted:
+        return redirect(url_for("test_post_login_page"))
+    return render_template("test_results.html", user=user)
 
 
 @app.route("/admin/login", methods=["GET", "POST"])

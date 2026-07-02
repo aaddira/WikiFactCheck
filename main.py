@@ -155,9 +155,17 @@ def admin_login_page():
         admin_token = os.getenv("ADMIN_SECRET_TOKEN", "")
 
         if token and admin_token and token == admin_token:
-            # Mark session as authenticated admin (without needing email)
+            # Create/get system admin user for tracking dataset uploads
+            admin_user = User.query.filter_by(email="admin@system.internal").first()
+            if not admin_user:
+                admin_user = User(email="admin@system.internal", is_admin=True)
+                db.session.add(admin_user)
+                db.session.commit()
+
+            # Set session
             session["admin_authenticated"] = True
             session["is_admin"] = True
+            session["user_id"] = admin_user.id  # Required for get_current_user()
             return redirect(url_for("admin_page"))
         else:
             return render_template("admin_login.html", error="Invalid token")

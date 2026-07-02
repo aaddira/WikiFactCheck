@@ -1,4 +1,4 @@
-from flask import session, request, jsonify, redirect, url_for
+from flask import session, request, jsonify, redirect, url_for, g
 from functools import wraps
 from datetime import datetime
 from models import db, User
@@ -17,37 +17,59 @@ def is_admin_email(email):
 
 
 def get_current_user():
-    """Get the current user from session, or None if not logged in."""
+    """Get the current user from request context (g object) or session."""
+    # First check if already loaded in this request
+    if "user" in g:
+        return g.user
+
+    # Fall back to session lookup
     user_id = session.get("user_id")
     if user_id is None:
         return None
-    return User.query.get(user_id)
+
+    user = User.query.get(user_id)
+    g.user = user  # Cache in request context
+    return user
 
 
 def login_required(f):
     """Decorator to require login. Handles both HTML and API routes."""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not get_current_user():
+        user = get_current_user()
+        if not user:
             if request.path.startswith("/api"):
                 return jsonify({"error": "Unauthorized"}), 401
             else:
                 return redirect(url_for("login_page"))
+        g.user = user  # Ensure user is in request context
         return f(*args, **kwargs)
 
     return decorated_function
 
 
 def admin_required(f):
-    """Decorator to require admin access (token-based only)."""
+    """Decorator to require admin access. Ensures user is in request context."""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        # Only token-based admin auth is allowed (via /admin/login)
+        # Check admin authentication
         if not session.get("admin_authenticated"):
             if request.path.startswith("/api"):
                 return jsonify({"error": "Forbidden"}), 403
             else:
                 return redirect(url_for("admin_login_page"))
+
+        # Ensure user is loaded into request context
+        user = get_current_user()
+        if not user:
+            # This shouldn't happen if admin login worked, but failsafe
+            session.clear()
+            if request.path.startswith("/api"):
+                return jsonify({"error": "Session corrupted, please re-login"}), 401
+            else:
+                return redirect(url_for("admin_login_page"))
+
+        g.user = user
         return f(*args, **kwargs)
 
     return decorated_function

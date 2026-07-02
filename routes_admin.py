@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request, send_file
+from flask import Blueprint, jsonify, request, send_file, g
 from models import db, Dataset, Pair, Annotation, User, Config, TestSubmission
 from auth import admin_required, get_current_user
 from data_loader import parse_jsonl_file
@@ -40,7 +40,7 @@ def api_dataset_list():
 @admin_required
 def api_dataset_upload():
     """Upload a JSONL file and create a new dataset."""
-    user = get_current_user()
+    user = g.user  # Injected by @admin_required decorator
     name = request.form.get("name", "").strip()
     citation_type = request.form.get("citation_type", "JOURNAL").upper()
     file = request.files.get("file")

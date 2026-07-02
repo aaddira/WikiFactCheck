@@ -68,20 +68,15 @@ function renderPair(pair) {
     document.getElementById("articleLink").textContent = articleTitle;
     document.getElementById("articleLink").href = `https://en.wikipedia.org/wiki/${encodeURIComponent(articleTitle)}`;
 
-    // Passage with fact highlighting
+    // Passage
     const passageEl = document.getElementById("passageText");
-    if (pair.passage_text) {
-        const highlighted = highlightFacts(pair.passage_text);
-        passageEl.innerHTML = highlighted;
-    } else {
-        passageEl.innerHTML = '<span class="empty-state">No passage text</span>';
-    }
+    passageEl.textContent = pair.passage_text || "No passage text";
 
     // Context with fact highlighting
     const contextEl = document.getElementById("contextContent");
     if (pair.passage_context) {
         const highlighted = highlightFacts(pair.passage_context);
-        contextEl.innerHTML = `<pre>${highlighted}</pre>`;
+        contextEl.innerHTML = `<div class="fact-check-note"><span>Passage to Fact Check Underlined in Red</span></div><pre>${highlighted}</pre>`;
         contextEl.classList.remove("empty-state");
     } else {
         contextEl.innerHTML = '<span class="empty-state">No context available</span>';

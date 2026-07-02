@@ -54,7 +54,7 @@ def extract_citation_year(record):
 def parse_jsonl_file(file_path, dataset, citation_type="JOURNAL"):
     """
     Stream-parse a JSONL file and create Pair records in the given dataset.
-    Handles real schema with nested citation_fields.
+    Handles both nested citation_fields schema and flat citation_* fields.
 
     Args:
         file_path: Path to JSONL file
@@ -94,13 +94,14 @@ def parse_jsonl_file(file_path, dataset, citation_type="JOURNAL"):
                     skipped_duplicates += 1
                     continue
 
-                # Map citation metadata from nested citation_fields
+                # Extract citation metadata (handle both schemas)
+                # Try nested citation_fields first
                 citation_fields = record.get("citation_fields", {})
-                citation_title = citation_fields.get("title", "")
-                citation_journal = citation_fields.get("journal", "")
-                citation_doi = citation_fields.get("doi", "")
-                citation_year = extract_citation_year(record)
-                citation_authors = extract_citation_authors(record)
+                citation_title = citation_fields.get("title") or record.get("citation_title", "")
+                citation_journal = citation_fields.get("journal") or record.get("citation_journal", "")
+                citation_doi = citation_fields.get("doi") or record.get("citation_doi", "")
+                citation_year = extract_citation_year(record) or record.get("citation_year")
+                citation_authors = extract_citation_authors(record) or record.get("citation_authors", "")
 
                 # Extract research domains (join array with |)
                 domains_list = record.get("research_domains", [])

@@ -153,6 +153,15 @@ fact {
     max-width: 100%;
 }
 
+.collapsible-content pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    max-width: 100%;
+    overflow-x: hidden;
+    margin: 0;
+}
+
 .collapsible-content.open {
     display: block;
 }

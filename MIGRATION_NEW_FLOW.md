@@ -23,15 +23,32 @@ Tracks individual test answers for save/resume functionality:
 
 ## Setup Instructions
 
-### Option 1: Fresh Database (Recommended)
+### Local Development
 ```bash
-# In Railway terminal or local:
+# Fresh database
 rm -f data/app.db
 python -c "from dotenv import load_dotenv; load_dotenv(); from main import app, db; with app.app_context(): db.create_all(); from data_loader import seed_default_config; seed_default_config()"
 ```
 
-### Option 2: Migrate Existing Database
-If you have existing data, add columns manually:
+### Railway Deployment
+
+#### Option 1: Fresh Database on Railway (Recommended)
+1. In Railway dashboard, connect to your app's database service via the terminal
+2. Delete existing database:
+   ```bash
+   rm /data/app.db  # Or wherever your volume is mounted
+   ```
+3. Initialize database by redeploying the app (which runs `db.create_all()`)
+4. Seed default config:
+   ```bash
+   cd /app
+   python -c "from dotenv import load_dotenv; load_dotenv(); from main import app, db; with app.app_context(): db.create_all(); from data_loader import seed_default_config; seed_default_config()"
+   ```
+
+#### Option 2: Migrate Existing Database on Railway
+If you already have data on Railway, add columns and table manually via Railway's SQL terminal:
+
+1. Add columns to users table:
 ```sql
 ALTER TABLE users ADD COLUMN test_submitted BOOLEAN DEFAULT 0;
 ALTER TABLE users ADD COLUMN test_submission_date DATETIME;
@@ -39,7 +56,7 @@ ALTER TABLE users ADD COLUMN test_approved_by_admin BOOLEAN DEFAULT 0;
 ALTER TABLE users ADD COLUMN test_approval_date DATETIME;
 ```
 
-Then create the new table:
+2. Create test_submissions table:
 ```sql
 CREATE TABLE test_submissions (
     id INTEGER PRIMARY KEY,
@@ -90,24 +107,36 @@ CREATE TABLE test_submissions (
 ### Models
 - `models.py` - Added TestSubmission table + User fields
 
-## Still TODO
+## Completed
 
-These need to be implemented to complete the flow:
+✅ **Admin Test Review Dashboard** (routes_admin.py):
+   - `/api/admin/test/submissions/pending` - List pending submissions with answers
+   - `/api/admin/test/submissions/<user_id>/approve` - Approve user + send email
+   - `/api/admin/test/submissions/<user_id>/reject` - Reject user + optional message
+   - UI tab in admin.html to review and action on pending tests
 
-1. **Admin Test Review Dashboard** (routes_admin.py):
-   - `/api/admin/test/pending` - List pending submissions
-   - `/api/admin/test/approve/<user_id>` - Approve user + send email
-   - `/api/admin/test/reject/<user_id>` - Reject user + optional message
-   - UI template to display pending tests
-
-2. **Email Configuration** (main.py):
-   - Setup Flask-Mail or similar
-   - Email template for approvals
+✅ **Email Configuration** (main.py):
+   - Flask-Mail setup configured
+   - Email templates for approval and rejection
    - Email sending on admin action
 
-3. **Annotate Page Check** (templates/annotate.html):
-   - Verify user has `test_approved_by_admin = True`
-   - Show message if not approved
+✅ **Database Init Instructions** (MIGRATION_NEW_FLOW.md):
+   - Fresh database setup for Railway
+   - Migration guide for existing databases
+
+## Still TODO (Optional)
+
+1. **Annotate Page Protection** (templates/annotate.html):
+   - Add check to verify user has `test_approved_by_admin = True`
+   - Show message if trying to access without approval
+
+2. **Email Template Enhancement**:
+   - More polished HTML email templates
+   - Branded header/footer
+   
+3. **Analytics Dashboard**:
+   - Track test submission completion rates
+   - Approval/rejection ratios
 
 ## Testing the Flow
 

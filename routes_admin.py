@@ -1,11 +1,13 @@
 from flask import Blueprint, jsonify, request, send_file
-from models import db, Dataset, Pair, Annotation, User, Config
+from models import db, Dataset, Pair, Annotation, User, Config, TestSubmission
 from auth import admin_required, get_current_user
 from data_loader import parse_jsonl_file
 from io import StringIO, BytesIO
 import json
 import csv
 from datetime import datetime
+import os
+from flask_mail import Mail, Message
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -260,6 +262,168 @@ def api_test_override(user_id):
     db.session.commit()
 
     return jsonify({"status": "updated", "user_id": user_id, "passed": passed})
+
+
+# ============================================================================
+# Test Submission Review
+# ============================================================================
+
+
+@admin_bp.route("/test/submissions/pending", methods=["GET"])
+@admin_required
+def api_test_submissions_pending():
+    """Get all pending test submissions (submitted but not approved)."""
+    users = User.query.filter(
+        User.test_submitted == True,
+        User.test_approved_by_admin == False
+    ).all()
+
+    result = []
+    for user in users:
+        # Get all submitted test answers for this user
+        submissions = TestSubmission.query.filter_by(
+            user_id=user.id,
+            is_submitted=True
+        ).all()
+
+        # Group by submission_batch_id to get latest submission
+        batches = {}
+        for sub in submissions:
+            if sub.submission_batch_id not in batches:
+                batches[sub.submission_batch_id] = []
+            batches[sub.submission_batch_id].append(sub)
+
+        # Use the most recent batch
+        latest_batch_id = max(batches.keys()) if batches else None
+        latest_batch = batches.get(latest_batch_id, []) if latest_batch_id else []
+
+        answers = []
+        for sub in latest_batch:
+            pair = Pair.query.get(sub.pair_id)
+            answers.append({
+                "pair_id": sub.pair_id,
+                "passage_text": pair.passage_text if pair else None,
+                "article_title": pair.article_title if pair else None,
+                "user_answer": sub.label,
+                "correct_answer": pair.correct_label if pair else None,
+                "quote": sub.quote,
+                "explanation": sub.explanation,
+                "is_correct": sub.label == pair.correct_label if pair else False,
+            })
+
+        result.append({
+            "user_id": user.id,
+            "email": user.email,
+            "score": user.qualification_score,
+            "submitted_at": user.test_submission_date.isoformat() if user.test_submission_date else None,
+            "answers": answers,
+        })
+
+    return jsonify(result)
+
+
+@admin_bp.route("/test/submissions/<int:user_id>/approve", methods=["POST"])
+@admin_required
+def api_test_submission_approve(user_id):
+    """Approve a user's test submission and send approval email."""
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    if not user.test_submitted:
+        return jsonify({"error": "User has not submitted test"}), 400
+
+    user.test_approved_by_admin = True
+    user.test_approval_date = datetime.utcnow()
+    db.session.commit()
+
+    # Send approval email
+    try:
+        send_approval_email(user)
+    except Exception as e:
+        # Log error but don't fail the approval
+        print(f"Error sending approval email to {user.email}: {str(e)}")
+
+    return jsonify({
+        "status": "approved",
+        "user_id": user_id,
+        "email": user.email,
+    })
+
+
+@admin_bp.route("/test/submissions/<int:user_id>/reject", methods=["POST"])
+@admin_required
+def api_test_submission_reject(user_id):
+    """Reject a user's test submission and send rejection email."""
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    if not user.test_submitted:
+        return jsonify({"error": "User has not submitted test"}), 400
+
+    data = request.get_json() or {}
+    reason = data.get("reason", "Your test submission was not approved. Please review the instructions and retake the test.")
+
+    # Reset test submission to allow retaking
+    TestSubmission.query.filter_by(user_id=user_id).delete()
+    user.test_submitted = False
+    user.test_submission_date = None
+    db.session.commit()
+
+    # Send rejection email
+    try:
+        send_rejection_email(user, reason)
+    except Exception as e:
+        print(f"Error sending rejection email to {user.email}: {str(e)}")
+
+    return jsonify({
+        "status": "rejected",
+        "user_id": user_id,
+        "email": user.email,
+    })
+
+
+def send_approval_email(user):
+    """Send approval email to user."""
+    from flask_mail import Mail, Message
+    from flask import current_app
+
+    mail = Mail(current_app)
+    msg = Message(
+        subject="WikiFactCheck: You're Approved to Start Annotating",
+        recipients=[user.email],
+        html=f"""
+<h2>Great News!</h2>
+<p>Hi {user.email},</p>
+<p>Congratulations! Your test submission has been reviewed and approved by our research team.</p>
+<p>You can now start annotating Wikipedia citations and earning $3-5 per review.</p>
+<p><a href="{current_app.config.get('APP_URL', 'https://app.example.com')}/">Log in and start annotating</a></p>
+<p>Thank you for your contribution!</p>
+"""
+    )
+    mail.send(msg)
+
+
+def send_rejection_email(user, reason):
+    """Send rejection email to user."""
+    from flask_mail import Mail, Message
+    from flask import current_app
+
+    mail = Mail(current_app)
+    msg = Message(
+        subject="WikiFactCheck: Test Result",
+        recipients=[user.email],
+        html=f"""
+<h2>Test Submission Review</h2>
+<p>Hi {user.email},</p>
+<p>Thank you for submitting your test. Unfortunately, we were unable to approve your submission at this time.</p>
+<p><strong>Reason:</strong> {reason}</p>
+<p>You can retake the test anytime. <a href="{current_app.config.get('APP_URL', 'https://app.example.com')}/">Log in to try again</a></p>
+<p>If you have questions, please reach out to us.</p>
+"""
+    )
+    mail.send(msg)
 
 
 # ============================================================================

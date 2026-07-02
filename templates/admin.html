@@ -30,6 +30,9 @@
         <button onclick="switchTab('results')" class="px-4 py-2 border-b-2 border-gray-300 font-semibold text-gray-600">
             Test Results
         </button>
+        <button onclick="switchTab('submissions')" class="px-4 py-2 border-b-2 border-gray-300 font-semibold text-gray-600">
+            Review Submissions
+        </button>
         <button onclick="switchTab('export')" class="px-4 py-2 border-b-2 border-gray-300 font-semibold text-gray-600">
             Export
         </button>
@@ -210,6 +213,18 @@
         </div>
     </div>
 
+    <!-- Review Submissions Tab -->
+    <div id="tab-submissions" class="tab-content hidden">
+        <div class="admin-section">
+            <div class="admin-section-title">Pending Test Submissions to Review</div>
+            <p class="text-gray-600 mb-4">Review user test submissions and approve/reject them. Users will be notified via email.</p>
+
+            <div id="submissionsContainer" class="space-y-4">
+                <p class="text-center py-8 text-gray-500">Loading...</p>
+            </div>
+        </div>
+    </div>
+
     <!-- Export Tab -->
     <div id="tab-export" class="tab-content hidden">
         <div class="admin-section">
@@ -252,6 +267,7 @@ function switchTab(tabName) {
     if (tabName === "datasets") loadDatasets();
     else if (tabName === "config") loadConfig();
     else if (tabName === "results") loadTestResults();
+    else if (tabName === "submissions") loadPendingSubmissions();
     else if (tabName === "test") loadDatasetsForTestSamples();
 }
 
@@ -595,6 +611,135 @@ async function saveTestSamples() {
         currentTestSamples = [];
         document.getElementById("testSamplesDisplay").style.display = "none";
         document.getElementById("testDatasetSelect").value = "";
+    } catch (error) {
+        showStatus("error", `Error: ${error.message}`);
+    }
+}
+
+// Test Submissions Review
+async function loadPendingSubmissions() {
+    try {
+        const response = await fetch("/admin/test/submissions/pending");
+        const data = await response.json();
+
+        const container = document.getElementById("submissionsContainer");
+
+        if (data.length === 0) {
+            container.innerHTML = '<p class="text-center py-8 text-gray-500">No pending submissions to review.</p>';
+            return;
+        }
+
+        container.innerHTML = data.map(submission => {
+            const score = submission.score || 0;
+            const total = submission.answers ? submission.answers.length : 0;
+            const correct = submission.answers ? submission.answers.filter(a => a.is_correct).length : 0;
+
+            return `
+                <div class="bg-white border rounded-lg p-6 shadow-sm">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h3 class="font-semibold text-lg">${submission.email}</h3>
+                            <p class="text-sm text-gray-600">
+                                Submitted: ${new Date(submission.submitted_at).toLocaleString()}
+                            </p>
+                            <p class="text-sm font-semibold mt-2">
+                                Score: <span class="text-blue-600">${correct}/${total}</span>
+                            </p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="approveSubmission(${submission.user_id}, '${submission.email}')"
+                                    class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
+                                ✓ Approve
+                            </button>
+                            <button onclick="rejectSubmission(${submission.user_id}, '${submission.email}')"
+                                    class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition">
+                                ✗ Reject
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Answers table -->
+                    <table class="table w-full text-sm">
+                        <thead>
+                            <tr>
+                                <th>Article</th>
+                                <th>User Answer</th>
+                                <th>Correct Answer</th>
+                                <th>Quote</th>
+                                <th>Explanation</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${submission.answers.map(answer => `
+                                <tr class="${answer.is_correct ? 'bg-green-50' : 'bg-red-50'}">
+                                    <td class="max-w-xs truncate">${answer.article_title || '—'}</td>
+                                    <td>
+                                        <span class="px-2 py-1 rounded text-xs font-semibold ${answer.is_correct ? 'bg-green-200 text-green-900' : 'bg-red-200 text-red-900'}">
+                                            ${answer.user_answer}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="px-2 py-1 rounded text-xs font-semibold bg-blue-200 text-blue-900">
+                                            ${answer.correct_answer}
+                                        </span>
+                                    </td>
+                                    <td class="max-w-xs text-xs truncate">${answer.quote || '—'}</td>
+                                    <td class="max-w-xs text-xs truncate">${answer.explanation || '—'}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }).join('');
+    } catch (error) {
+        showStatus("error", "Failed to load submissions");
+    }
+}
+
+async function approveSubmission(userId, email) {
+    if (!confirm(`Approve ${email}?`)) return;
+
+    try {
+        const response = await fetch(`/admin/test/submissions/${userId}/approve`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            showStatus("error", data.error || "Failed to approve submission");
+            return;
+        }
+
+        showStatus("success", `✓ ${email} approved and email sent`);
+        loadPendingSubmissions();
+    } catch (error) {
+        showStatus("error", `Error: ${error.message}`);
+    }
+}
+
+async function rejectSubmission(userId, email) {
+    const reason = prompt("Reject reason (optional):", "Your test answers did not meet our criteria. Please review the instructions and retake the test.");
+    if (reason === null) return;
+
+    try {
+        const response = await fetch(`/admin/test/submissions/${userId}/reject`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ reason }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            showStatus("error", data.error || "Failed to reject submission");
+            return;
+        }
+
+        showStatus("success", `✓ ${email} rejected and email sent`);
+        loadPendingSubmissions();
     } catch (error) {
         showStatus("error", `Error: ${error.message}`);
     }

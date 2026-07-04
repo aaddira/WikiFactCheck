@@ -53,6 +53,12 @@ mail = Mail(app)
 db.init_app(app)
 migrate = Migrate(app, db, render_as_batch=True)  # render_as_batch=True required for SQLite ALTER TABLE support
 
+# Verify Flask-Migrate is properly initialized
+if 'migrate' not in app.extensions:
+    app.logger.warning("Flask-Migrate not found in app.extensions")
+else:
+    app.logger.info("Flask-Migrate initialized successfully")
+
 # Configure logging (outputs to stdout, Railway captures automatically)
 logging.basicConfig(
     level=logging.INFO,

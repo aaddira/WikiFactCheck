@@ -3,8 +3,11 @@ from pathlib import Path
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_mail import Mail
+from flask_migrate import Migrate
 from dotenv import load_dotenv
 from datetime import datetime
+import logging
+import sys
 
 from models import db, User, Dataset, Pair, Annotation, Claim, Skip, Config, TestSubmission
 from auth import do_login, do_logout, login_required, admin_required, get_current_user
@@ -15,9 +18,22 @@ load_dotenv()
 
 app = Flask(__name__)
 
-# Use absolute path for SQLite database
-db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "app.db")
-app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path.replace(chr(92), '/')}"  # Convert backslashes to forward slashes
+# Database configuration
+# Priority: DATABASE_URL env var > DB_PATH env var > local dev default
+database_url = os.getenv("DATABASE_URL")
+if database_url:
+    app.config["SQLALCHEMY_DATABASE_URI"] = database_url
+else:
+    # Fall back to DB_PATH env var (absolute path, e.g. /data/app.db on Railway)
+    # or local dev path relative to this file
+    db_path = os.getenv("DB_PATH")
+    if db_path:
+        # Use provided absolute path as-is
+        app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path.replace(chr(92), '/')}"
+    else:
+        # Default: local dev path (relative to this file)
+        db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "app.db")
+        app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path.replace(chr(92), '/')}"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production")
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
@@ -35,6 +51,15 @@ app.config["APP_URL"] = os.getenv("APP_URL", "http://localhost:5000")
 mail = Mail(app)
 
 db.init_app(app)
+migrate = Migrate(app, db, render_as_batch=True)  # render_as_batch=True required for SQLite ALTER TABLE support
+
+# Configure logging (outputs to stdout, Railway captures automatically)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+    stream=sys.stdout
+)
+app.config["DEBUG"] = os.getenv("FLASK_DEBUG", "false").lower() == "true"
 
 
 # CLI Commands
@@ -252,6 +277,13 @@ app.register_blueprint(admin_bp)
 app.register_blueprint(dashboard_bp)
 
 
+# Context processors
+@app.context_processor
+def inject_current_user():
+    """Inject current_user into all templates for nav bar and auth checks."""
+    return {"current_user": get_current_user()}
+
+
 # Error handlers
 @app.errorhandler(404)
 def not_found(error):
@@ -260,6 +292,7 @@ def not_found(error):
 
 @app.errorhandler(500)
 def internal_error(error):
+    app.logger.exception("Unhandled exception")
     db.session.rollback()
     return jsonify({"error": "Internal server error"}), 500
 

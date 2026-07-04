@@ -12,8 +12,11 @@ COPY . .
 # Create data directory for SQLite
 RUN mkdir -p data
 
+# Set FLASK_APP for CLI commands
+ENV FLASK_APP=main.py
+
 # Expose port
 EXPOSE 5000
 
-# Run with gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--timeout", "60", "--workers", "2", "main:app"]
+# Run migrations, then start gunicorn
+CMD ["sh", "-c", "flask db upgrade && gunicorn --bind 0.0.0.0:5000 --timeout 60 --workers 2 main:app"]

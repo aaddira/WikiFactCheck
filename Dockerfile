@@ -9,8 +9,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application
 COPY . .
 
-# Create data directory for SQLite
-RUN mkdir -p data
+# Create data directories for SQLite (both local and persistent volume)
+RUN mkdir -p /app/data /data
 
 # Set FLASK_APP for CLI commands
 ENV FLASK_APP=main.py

@@ -19,4 +19,4 @@ ENV FLASK_APP=main.py
 EXPOSE 5000
 
 # Run migrations, then start gunicorn
-CMD ["sh", "-c", "flask db upgrade && gunicorn --bind 0.0.0.0:5000 --timeout 60 --workers 2 main:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--timeout", "60", "--workers", "2", "main:app"]

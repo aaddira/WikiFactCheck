@@ -15,8 +15,12 @@ RUN mkdir -p /app/data /data
 # Set FLASK_APP for CLI commands
 ENV FLASK_APP=main.py
 
+# Copy entrypoint script
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
 # Expose port
 EXPOSE 5000
 
-# Run migrations, then start gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--timeout", "60", "--workers", "2", "main:app"]
+# Run entrypoint script
+ENTRYPOINT ["/app/entrypoint.sh"]

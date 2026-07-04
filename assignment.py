@@ -1,6 +1,7 @@
 import random
 import json
 from datetime import datetime, timedelta
+from sqlalchemy.exc import IntegrityError
 from models import db, Pair, Annotation, Claim, Skip, Config, Dataset
 
 
@@ -143,15 +144,18 @@ def get_next_pair(user_id, timeout_minutes=30):
         tiers[tier_count] = [p for p in candidates if p.annotation_count == tier_count]
         random.shuffle(tiers[tier_count])
 
-    # Return first available from highest tier
+    # Try candidates in tier order; handle race condition via IntegrityError retry
     for tier_count in range(threshold - 1, -1, -1):
-        if tiers[tier_count]:
-            pair = tiers[tier_count][0]
-            # Create claim
-            claim = Claim(pair_id=pair.id, user_id=user_id)
-            db.session.add(claim)
-            db.session.commit()
-            return {"pair": pair, "status": "ok"}
+        for pair in tiers[tier_count]:
+            try:
+                claim = Claim(pair_id=pair.id, user_id=user_id)
+                db.session.add(claim)
+                db.session.commit()
+                return {"pair": pair, "status": "ok"}
+            except IntegrityError:
+                # Another request claimed this pair first; rollback and try next
+                db.session.rollback()
+                continue
 
     # No candidates available
     return {"pair": None, "status": "no_candidates"}

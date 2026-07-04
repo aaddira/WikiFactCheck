@@ -129,8 +129,8 @@ class Claim(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     claimed_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    # Constraint: unique (pair_id, user_id)
-    __table_args__ = (db.UniqueConstraint("pair_id", "user_id", name="uq_claim_pair_user"),)
+    # Constraint: unique pair_id only (pair can only be claimed by one user, period)
+    __table_args__ = (db.UniqueConstraint("pair_id", name="uq_claim_pair_id"),)
 
     def is_expired(self, timeout_minutes=30):
         return datetime.utcnow() > self.claimed_at + timedelta(minutes=timeout_minutes)
@@ -205,3 +205,33 @@ class Config(db.Model):
             config.value = str(value)
         config.updated_at = datetime.utcnow()
         db.session.commit()
+
+
+class AuditLog(db.Model):
+    __tablename__ = "audit_logs"
+
+    id = db.Column(db.Integer, primary_key=True)
+    action = db.Column(db.String(100), nullable=False, index=True)
+    actor_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    actor_email = db.Column(db.String(255), nullable=False)
+    target_type = db.Column(db.String(50))
+    target_id = db.Column(db.String(100))
+    details = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+
+    __table_args__ = (
+        db.Index('ix_audit_action_created', 'action', 'created_at'),
+    )
+
+    @staticmethod
+    def record(action, actor_user_id=None, actor_email=None, target_type=None, target_id=None, details=None):
+        """Record an audit log entry. Does NOT commit — caller must commit atomically with action."""
+        log_entry = AuditLog(
+            action=action,
+            actor_user_id=actor_user_id,
+            actor_email=actor_email or '',
+            target_type=target_type,
+            target_id=target_id,
+            details=details if isinstance(details, str) else (json.dumps(details) if details else None)
+        )
+        db.session.add(log_entry)

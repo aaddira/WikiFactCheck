@@ -1,5 +1,5 @@
-from flask import Blueprint, jsonify, request, send_file, g
-from models import db, Dataset, Pair, Annotation, User, Config, TestSubmission
+from flask import Blueprint, jsonify, request, send_file, g, current_app
+from models import db, Dataset, Pair, Annotation, User, Config, TestSubmission, AuditLog
 from auth import admin_required, get_current_user
 from data_loader import parse_jsonl_file
 from io import StringIO, BytesIO
@@ -70,6 +70,22 @@ def api_dataset_upload():
         import os
         os.unlink(tmp_path)
 
+        # Log audit entry
+        AuditLog.record(
+            action="dataset_upload",
+            actor_user_id=user.id,
+            actor_email=user.email,
+            target_type="Dataset",
+            target_id=str(dataset.id),
+            details=json.dumps({
+                "name": name,
+                "citation_type": citation_type,
+                "loaded": result["loaded"],
+                "skipped_duplicates": result["skipped_duplicates"]
+            })
+        )
+        db.session.commit()
+
         return jsonify({
             "dataset_id": dataset.id,
             "citation_type": citation_type,
@@ -88,6 +104,7 @@ def api_dataset_upload():
 @admin_required
 def api_dataset_update(dataset_id):
     """Update dataset (name, active status)."""
+    user = g.user
     dataset = Dataset.query.get(dataset_id)
     if not dataset:
         return jsonify({"error": "Dataset not found"}), 404
@@ -98,6 +115,14 @@ def api_dataset_update(dataset_id):
     if "is_active" in data:
         dataset.is_active = data["is_active"]
 
+    AuditLog.record(
+        action="dataset_update",
+        actor_user_id=user.id,
+        actor_email=user.email,
+        target_type="Dataset",
+        target_id=str(dataset_id),
+        details=json.dumps(data)
+    )
     db.session.commit()
     return jsonify({"status": "updated"})
 
@@ -106,10 +131,24 @@ def api_dataset_update(dataset_id):
 @admin_required
 def api_dataset_delete(dataset_id):
     """Delete a dataset and all its pairs."""
+    user = g.user
     dataset = Dataset.query.get(dataset_id)
     if not dataset:
         return jsonify({"error": "Dataset not found"}), 404
 
+    # Snapshot dataset info before deletion
+    AuditLog.record(
+        action="dataset_delete",
+        actor_user_id=user.id,
+        actor_email=user.email,
+        target_type="Dataset",
+        target_id=str(dataset_id),
+        details=json.dumps({
+            "name": dataset.name,
+            "citation_type": dataset.citation_type,
+            "sample_count": dataset.sample_count
+        })
+    )
     db.session.delete(dataset)
     db.session.commit()
     return jsonify({"status": "deleted"})
@@ -135,13 +174,33 @@ def api_config_get():
 @admin_required
 def api_config_set(key):
     """Set a config value."""
+    user = g.user
     data = request.get_json() or {}
     value = data.get("value")
 
     if value is None:
         return jsonify({"error": "Missing value"}), 400
 
+    # Capture old value before update
+    old_config = Config.query.filter_by(key=key).first()
+    old_value = old_config.value if old_config else None
+
     Config.set(key, value)
+
+    # Log audit entry
+    AuditLog.record(
+        action="config_set",
+        actor_user_id=user.id,
+        actor_email=user.email,
+        target_type="Config",
+        target_id=key,
+        details=json.dumps({
+            "old_value": old_value,
+            "new_value": str(value)
+        })
+    )
+    db.session.commit()
+
     return jsonify({"status": "updated", "key": key, "value": value})
 
 
@@ -269,6 +328,37 @@ def api_test_override(user_id):
 # ============================================================================
 
 
+def get_latest_test_submission_answers(user_id):
+    """Get answers from the most recent test submission batch for a user."""
+    submissions = TestSubmission.query.filter_by(
+        user_id=user_id,
+        is_submitted=True
+    ).order_by(TestSubmission.created_at.desc()).all()
+
+    if not submissions:
+        return None, []
+
+    # Get the most recent batch ID
+    latest_batch_id = submissions[0].submission_batch_id
+    latest_batch = [s for s in submissions if s.submission_batch_id == latest_batch_id]
+
+    answers = []
+    for sub in latest_batch:
+        pair = Pair.query.get(sub.pair_id)
+        answers.append({
+            "pair_id": sub.pair_id,
+            "passage_text": pair.passage_text if pair else None,
+            "article_title": pair.article_title if pair else None,
+            "user_answer": sub.label,
+            "correct_answer": pair.correct_label if pair else None,
+            "quote": sub.quote,
+            "explanation": sub.explanation,
+            "is_correct": sub.label == pair.correct_label if pair else False,
+        })
+
+    return latest_batch_id, answers
+
+
 @admin_bp.route("/test/submissions/pending", methods=["GET"])
 @admin_required
 def api_test_submissions_pending():
@@ -280,36 +370,7 @@ def api_test_submissions_pending():
 
     result = []
     for user in users:
-        # Get all submitted test answers for this user
-        submissions = TestSubmission.query.filter_by(
-            user_id=user.id,
-            is_submitted=True
-        ).all()
-
-        # Group by submission_batch_id to get latest submission
-        batches = {}
-        for sub in submissions:
-            if sub.submission_batch_id not in batches:
-                batches[sub.submission_batch_id] = []
-            batches[sub.submission_batch_id].append(sub)
-
-        # Use the most recent batch
-        latest_batch_id = max(batches.keys()) if batches else None
-        latest_batch = batches.get(latest_batch_id, []) if latest_batch_id else []
-
-        answers = []
-        for sub in latest_batch:
-            pair = Pair.query.get(sub.pair_id)
-            answers.append({
-                "pair_id": sub.pair_id,
-                "passage_text": pair.passage_text if pair else None,
-                "article_title": pair.article_title if pair else None,
-                "user_answer": sub.label,
-                "correct_answer": pair.correct_label if pair else None,
-                "quote": sub.quote,
-                "explanation": sub.explanation,
-                "is_correct": sub.label == pair.correct_label if pair else False,
-            })
+        _, answers = get_latest_test_submission_answers(user.id)
 
         result.append({
             "user_id": user.id,
@@ -326,6 +387,7 @@ def api_test_submissions_pending():
 @admin_required
 def api_test_submission_approve(user_id):
     """Approve a user's test submission and send approval email."""
+    admin = g.user
     user = User.query.get(user_id)
     if not user:
         return jsonify({"error": "User not found"}), 404
@@ -335,6 +397,18 @@ def api_test_submission_approve(user_id):
 
     user.test_approved_by_admin = True
     user.test_approval_date = datetime.utcnow()
+
+    AuditLog.record(
+        action="test_submission_approve",
+        actor_user_id=admin.id,
+        actor_email=admin.email,
+        target_type="User",
+        target_id=str(user_id),
+        details=json.dumps({
+            "email": user.email,
+            "score": user.qualification_score
+        })
+    )
     db.session.commit()
 
     # Send approval email
@@ -342,7 +416,8 @@ def api_test_submission_approve(user_id):
         send_approval_email(user)
     except Exception as e:
         # Log error but don't fail the approval
-        print(f"Error sending approval email to {user.email}: {str(e)}")
+        from flask import current_app
+        current_app.logger.exception(f"Error sending approval email to {user.email}")
 
     return jsonify({
         "status": "approved",
@@ -355,6 +430,7 @@ def api_test_submission_approve(user_id):
 @admin_required
 def api_test_submission_reject(user_id):
     """Reject a user's test submission and send rejection email."""
+    admin = g.user
     user = User.query.get(user_id)
     if not user:
         return jsonify({"error": "User not found"}), 404
@@ -364,6 +440,23 @@ def api_test_submission_reject(user_id):
 
     data = request.get_json() or {}
     reason = data.get("reason", "Your test submission was not approved. Please review the instructions and retake the test.")
+
+    # Snapshot latest submission answers before deletion
+    _, answers = get_latest_test_submission_answers(user_id)
+
+    # Log audit entry (before deletion so we have the data)
+    AuditLog.record(
+        action="test_submission_reject",
+        actor_user_id=admin.id,
+        actor_email=admin.email,
+        target_type="User",
+        target_id=str(user_id),
+        details=json.dumps({
+            "email": user.email,
+            "reason": reason,
+            "answers": answers
+        })
+    )
 
     # Reset test submission to allow retaking
     TestSubmission.query.filter_by(user_id=user_id).delete()
@@ -375,7 +468,8 @@ def api_test_submission_reject(user_id):
     try:
         send_rejection_email(user, reason)
     except Exception as e:
-        print(f"Error sending rejection email to {user.email}: {str(e)}")
+        from flask import current_app
+        current_app.logger.exception(f"Error sending rejection email to {user.email}")
 
     return jsonify({
         "status": "rejected",

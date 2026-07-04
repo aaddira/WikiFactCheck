@@ -20,14 +20,14 @@
                     {% if current_user %}
                         <span class="text-sm text-gray-600">{{ current_user.email }}</span>
                         {% if current_user.is_admin %}
-                        <a href="/admin" class="text-sm text-blue-600 hover:text-blue-800">Admin Panel</a>
+                        <a href="/admin" class="text-sm text-emerald-600 hover:text-emerald-800">Admin Panel</a>
                         {% endif %}
                         {% if current_user.test_approved_by_admin %}
-                        <a href="/dashboard" class="text-sm text-blue-600 hover:text-blue-800">Dashboard</a>
+                        <a href="/dashboard" class="text-sm text-emerald-600 hover:text-emerald-800">Dashboard</a>
                         {% endif %}
                         <a href="/logout" class="text-sm text-gray-600 hover:text-gray-900">Logout</a>
                     {% else %}
-                        <a href="{{ url_for('login_page') }}" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition">
+                        <a href="{{ url_for('login_page') }}" class="bg-emerald-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-emerald-700 transition">
                             Start Annotating
                         </a>
                     {% endif %}

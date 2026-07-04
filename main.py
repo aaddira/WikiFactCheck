@@ -9,7 +9,7 @@ from datetime import datetime
 import logging
 import sys
 
-from models import db, User, Dataset, Pair, Annotation, Claim, Skip, Config, TestSubmission
+from models import db, User, Dataset, Pair, Annotation, Claim, Skip, Config, TestSubmission, AuditLog
 from auth import do_login, do_logout, login_required, admin_required, get_current_user
 from data_loader import parse_jsonl_file, seed_default_config
 
@@ -192,6 +192,15 @@ def admin_login_page():
                 admin_user = User(email="admin@system.internal", is_admin=True)
                 db.session.add(admin_user)
                 db.session.commit()
+
+            # Log admin login
+            AuditLog.record(
+                action="admin_login",
+                actor_user_id=admin_user.id,
+                actor_email=admin_user.email,
+                details=request.remote_addr
+            )
+            db.session.commit()
 
             # Set session
             session["admin_authenticated"] = True

@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, current_app
 from models import db, User, Pair, Annotation, Config, TestSubmission, Skip
 from auth import login_required, get_current_user, admin_required
 from assignment import get_next_pair, release_claim, get_annotators_per_sample
@@ -336,7 +336,9 @@ def api_test_save_progress():
         })
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        current_app.logger.exception("Error saving test answers")
+        error_msg = str(e) if current_app.debug else "An unexpected error occurred. Please try again."
+        return jsonify({"error": error_msg}), 500
 
 
 @annotate_bp.route("/test/submit", methods=["POST"])
@@ -414,7 +416,9 @@ def api_test_submit():
         })
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        current_app.logger.exception("Error submitting test")
+        error_msg = str(e) if current_app.debug else "An unexpected error occurred. Please try again."
+        return jsonify({"error": error_msg}), 500
 
 
 @annotate_bp.route("/test/retake", methods=["POST"])
@@ -435,4 +439,6 @@ def api_test_retake():
         return jsonify({"status": "reset"})
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        current_app.logger.exception("Error resetting test")
+        error_msg = str(e) if current_app.debug else "An unexpected error occurred. Please try again."
+        return jsonify({"error": error_msg}), 500

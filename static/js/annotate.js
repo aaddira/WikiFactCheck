@@ -120,15 +120,28 @@ async function skipWithWarning() {
 
 function goBackToLastPair() {
     if (!lastPairId) return;
-    // Reload last pair without marking changes
+    // Reload last pair and populate form with existing annotation for editing
     currentPair = null;
-    fetch(`/api/pair/${lastPairId}`)
-        .then(r => r.json())
-        .then(pair => {
-            currentPair = pair;
-            renderPair(pair);
-            clearForm();
-        });
+    Promise.all([
+        fetch(`/api/pair/${lastPairId}`).then(r => r.json()),
+        fetch(`/api/pair/${lastPairId}/annotation`).then(r => r.json()).catch(() => ({}))
+    ]).then(([pair, annotationData]) => {
+        currentPair = pair;
+        renderPair(pair);
+        clearForm();
+        // If annotation exists, populate form with it for editing
+        if (annotationData && annotationData.annotation) {
+            const ann = annotationData.annotation;
+            if (ann.label) {
+                const labelEl = document.getElementById(`label-${ann.label.toLowerCase().replace(/_/g, '-')}`);
+                if (labelEl) labelEl.checked = true;
+            }
+            if (ann.quote) document.getElementById('quote').value = ann.quote;
+            if (ann.explanation) document.getElementById('explanation').value = ann.explanation;
+        }
+        markSaved();
+        clearDrafts();
+    });
 }
 
 // Initialize on page load

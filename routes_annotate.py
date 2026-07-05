@@ -163,6 +163,28 @@ def api_pair_get(pair_id):
     })
 
 
+@annotate_bp.route("/pair/<int:pair_id>/annotation", methods=["GET"])
+@login_required
+def api_pair_annotation(pair_id):
+    """Get the current user's annotation for a specific pair (for editing)."""
+    user = get_current_user()
+    annotation = Annotation.query.filter_by(pair_id=pair_id, user_id=user.id).first()
+
+    if not annotation:
+        return jsonify({"annotation": None}), 200
+
+    return jsonify({
+        "annotation": {
+            "id": annotation.id,
+            "label": annotation.label,
+            "quote": annotation.quote,
+            "explanation": annotation.explanation,
+            "created_at": annotation.created_at.isoformat() if annotation.created_at else None,
+            "updated_at": annotation.updated_at.isoformat() if annotation.updated_at else None,
+        }
+    })
+
+
 @annotate_bp.route("/annotation", methods=["POST"])
 @login_required
 def api_annotation_save():

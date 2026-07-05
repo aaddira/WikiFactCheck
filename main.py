@@ -10,7 +10,7 @@ import logging
 import sys
 
 from models import db, User, Dataset, Pair, Annotation, Claim, Skip, Config, TestSubmission, AuditLog
-from auth import do_login, do_logout, login_required, admin_required, get_current_user
+from auth import do_login, do_logout, login_required, admin_required, get_current_user, is_admin_email
 from data_loader import parse_jsonl_file, seed_default_config
 
 # Load environment variables
@@ -136,8 +136,13 @@ def login_page():
             return render_template("login.html", error="Email is required")
         if not wiki_username:
             return render_template("login.html", error="Wikipedia username is required")
+
+        # Reject admin emails from regular login
+        if is_admin_email(email):
+            return render_template("login.html", error="Admin accounts must log in via /admin/login with a secret token")
+
         do_login(email, wiki_username=wiki_username)
-        # All logged-in users go to dashboard (test is optional)
+        # All logged-in annotators go to dashboard (test is optional)
         return redirect(url_for("dashboard_page"))
     return render_template("login.html")
 
@@ -250,12 +255,14 @@ def history_page():
 @app.route("/dashboard")
 @login_required
 def dashboard_page():
-    """Dashboard — admin panel for admins, personal stats for annotators."""
+    """Dashboard — personal stats for annotators. Admins must use /admin instead."""
     user = get_current_user()
     if user.is_admin:
-        return render_template("dashboard.html")  # Admin dashboard
+        # Redirect admins to admin panel
+        return redirect(url_for("admin_page"))
     else:
-        return render_template("dashboard_personal.html")  # Personal dashboard
+        # Personal dashboard for annotators
+        return render_template("dashboard_personal.html")
 
 
 @app.route("/settings")

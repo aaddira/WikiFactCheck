@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - WikiFactCheck{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold text-gray-900 mb-8">Account Settings</h1>
+
+    <!-- Account Info Card -->
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">Account Information</h2>
+        <div class="space-y-3 text-sm">
+            <div>
+                <label class="text-gray-600 font-medium">Email</label>
+                <p class="text-gray-900" id="current-email">Loading...</p>
+            </div>
+            <div>
+                <label class="text-gray-600 font-medium">Wikipedia Username</label>
+                <p class="text-gray-900" id="current-wiki-username">Not set</p>
+            </div>
+            <div>
+                <label class="text-gray-600 font-medium">Account Created</label>
+                <p class="text-gray-900" id="created-at">Loading...</p>
+            </div>
+            <div>
+                <label class="text-gray-600 font-medium">Last Login</label>
+                <p class="text-gray-900" id="last-login">Loading...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Wiki Username Card -->
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">Edit Wikipedia Username</h2>
+        <p class="text-sm text-gray-600 mb-4">Your Wikipedia username will be displayed on the leaderboard instead of your email.</p>
+        <form id="wiki-form" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Wikipedia Username</label>
+                <input
+                    type="text"
+                    id="wiki-username-input"
+                    placeholder="Enter your Wikipedia username"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+            </div>
+            <button
+                type="submit"
+                class="bg-emerald-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-emerald-700 transition"
+            >
+                Save Wikipedia Username
+            </button>
+            <div id="wiki-message" class="hidden text-sm"></div>
+        </form>
+    </div>
+
+    <!-- Change Email Card -->
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">Change Email</h2>
+        <p class="text-sm text-gray-600 mb-4">You'll use your new email to log in. No re-login needed—your session will continue.</p>
+        <form id="email-form" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">New Email</label>
+                <input
+                    type="email"
+                    id="new-email-input"
+                    placeholder="Enter new email"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Confirm Email</label>
+                <input
+                    type="email"
+                    id="confirm-email-input"
+                    placeholder="Confirm new email"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+                <p class="text-xs text-gray-500 mt-1">Emails must match</p>
+            </div>
+            <button
+                type="submit"
+                id="email-submit-btn"
+                disabled
+                class="bg-emerald-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-emerald-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+                Change Email
+            </button>
+            <div id="email-message" class="hidden text-sm"></div>
+        </form>
+    </div>
+</div>
+
+<script>
+async function loadProfile() {
+    try {
+        const response = await fetch('/api/settings/profile');
+        if (!response.ok) throw new Error('Failed to load profile');
+        const user = await response.json();
+
+        document.getElementById('current-email').textContent = user.email;
+        document.getElementById('current-wiki-username').textContent = user.wiki_username || 'Not set';
+        document.getElementById('wiki-username-input').value = user.wiki_username || '';
+        document.getElementById('created-at').textContent = new Date(user.created_at).toLocaleDateString();
+        document.getElementById('last-login').textContent = user.last_login ? new Date(user.last_login).toLocaleString() : 'Never';
+    } catch (error) {
+        console.error('Error loading profile:', error);
+    }
+}
+
+// Wiki username form submission
+document.getElementById('wiki-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const wiki_username = document.getElementById('wiki-username-input').value.trim();
+    const messageDiv = document.getElementById('wiki-message');
+
+    try {
+        const response = await fetch('/api/settings/profile', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ wiki_username })
+        });
+
+        if (response.ok) {
+            messageDiv.textContent = '✓ Wikipedia username saved';
+            messageDiv.className = 'text-sm text-emerald-600';
+            messageDiv.classList.remove('hidden');
+            setTimeout(() => messageDiv.classList.add('hidden'), 3000);
+            loadProfile();
+        } else {
+            throw new Error('Failed to save username');
+        }
+    } catch (error) {
+        messageDiv.textContent = '✗ ' + error.message;
+        messageDiv.className = 'text-sm text-red-600';
+        messageDiv.classList.remove('hidden');
+    }
+});
+
+// Email validation on input
+const newEmailInput = document.getElementById('new-email-input');
+const confirmEmailInput = document.getElementById('confirm-email-input');
+const submitBtn = document.getElementById('email-submit-btn');
+
+function validateEmailMatch() {
+    const match = newEmailInput.value && confirmEmailInput.value && newEmailInput.value === confirmEmailInput.value;
+    submitBtn.disabled = !match || !newEmailInput.value.includes('@');
+}
+
+newEmailInput.addEventListener('input', validateEmailMatch);
+confirmEmailInput.addEventListener('input', validateEmailMatch);
+
+// Email form submission
+document.getElementById('email-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const new_email = document.getElementById('new-email-input').value.trim();
+    const messageDiv = document.getElementById('email-message');
+
+    if (new_email !== document.getElementById('confirm-email-input').value) {
+        messageDiv.textContent = '✗ Emails do not match';
+        messageDiv.className = 'text-sm text-red-600';
+        messageDiv.classList.remove('hidden');
+        return;
+    }
+
+    if (!confirm('Are you sure you want to change your email to ' + new_email + '?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/settings/email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ new_email })
+        });
+
+        if (response.ok) {
+            messageDiv.textContent = '✓ Email changed successfully';
+            messageDiv.className = 'text-sm text-emerald-600';
+            messageDiv.classList.remove('hidden');
+            document.getElementById('new-email-input').value = '';
+            document.getElementById('confirm-email-input').value = '';
+            submitBtn.disabled = true;
+            loadProfile();
+        } else if (response.status === 409) {
+            messageDiv.textContent = '✗ Email already in use';
+            messageDiv.className = 'text-sm text-red-600';
+            messageDiv.classList.remove('hidden');
+        } else {
+            throw new Error('Failed to change email');
+        }
+    } catch (error) {
+        messageDiv.textContent = '✗ ' + error.message;
+        messageDiv.className = 'text-sm text-red-600';
+        messageDiv.classList.remove('hidden');
+    }
+});
+
+// Load profile on page load
+loadProfile();
+</script>
+{% endblock %}

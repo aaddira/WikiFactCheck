@@ -246,6 +246,13 @@ def dashboard_page():
     return render_template("dashboard.html")
 
 
+@app.route("/settings")
+@login_required
+def settings_page():
+    """User settings page."""
+    return render_template("settings.html")
+
+
 @app.route("/admin")
 @admin_required
 def admin_page():
@@ -275,10 +282,12 @@ def api_auth_me():
 from routes_annotate import annotate_bp
 from routes_admin import admin_bp
 from routes_dashboard import dashboard_bp
+from routes_settings import settings_bp
 
 app.register_blueprint(annotate_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(dashboard_bp)
+app.register_blueprint(settings_bp)
 
 
 # Context processors

@@ -298,6 +298,46 @@
 </div>
 
 <script>
+// Debounce state to prevent double-clicks
+let adminIsProcessing = false;
+
+function setAdminButtonLoading(button, isLoading) {
+    if (isLoading) {
+        button.disabled = true;
+        button.dataset.originalText = button.textContent;
+        button.textContent = '⏳ ' + button.textContent;
+        button.style.opacity = '0.6';
+    } else {
+        button.disabled = false;
+        button.textContent = button.dataset.originalText || button.textContent;
+        button.style.opacity = '1';
+    }
+}
+
+async function handleApproveSubmission(userId, email, button) {
+    if (adminIsProcessing) return;
+    adminIsProcessing = true;
+    setAdminButtonLoading(button, true);
+    try {
+        await approveSubmission(userId, email);
+    } finally {
+        adminIsProcessing = false;
+        setAdminButtonLoading(button, false);
+    }
+}
+
+async function handleRejectSubmission(userId, email, button) {
+    if (adminIsProcessing) return;
+    adminIsProcessing = true;
+    setAdminButtonLoading(button, true);
+    try {
+        await rejectSubmission(userId, email);
+    } finally {
+        adminIsProcessing = false;
+        setAdminButtonLoading(button, false);
+    }
+}
+
 function switchTab(tabName) {
     // Update URL hash
     window.location.hash = `#${tabName}`;
@@ -744,11 +784,11 @@ async function loadPendingSubmissions() {
                             </p>
                         </div>
                         <div class="flex gap-2">
-                            <button onclick="approveSubmission(${submission.user_id}, '${submission.email}')"
+                            <button onclick="handleApproveSubmission(${submission.user_id}, '${submission.email}', this)"
                                     class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
                                 ✓ Approve
                             </button>
-                            <button onclick="rejectSubmission(${submission.user_id}, '${submission.email}')"
+                            <button onclick="handleRejectSubmission(${submission.user_id}, '${submission.email}', this)"
                                     class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition">
                                 ✗ Reject
                             </button>

@@ -1,5 +1,48 @@
 let currentPair = null;
 let isSaving = false;
+let isProcessing = false;
+
+// Debounce wrapper for button handlers
+function setButtonLoading(btnId, isLoading) {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+
+    if (isLoading) {
+        btn.disabled = true;
+        btn.dataset.originalText = btn.textContent;
+        btn.textContent = '⏳ ' + btn.textContent;
+        btn.style.opacity = '0.6';
+    } else {
+        btn.disabled = false;
+        btn.textContent = btn.dataset.originalText || btn.textContent;
+        btn.style.opacity = '1';
+    }
+}
+
+// Debounced handlers to prevent double-clicks
+async function handleSave() {
+    if (isProcessing) return;
+    isProcessing = true;
+    setButtonLoading('save-btn', true);
+    try {
+        await savePair();
+    } finally {
+        isProcessing = false;
+        setButtonLoading('save-btn', false);
+    }
+}
+
+async function handleSkip() {
+    if (isProcessing) return;
+    isProcessing = true;
+    setButtonLoading('skip-btn', true);
+    try {
+        await skipPair();
+    } finally {
+        isProcessing = false;
+        setButtonLoading('skip-btn', false);
+    }
+}
 
 // Initialize on page load
 document.addEventListener("DOMContentLoaded", () => {

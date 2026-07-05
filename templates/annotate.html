@@ -191,10 +191,10 @@
 
         <!-- Buttons -->
         <div class="btn-group">
-            <button type="button" class="btn btn-secondary" onclick="skipPair()" {% if preview_mode %}disabled{% endif %}>
+            <button type="button" id="skip-btn" class="btn btn-secondary" onclick="handleSkip()" {% if preview_mode %}disabled{% endif %}>
                 Skip
             </button>
-            <button type="button" class="btn btn-primary" onclick="savePair()" {% if preview_mode %}disabled{% endif %}>
+            <button type="button" id="save-btn" class="btn btn-primary" onclick="handleSave()" {% if preview_mode %}disabled{% endif %}>
                 Save & Next
             </button>
         </div>

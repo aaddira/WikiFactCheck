@@ -16,23 +16,27 @@ depends_on = None
 
 
 def upgrade():
-    op.create_table(
-        'audit_logs',
-        sa.Column('id', sa.Integer(), nullable=False),
-        sa.Column('action', sa.String(length=100), nullable=False),
-        sa.Column('actor_user_id', sa.Integer(), nullable=True),
-        sa.Column('actor_email', sa.String(length=255), nullable=False),
-        sa.Column('target_type', sa.String(length=50), nullable=True),
-        sa.Column('target_id', sa.String(length=100), nullable=True),
-        sa.Column('details', sa.Text(), nullable=True),
-        sa.Column('created_at', sa.DateTime(), nullable=True),
-        sa.ForeignKeyConstraint(['actor_user_id'], ['users.id'], ),
-        sa.PrimaryKeyConstraint('id')
-    )
-    op.create_index('ix_audit_action_created', 'audit_logs', ['action', 'created_at'], unique=False)
-    op.create_index('ix_audit_logs_action', 'audit_logs', ['action'], unique=False)
-    op.create_index('ix_audit_logs_actor_user_id', 'audit_logs', ['actor_user_id'], unique=False)
-    op.create_index('ix_audit_logs_created_at', 'audit_logs', ['created_at'], unique=False)
+    try:
+        op.create_table(
+            'audit_logs',
+            sa.Column('id', sa.Integer(), nullable=False),
+            sa.Column('action', sa.String(length=100), nullable=False),
+            sa.Column('actor_user_id', sa.Integer(), nullable=True),
+            sa.Column('actor_email', sa.String(length=255), nullable=False),
+            sa.Column('target_type', sa.String(length=50), nullable=True),
+            sa.Column('target_id', sa.String(length=100), nullable=True),
+            sa.Column('details', sa.Text(), nullable=True),
+            sa.Column('created_at', sa.DateTime(), nullable=True),
+            sa.ForeignKeyConstraint(['actor_user_id'], ['users.id'], ),
+            sa.PrimaryKeyConstraint('id')
+        )
+        op.create_index('ix_audit_action_created', 'audit_logs', ['action', 'created_at'], unique=False)
+        op.create_index('ix_audit_logs_action', 'audit_logs', ['action'], unique=False)
+        op.create_index('ix_audit_logs_actor_user_id', 'audit_logs', ['actor_user_id'], unique=False)
+        op.create_index('ix_audit_logs_created_at', 'audit_logs', ['created_at'], unique=False)
+    except Exception:
+        # Table already exists from db.create_all(), skip
+        pass
 
 
 def downgrade():

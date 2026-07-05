@@ -487,6 +487,19 @@ def api_test_retake():
         return jsonify({"error": error_msg}), 500
 
 
+@annotate_bp.route("/last-annotation", methods=["GET"])
+@login_required
+def api_last_annotation():
+    """Get the pair ID of the user's most recent annotation."""
+    user = get_current_user()
+    annotation = Annotation.query.filter_by(user_id=user.id).order_by(Annotation.created_at.desc()).first()
+
+    if not annotation:
+        return jsonify({"pair_id": None}), 200
+
+    return jsonify({"pair_id": annotation.pair_id}), 200
+
+
 @annotate_bp.route("/annotation-history", methods=["GET"])
 @login_required
 def api_annotation_history():

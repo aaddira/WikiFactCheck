@@ -183,6 +183,27 @@ function goBackToLastPair() {
 
 // Initialize on page load
 document.addEventListener("DOMContentLoaded", async () => {
+    // Fetch the user's last annotation to enable "Go Back" button
+    try {
+        const lastAnnRes = await fetch("/api/last-annotation");
+        if (lastAnnRes.ok) {
+            const data = await lastAnnRes.json();
+            if (data.pair_id) {
+                lastPairId = data.pair_id;
+                // Show the back button since there's a previous annotation
+                const goBackBtn = document.getElementById('go-back-btn');
+                if (goBackBtn) {
+                    goBackBtn.style.visibility = 'visible';
+                    goBackBtn.style.width = 'auto';
+                    goBackBtn.style.margin = '0';
+                    goBackBtn.style.padding = '0.5rem 1rem';
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error fetching last annotation:', error);
+    }
+
     // Check if there's a specific pair in the URL hash
     if (!await loadPairFromHash()) {
         // If no hash or invalid hash, load next pair

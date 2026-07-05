@@ -521,6 +521,77 @@ def send_rejection_email(user, reason):
 
 
 # ============================================================================
+# Audit Log
+# ============================================================================
+
+
+@admin_bp.route("/audit-log", methods=["GET"])
+@admin_required
+def api_audit_log():
+    """Get paginated audit log with filtering."""
+    page = request.args.get("page", 1, type=int)
+    per_page = min(request.args.get("per_page", 50, type=int), 200)  # Cap at 200
+    action = request.args.get("action", None, type=str)
+    actor_email = request.args.get("actor_email", None, type=str)
+    target_type = request.args.get("target_type", None, type=str)
+    date_from = request.args.get("date_from", None, type=str)
+    date_to = request.args.get("date_to", None, type=str)
+
+    # Build query
+    query = AuditLog.query
+
+    if action:
+        query = query.filter(AuditLog.action == action)
+    if actor_email:
+        query = query.filter(AuditLog.actor_email.ilike(f"%{actor_email}%"))
+    if target_type:
+        query = query.filter(AuditLog.target_type == target_type)
+    if date_from:
+        from datetime import datetime
+        try:
+            dt_from = datetime.fromisoformat(date_from)
+            query = query.filter(AuditLog.created_at >= dt_from)
+        except ValueError:
+            pass
+    if date_to:
+        from datetime import datetime
+        try:
+            dt_to = datetime.fromisoformat(date_to)
+            query = query.filter(AuditLog.created_at <= dt_to)
+        except ValueError:
+            pass
+
+    # Paginate
+    paginated = query.order_by(AuditLog.created_at.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+
+    return jsonify({
+        "logs": [
+            {
+                "id": log.id,
+                "action": log.action,
+                "actor_user_id": log.actor_user_id,
+                "actor_email": log.actor_email,
+                "target_type": log.target_type,
+                "target_id": log.target_id,
+                "details": json.loads(log.details) if log.details else None,
+                "created_at": log.created_at.isoformat() if log.created_at else None,
+            }
+            for log in paginated.items
+        ],
+        "pagination": {
+            "page": page,
+            "per_page": per_page,
+            "total": paginated.total,
+            "pages": paginated.pages,
+            "has_prev": paginated.has_prev,
+            "has_next": paginated.has_next,
+        }
+    })
+
+
+# ============================================================================
 # Export
 # ============================================================================
 

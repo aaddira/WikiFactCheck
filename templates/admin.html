@@ -36,6 +36,9 @@
         <button onclick="switchTab('export')" class="px-4 py-2 border-b-2 border-gray-300 font-semibold text-gray-600">
             Export
         </button>
+        <button onclick="switchTab('audit')" class="px-4 py-2 border-b-2 border-gray-300 font-semibold text-gray-600">
+            Audit Log
+        </button>
     </div>
 
     <!-- Upload Dataset Tab -->
@@ -243,6 +246,50 @@
             </div>
         </div>
     </div>
+
+    <!-- Audit Log Tab -->
+    <div id="tab-audit" class="tab-content hidden">
+        <div class="admin-section">
+            <div class="admin-section-title">Audit Log</div>
+
+            <!-- Filter Row -->
+            <div class="grid grid-cols-4 gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
+                <input type="text" id="audit-filter-action" placeholder="Filter by action" class="px-3 py-2 border rounded-lg text-sm">
+                <input type="text" id="audit-filter-email" placeholder="Filter by actor email" class="px-3 py-2 border rounded-lg text-sm">
+                <input type="text" id="audit-filter-target-type" placeholder="Filter by target type" class="px-3 py-2 border rounded-lg text-sm">
+                <button onclick="loadAuditLog(1)" class="px-4 py-2 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition">
+                    Search
+                </button>
+            </div>
+
+            <!-- Audit Log Table -->
+            <table class="table w-full">
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Action</th>
+                        <th>Actor</th>
+                        <th>Target</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody id="auditTableBody">
+                    <tr>
+                        <td colspan="5" class="text-center py-4 text-gray-500">Loading...</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- Pagination -->
+            <div class="flex gap-2 justify-center mt-4">
+                <button onclick="loadAuditLog(1)" id="audit-btn-first" class="px-3 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300">First</button>
+                <button onclick="auditLogPrevPage()" id="audit-btn-prev" class="px-3 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300">Prev</button>
+                <span id="audit-page-info" class="px-4 py-2 text-gray-600">Page 1</span>
+                <button onclick="auditLogNextPage()" id="audit-btn-next" class="px-3 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300">Next</button>
+                <button onclick="loadAuditLog(999)" id="audit-btn-last" class="px-3 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300">Last</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -269,6 +316,7 @@ function switchTab(tabName) {
     else if (tabName === "results") loadTestResults();
     else if (tabName === "submissions") loadPendingSubmissions();
     else if (tabName === "test") loadDatasetsForTestSamples();
+    else if (tabName === "audit") loadAuditLog(1);
 }
 
 async function submitUpload(event) {
@@ -743,6 +791,59 @@ async function rejectSubmission(userId, email) {
     } catch (error) {
         showStatus("error", `Error: ${error.message}`);
     }
+}
+
+// Audit Log Functions
+let currentAuditPage = 1;
+let auditLogTotal = 0;
+let auditLogPages = 0;
+
+async function loadAuditLog(page) {
+    try {
+        const action = document.getElementById("audit-filter-action").value;
+        const email = document.getElementById("audit-filter-email").value;
+        const targetType = document.getElementById("audit-filter-target-type").value;
+
+        let url = `/admin/audit-log?page=${page}&per_page=50`;
+        if (action) url += `&action=${encodeURIComponent(action)}`;
+        if (email) url += `&actor_email=${encodeURIComponent(email)}`;
+        if (targetType) url += `&target_type=${encodeURIComponent(targetType)}`;
+
+        const response = await fetch(url);
+        const data = await response.json();
+
+        currentAuditPage = data.pagination.page;
+        auditLogTotal = data.pagination.total;
+        auditLogPages = data.pagination.pages;
+
+        const tbody = document.getElementById("auditTableBody");
+        tbody.innerHTML = data.logs
+            .map((log) => `
+                <tr>
+                    <td class="text-sm">${new Date(log.created_at).toLocaleString()}</td>
+                    <td><span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded font-semibold">${log.action}</span></td>
+                    <td class="text-sm">${log.actor_email}</td>
+                    <td class="text-sm">${log.target_type || "—"} ${log.target_id ? `(${log.target_id})` : ""}</td>
+                    <td class="text-xs text-gray-600">${log.details ? JSON.stringify(log.details).substring(0, 100) + "..." : "—"}</td>
+                </tr>
+            `)
+            .join("");
+
+        // Update pagination
+        document.getElementById("audit-page-info").textContent = `Page ${data.pagination.page} of ${data.pagination.pages}`;
+        document.getElementById("audit-btn-prev").disabled = !data.pagination.has_prev;
+        document.getElementById("audit-btn-next").disabled = !data.pagination.has_next;
+    } catch (error) {
+        showStatus("error", `Failed to load audit log: ${error.message}`);
+    }
+}
+
+function auditLogPrevPage() {
+    if (currentAuditPage > 1) loadAuditLog(currentAuditPage - 1);
+}
+
+function auditLogNextPage() {
+    if (currentAuditPage < auditLogPages) loadAuditLog(currentAuditPage + 1);
 }
 </script>
 {% endblock %}

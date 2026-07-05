@@ -16,9 +16,14 @@ depends_on = None
 
 
 def upgrade():
-    with op.batch_alter_table('claims', schema=None) as batch_op:
-        batch_op.drop_constraint('uq_claim_pair_user', type_='unique')
-        batch_op.create_unique_constraint('uq_claim_pair_id', ['pair_id'])
+    try:
+        with op.batch_alter_table('claims', schema=None) as batch_op:
+            batch_op.drop_constraint('uq_claim_pair_user', type_='unique')
+            batch_op.create_unique_constraint('uq_claim_pair_id', ['pair_id'])
+    except Exception:
+        # Claims table may not exist yet if this is a fresh database
+        # db.create_all() after migrations will create it with the correct schema
+        pass
 
 
 def downgrade():

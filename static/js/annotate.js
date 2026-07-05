@@ -182,11 +182,11 @@ function goBackToLastPair() {
 }
 
 // Initialize on page load
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
     // Check if there's a specific pair in the URL hash
-    if (!loadPairFromHash()) {
+    if (!await loadPairFromHash()) {
         // If no hash or invalid hash, load next pair
-        loadNextPair();
+        await loadNextPair();
     }
     updateProgress();
     loadUserTarget();

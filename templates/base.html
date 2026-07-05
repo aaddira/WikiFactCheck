@@ -4,34 +4,58 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}WikiFactCheck Annotation Platform{% endblock %}</title>
+
+    <!-- Anti-FOUC: Prevent flash of wrong theme by reading theme before page renders -->
+    <script>
+        (function() {
+            const stored = localStorage.getItem('theme');
+            const theme = stored === 'light' || stored === 'dark' ? stored :
+                         (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            if (theme === 'dark') {
+                document.documentElement.classList.add('dark');
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
+        })();
+    </script>
+
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Configure Tailwind for dark mode class-based detection -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class'
+        };
+    </script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     {% block extra_css %}{% endblock %}
 </head>
-<body class="bg-gray-50">
-    <nav class="bg-white border-b border-gray-200">
+<body class="bg-gray-50 dark:bg-gray-900">
+    <nav class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
                 <div class="flex items-center gap-2">
                     <img src="{{ url_for('static', filename='images/wikipedia_logo.svg') }}" alt="Wikipedia" class="w-6 h-6">
-                    <a href="/" class="text-xl font-bold text-gray-900">WikiFactCheck</a>
+                    <a href="/" class="text-xl font-bold text-gray-900 dark:text-white">WikiFactCheck</a>
                 </div>
                 <div class="flex items-center gap-6">
                     {% if current_user %}
                         {% if current_user.is_admin %}
-                            <a href="/admin" class="text-sm font-medium text-emerald-600 hover:text-emerald-800">Admin Panel</a>
+                            <a href="/admin" class="text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300">Admin Panel</a>
                         {% else %}
-                            <a href="/dashboard" class="text-sm font-medium text-emerald-600 hover:text-emerald-800">Dashboard</a>
-                            <a href="/annotate" class="text-sm font-medium text-emerald-600 hover:text-emerald-800">Annotate</a>
-                            <a href="/test/post-login" class="text-sm font-medium text-emerald-600 hover:text-emerald-800">Qualification Test</a>
-                            <a href="/settings" class="text-sm font-medium text-gray-600 hover:text-gray-900">Preferences</a>
+                            <a href="/dashboard" class="text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300">Dashboard</a>
+                            <a href="/annotate" class="text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300">Annotate</a>
+                            <a href="/test/post-login" class="text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300">Qualification Test</a>
+                            <a href="/settings" class="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">Preferences</a>
                         {% endif %}
-                        <a href="/logout" class="text-sm text-gray-600 hover:text-gray-900">Logout</a>
+                        <a href="/logout" class="text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">Logout</a>
                     {% else %}
                         <a href="{{ url_for('login_page') }}" class="bg-emerald-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-emerald-700 transition">
                             Start Annotating
                         </a>
                     {% endif %}
+                    <!-- Theme Toggle Button -->
+                    <button onclick="toggleTheme()" class="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition" title="Toggle dark mode">
+                        <span id="theme-icon">🌙</span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -42,6 +66,19 @@
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+    <script>
+        // Update theme icon based on current theme
+        function updateThemeIcon() {
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            const icon = document.getElementById('theme-icon');
+            if (icon) {
+                icon.textContent = isDark ? '☀️' : '🌙';
+            }
+        }
+        updateThemeIcon();
+        document.addEventListener('themechange', updateThemeIcon);
+    </script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

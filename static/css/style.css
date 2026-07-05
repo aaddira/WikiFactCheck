@@ -1,4 +1,4 @@
-/* Base styles */
+/* Base styles - Light mode (default) */
 :root {
     --color-primary: #10b981;
     --color-success: #10b981;
@@ -7,6 +7,28 @@
     --color-border: #d1d5db;
     --color-dark: #1f2937;
     --color-text: #111827;
+    --bg-panel: white;
+    --bg-secondary: #f9fafb;
+    --text-primary: #111827;
+    --text-secondary: #6b7280;
+    --border-color: #d1d5db;
+}
+
+/* Dark mode */
+:root[data-theme="dark"],
+html.dark {
+    --color-primary: #34d399;
+    --color-success: #34d399;
+    --color-danger: #f87171;
+    --color-warning: #fbbf24;
+    --color-border: #4b5563;
+    --color-dark: #1f2937;
+    --color-text: #e5e7eb;
+    --bg-panel: #1f2937;
+    --bg-secondary: #111827;
+    --text-primary: #f3f4f6;
+    --text-secondary: #9ca3af;
+    --border-color: #4b5563;
 }
 
 * {
@@ -40,7 +62,8 @@ body {
 }
 
 .panel {
-    background: white;
+    background: var(--bg-panel);
+    color: var(--text-primary);
     border-radius: 8px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     padding: 20px;
@@ -561,4 +584,214 @@ button:disabled:hover {
 
 textarea:disabled {
     resize: none;
+}
+
+/* Dark Mode Styles */
+
+[data-theme="dark"] .panel-title,
+html.dark .panel-title {
+    color: #e5e7eb;
+    border-bottom-color: #4b5563;
+}
+
+[data-theme="dark"] .passage-text-box,
+html.dark .passage-text-box {
+    background: #374151;
+    color: #e5e7eb;
+}
+
+[data-theme="dark"] .citation-text-box,
+html.dark .citation-text-box {
+    background: #374151;
+    color: #e5e7eb;
+}
+
+[data-theme="dark"] .fact-check-note,
+html.dark .fact-check-note {
+    background: #7c2d12;
+    border-left-color: #f97316;
+}
+
+[data-theme="dark"] .fact-check-note span,
+html.dark .fact-check-note span {
+    color: #fed7aa;
+}
+
+[data-theme="dark"] fact,
+html.dark fact {
+    background: #dc2626;
+    color: #fef2f2;
+}
+
+[data-theme="dark"] .collapsible-header,
+html.dark .collapsible-header {
+    background: #374151;
+    color: #e5e7eb;
+}
+
+[data-theme="dark"] .collapsible-header:hover,
+html.dark .collapsible-header:hover {
+    background: #4b5563;
+}
+
+[data-theme="dark"] .collapsible-header.open,
+html.dark .collapsible-header.open {
+    background: #065f46;
+}
+
+[data-theme="dark"] .collapsible-content,
+html.dark .collapsible-content {
+    background: #1f2937;
+    border-top-color: #4b5563;
+    color: #e5e7eb;
+}
+
+[data-theme="dark"] .metadata-section,
+html.dark .metadata-section {
+    background: #064e3b;
+    border-color: #047857;
+}
+
+[data-theme="dark"] .citation-url-box,
+html.dark .citation-url-box {
+    background: #064e3b;
+    border-color: #047857;
+}
+
+[data-theme="dark"] .metadata-label,
+html.dark .metadata-label {
+    color: #d1d5db;
+}
+
+[data-theme="dark"] .metadata-value,
+html.dark .metadata-value {
+    color: #e5e7eb;
+}
+
+/* Form elements dark mode */
+[data-theme="dark"] input,
+[data-theme="dark"] textarea,
+[data-theme="dark"] select,
+html.dark input,
+html.dark textarea,
+html.dark select {
+    background: #374151;
+    color: #e5e7eb;
+    border-color: #4b5563;
+}
+
+[data-theme="dark"] input:focus,
+[data-theme="dark"] textarea:focus,
+[data-theme="dark"] select:focus,
+html.dark input:focus,
+html.dark textarea:focus,
+html.dark select:focus {
+    border-color: #34d399;
+    outline: none;
+}
+
+/* Table dark mode */
+[data-theme="dark"] table,
+html.dark table {
+    color: #e5e7eb;
+}
+
+[data-theme="dark"] thead,
+html.dark thead {
+    background: #374151;
+    color: #e5e7eb;
+}
+
+[data-theme="dark"] tbody tr,
+html.dark tbody tr {
+    border-color: #4b5563;
+}
+
+[data-theme="dark"] tbody tr:hover,
+html.dark tbody tr:hover {
+    background: #2d3748;
+}
+
+/* Progress bar dark mode */
+[data-theme="dark"] .progress-bar,
+html.dark .progress-bar {
+    background: #374151;
+}
+
+[data-theme="dark"] .progress-fill,
+html.dark .progress-fill {
+    background: #34d399;
+}
+
+/* Empty state text dark mode */
+[data-theme="dark"] .empty-state,
+html.dark .empty-state {
+    color: #9ca3af;
+}
+
+/* Instructions box dark mode */
+[data-theme="dark"] .instructions,
+html.dark .instructions {
+    background: #374151;
+    color: #e5e7eb;
+    border-color: #4b5563;
+}
+
+[data-theme="dark"] .instructions h4,
+html.dark .instructions h4 {
+    color: #f3f4f6;
+}
+
+[data-theme="dark"] .instructions ol,
+html.dark .instructions ol {
+    color: #e5e7eb;
+}
+
+/* Label options dark mode */
+[data-theme="dark"] .label-options,
+html.dark .label-options {
+    color: #e5e7eb;
+}
+
+[data-theme="dark"] .label-radio,
+html.dark .label-radio {
+    color: #e5e7eb;
+}
+
+[data-theme="dark"] .label-radio label,
+html.dark .label-radio label {
+    color: #e5e7eb;
+}
+
+[data-theme="dark"] .label-shortcut,
+html.dark .label-shortcut {
+    color: #9ca3af;
+}
+
+/* Form hint text dark mode */
+[data-theme="dark"] .form-field-hint,
+html.dark .form-field-hint {
+    color: #9ca3af;
+}
+
+/* Status badges dark mode */
+[data-theme="dark"] .status-success,
+html.dark .status-success {
+    background: #064e3b;
+    color: #a7f3d0;
+    border-color: #047857;
+}
+
+[data-theme="dark"] .status-error,
+html.dark .status-error {
+    background: #7c2d12;
+    color: #fed7aa;
+    border-color: #dc2626;
+}
+
+[data-theme="dark"] .status-info,
+html.dark .status-info {
+    background: #0c2340;
+    color: #93c5fd;
+    border-color: #1e40af;
 }

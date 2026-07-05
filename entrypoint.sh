@@ -12,9 +12,13 @@ log_info "Starting application initialization..."
 
 # Check if Flask-Migrate is available and working
 log_info "Attempting database initialization via Flask-Migrate..."
-if flask db upgrade 2>/dev/null; then
+MIGRATE_OUTPUT=$(flask db upgrade 2>&1)
+MIGRATE_EXIT=$?
+
+if [ $MIGRATE_EXIT -eq 0 ]; then
     log_info "Database initialized successfully via Flask-Migrate"
-elif flask db upgrade 2>&1 | grep -q "No such command"; then
+    echo "$MIGRATE_OUTPUT" >&2
+elif echo "$MIGRATE_OUTPUT" | grep -q "No such command"; then
     # Flask-Migrate command not available, use fallback
     log_warn "Flask-Migrate command not available, falling back to SQLAlchemy"
     log_info "Initializing database via SQLAlchemy..."
@@ -29,7 +33,9 @@ with app.app_context():
     }
 else
     # Flask-Migrate exists but failed for another reason
-    log_warn "Flask-Migrate upgrade failed, trying SQLAlchemy fallback..."
+    log_warn "Flask-Migrate upgrade failed (exit code: $MIGRATE_EXIT)"
+    log_err "Flask-Migrate output: $MIGRATE_OUTPUT"
+    log_warn "Trying SQLAlchemy fallback..."
     python -c "
 from main import app, db
 with app.app_context():

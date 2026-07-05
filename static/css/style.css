@@ -538,3 +538,27 @@ fact {
     color: #0c2340;
     border: 1px solid #93c5fd;
 }
+
+/* Disabled form elements (preview mode) */
+textarea:disabled,
+input:disabled,
+button:disabled {
+    background-color: #f3f4f6;
+    color: #9ca3af;
+    border-color: #e5e7eb;
+    cursor: not-allowed;
+    opacity: 0.65;
+}
+
+button:disabled {
+    background-color: #d1d5db;
+    color: #6b7280;
+}
+
+button:disabled:hover {
+    background-color: #d1d5db;
+}
+
+textarea:disabled {
+    resize: none;
+}

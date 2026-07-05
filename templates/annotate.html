@@ -5,12 +5,19 @@
 {% block content %}
 <div class="max-w-7xl mx-auto px-4 py-6">
     {% if preview_mode %}
-    <div class="mb-6 bg-emerald-100 border-l-4 border-emerald-500 p-4 rounded">
+    <div class="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded">
         <div class="flex items-center gap-2">
-            <span class="text-lg">👁️</span>
+            <span class="text-xl">🔒</span>
             <div>
-                <div class="font-semibold text-emerald-900">Preview Mode</div>
-                <div class="text-sm text-emerald-800">This is a preview of the annotation interface. Changes are not saved.</div>
+                <div class="font-semibold text-red-900">Annotation Preview — Read-Only</div>
+                <div class="text-sm text-red-800">
+                    <strong>You cannot annotate yet.</strong> To start annotating, you must:
+                    <ol class="list-decimal list-inside mt-2 ml-2">
+                        <li>Take the <a href="/test/post-login" class="underline font-semibold hover:text-red-700">Qualification Test</a></li>
+                        <li>Wait for admin approval</li>
+                    </ol>
+                    This interface is for preview only. All text fields are locked.
+                </div>
             </div>
         </div>
     </div>
@@ -153,9 +160,14 @@
                 id="quote"
                 name="quote"
                 placeholder="Paste exact verbatim text from the citation that supports or contradicts the passage..."
+                {% if preview_mode %}disabled title="Locked — take the qualification test and get admin approval to enable annotation"{% endif %}
             ></textarea>
             <div class="form-field-hint">
+                {% if preview_mode %}
+                <span class="text-red-600 font-semibold">🔒 Locked — complete qualification test to unlock</span>
+                {% else %}
                 Copy and paste the exact text from the source. This is required unless you skip.
+                {% endif %}
             </div>
         </div>
 
@@ -166,18 +178,23 @@
                 id="explanation"
                 name="explanation"
                 placeholder="Briefly explain how the quote supports or contradicts the passage. Mention uncertainties or difficulties if any."
+                {% if preview_mode %}disabled title="Locked — take the qualification test and get admin approval to enable annotation"{% endif %}
             ></textarea>
             <div class="form-field-hint">
+                {% if preview_mode %}
+                <span class="text-red-600 font-semibold">🔒 Locked — complete qualification test to unlock</span>
+                {% else %}
                 Provide context for your decision. This is required unless you skip.
+                {% endif %}
             </div>
         </div>
 
         <!-- Buttons -->
         <div class="btn-group">
-            <button type="button" class="btn btn-secondary" onclick="skipPair()">
+            <button type="button" class="btn btn-secondary" onclick="skipPair()" {% if preview_mode %}disabled{% endif %}>
                 Skip
             </button>
-            <button type="button" class="btn btn-primary" onclick="savePair()">
+            <button type="button" class="btn btn-primary" onclick="savePair()" {% if preview_mode %}disabled{% endif %}>
                 Save & Next
             </button>
         </div>

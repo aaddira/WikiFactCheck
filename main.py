@@ -215,7 +215,7 @@ def admin_preview():
 def logout():
     """Logout."""
     do_logout()
-    return redirect(url_for("login_page"))
+    return redirect(url_for("index"))
 
 
 @app.route("/test")

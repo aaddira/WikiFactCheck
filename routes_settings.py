@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 from auth import login_required, get_current_user, is_admin_email
-from models import db, User
+from models import db, User, Annotation
 from sqlalchemy.exc import IntegrityError
 
 settings_bp = Blueprint("settings", __name__, url_prefix="/api/settings")
@@ -12,6 +12,7 @@ settings_bp = Blueprint("settings", __name__, url_prefix="/api/settings")
 def api_settings_profile():
     """Get current user's profile info."""
     user = get_current_user()
+    actual_count = db.session.query(db.func.count(Annotation.id)).filter_by(user_id=user.id).scalar() or 0
     return jsonify({
         "id": user.id,
         "email": user.email,
@@ -21,7 +22,7 @@ def api_settings_profile():
         "qualification_score": user.qualification_score,
         "test_submitted": user.test_submitted,
         "test_approved_by_admin": user.test_approved_by_admin,
-        "annotations_count": user.annotations_count,
+        "annotations_count": actual_count,
         "annotation_target": user.annotation_target,
         "created_at": user.created_at.isoformat() if user.created_at else None,
         "last_login": user.last_login.isoformat() if user.last_login else None,

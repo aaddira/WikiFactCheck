@@ -50,15 +50,16 @@ def api_pair_preview():
 def api_user_status():
     """Get user qualification/annotation status."""
     user = get_current_user()
+    actual_count = db.session.query(db.func.count(Annotation.id)).filter_by(user_id=user.id).scalar() or 0
     cap = user.max_annotations_cap
-    remaining = cap - user.annotations_count if cap else None
+    remaining = cap - actual_count if cap else None
 
     return jsonify({
         "user_id": user.id,
         "email": user.email,
         "qualification_passed": user.qualification_passed,
         "qualification_score": user.qualification_score,
-        "annotations_count": user.annotations_count,
+        "annotations_count": actual_count,
         "max_annotations_cap": cap,
         "remaining_until_cap": remaining,
         "annotation_target": user.annotation_target,
@@ -72,9 +73,10 @@ def api_user_target():
     user = get_current_user()
 
     if request.method == "GET":
+        actual_count = db.session.query(db.func.count(Annotation.id)).filter_by(user_id=user.id).scalar() or 0
         return jsonify({
             "annotation_target": user.annotation_target,
-            "annotations_count": user.annotations_count,
+            "annotations_count": actual_count,
         })
 
     # PUT: set target

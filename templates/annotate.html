@@ -195,11 +195,11 @@
         </div>
 
         <!-- Buttons -->
-        <div class="btn-group" style="display: flex; justify-content: space-between; align-items: center;">
-            <button type="button" id="go-back-btn" class="btn btn-secondary" onclick="goBackToLastPair()" style="display:none;" {% if preview_mode %}disabled{% endif %}>
+        <div class="btn-group" style="display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
+            <button type="button" id="go-back-btn" class="btn btn-secondary" onclick="goBackToLastPair()" style="visibility: hidden; width: 0; margin: 0; padding: 0;" {% if preview_mode %}disabled{% endif %}>
                 ↩️ Go Back to Last
             </button>
-            <div style="display: flex; gap: 1rem;">
+            <div style="display: flex; gap: 1rem; margin-left: auto;">
                 <button type="button" id="skip-btn" class="btn btn-secondary" onclick="skipWithWarning()" {% if preview_mode %}disabled{% endif %}>
                     Skip
                 </button>

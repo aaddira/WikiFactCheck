@@ -2,6 +2,41 @@ let currentPair = null;
 let isSaving = false;
 let isProcessing = false;
 
+// URL routing helpers
+function updateUrlHash() {
+    if (currentPair) {
+        window.history.replaceState(null, '', `#pair/${currentPair.id}`);
+    }
+}
+
+async function loadPairFromHash() {
+    const hash = window.location.hash;
+    const match = hash.match(/#pair\/(\d+)/);
+    if (match) {
+        const pairId = parseInt(match[1]);
+        try {
+            const response = await fetch(`/api/pair/${pairId}`);
+            if (!response.ok) {
+                window.location.hash = '';
+                return false;
+            }
+            const pair = await response.json();
+            currentPair = pair;
+            renderPair(currentPair);
+            clearForm();
+            markSaved();
+            loadDrafts();
+            window.scrollTo(0, 0);
+            return true;
+        } catch (error) {
+            console.error('Error loading pair from hash:', error);
+            window.location.hash = '';
+            return false;
+        }
+    }
+    return false;
+}
+
 // Debounce wrapper for button handlers
 function setButtonLoading(btnId, isLoading) {
     const btn = document.getElementById(btnId);
@@ -127,6 +162,7 @@ function goBackToLastPair() {
         fetch(`/api/pair/${lastPairId}/annotation`).then(r => r.json()).catch(() => ({}))
     ]).then(([pair, annotationData]) => {
         currentPair = pair;
+        updateUrlHash();
         renderPair(pair);
         clearForm();
         // If annotation exists, populate form with it for editing
@@ -141,15 +177,25 @@ function goBackToLastPair() {
         }
         markSaved();
         clearDrafts();
+        window.scrollTo(0, 0);
     });
 }
 
 // Initialize on page load
 document.addEventListener("DOMContentLoaded", () => {
-    loadNextPair();
+    // Check if there's a specific pair in the URL hash
+    if (!loadPairFromHash()) {
+        // If no hash or invalid hash, load next pair
+        loadNextPair();
+    }
     updateProgress();
     loadUserTarget();
     setupKeyboardShortcuts();
+
+    // Listen for hash changes (back/forward buttons)
+    window.addEventListener('hashchange', () => {
+        loadPairFromHash();
+    });
 
     // Track form changes and save drafts
     const quoteInput = document.getElementById('quote');
@@ -201,7 +247,12 @@ async function loadNextPair() {
         if (currentPair) {
             lastPairId = currentPair.id;
             const goBackBtn = document.getElementById('go-back-btn');
-            if (goBackBtn) goBackBtn.style.display = 'inline-block';
+            if (goBackBtn) {
+                goBackBtn.style.visibility = 'visible';
+                goBackBtn.style.width = 'auto';
+                goBackBtn.style.margin = '';
+                goBackBtn.style.padding = '';
+            }
         }
 
         const endpoint = (typeof previewMode !== 'undefined' && previewMode) ? "/api/pair/preview" : "/api/pair/next";
@@ -219,10 +270,12 @@ async function loadNextPair() {
         }
 
         currentPair = data.pair;
+        updateUrlHash();
         renderPair(currentPair);
         clearForm();
         markSaved();
         loadDrafts();
+        window.scrollTo(0, 0);
 
         // In preview mode, disable save/skip buttons
         if (typeof previewMode !== 'undefined' && previewMode) {

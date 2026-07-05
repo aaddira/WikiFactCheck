@@ -50,7 +50,7 @@ def api_pair_preview():
 def api_user_status():
     """Get user qualification/annotation status."""
     user = get_current_user()
-    actual_count = db.session.query(db.func.count(Annotation.id)).filter(Annotation.user_id == user.id).scalar() or 0
+    actual_count = Annotation.query.filter_by(user_id=user.id).count()
     cap = user.max_annotations_cap
     remaining = cap - actual_count if cap else None
 
@@ -73,7 +73,7 @@ def api_user_target():
     user = get_current_user()
 
     if request.method == "GET":
-        actual_count = db.session.query(db.func.count(Annotation.id)).filter(Annotation.user_id == user.id).scalar() or 0
+        actual_count = Annotation.query.filter_by(user_id=user.id).count()
         return jsonify({
             "annotation_target": user.annotation_target,
             "annotations_count": actual_count,
@@ -280,7 +280,7 @@ def api_progress():
     user = get_current_user()
 
     # Query actual annotation count from DB instead of cached user.annotations_count
-    actual_count = db.session.query(db.func.count(Annotation.id)).filter(Annotation.user_id == user.id).scalar() or 0
+    actual_count = Annotation.query.filter_by(user_id=user.id).count()
 
     # Get all test pairs
     test_pairs_count = Pair.query.filter_by(is_test_sample=True).count()

@@ -12,7 +12,7 @@ settings_bp = Blueprint("settings", __name__, url_prefix="/api/settings")
 def api_settings_profile():
     """Get current user's profile info."""
     user = get_current_user()
-    actual_count = db.session.query(db.func.count(Annotation.id)).filter(Annotation.user_id == user.id).scalar() or 0
+    actual_count = Annotation.query.filter_by(user_id=user.id).count()
     return jsonify({
         "id": user.id,
         "email": user.email,

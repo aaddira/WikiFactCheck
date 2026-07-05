@@ -49,70 +49,169 @@
         </button>
     </div>
 
-    <!-- Dashboard Tab -->
+    <!-- Dashboard Tab (Merged: Project Stats + Quality Metrics) -->
     <div id="tab-dashboard" class="tab-content hidden">
-        <div class="admin-section">
-            <div class="admin-section-title">Dashboard & Quality Metrics</div>
-            <div class="grid grid-cols-2 gap-6 mb-6">
-                <!-- Inter-Annotator Agreement Card -->
-                <div class="bg-blue-50 border border-blue-200 rounded-lg p-6">
-                    <div class="flex justify-between items-start mb-4">
-                        <div>
-                            <h3 class="font-semibold text-lg text-blue-900">Inter-Annotator Agreement</h3>
-                            <p class="text-sm text-blue-700 mt-2">Proxy metric based on annotator consensus, not verified accuracy</p>
-                        </div>
-                        <span class="text-2xl">🤝</span>
-                    </div>
-                    <div id="agreement-overall" class="text-3xl font-bold text-blue-600">—</div>
-                    <p class="text-sm text-blue-700 mt-2">Overall agreement rate</p>
-                    <div id="agreement-by-dataset" class="mt-4 space-y-2 text-sm"></div>
-                </div>
+        <!-- Summary Statistics -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="text-gray-600 text-sm font-semibold mb-2">Total Pairs</div>
+                <div class="text-3xl font-bold" id="stat-total-pairs">—</div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="text-gray-600 text-sm font-semibold mb-2">Total Annotations</div>
+                <div class="text-3xl font-bold" id="stat-total-anno">—</div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="text-gray-600 text-sm font-semibold mb-2">1+ Annotations</div>
+                <div class="text-3xl font-bold" id="stat-anno-1">—</div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="text-gray-600 text-sm font-semibold mb-2">Target Completion</div>
+                <div class="text-3xl font-bold" id="stat-completion">—</div>
+            </div>
+        </div>
 
-                <!-- Label Distribution Card -->
-                <div class="bg-purple-50 border border-purple-200 rounded-lg p-6">
-                    <div class="flex justify-between items-start mb-4">
-                        <h3 class="font-semibold text-lg text-purple-900">Label Distribution (Consensus Breakdown)</h3>
-                        <span class="text-2xl">📊</span>
+        <!-- Project Completion Bar -->
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <div class="flex justify-between items-center mb-2">
+                <h3 class="text-lg font-semibold">Project Progress (All)</h3>
+                <span id="completion-text" class="text-sm text-gray-600">—</span>
+            </div>
+            <div class="progress-bar">
+                <div id="completion-fill" class="progress-fill" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <!-- Citation Type Breakdown -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div class="bg-emerald-50 rounded-lg shadow p-6 border-l-4 border-emerald-500">
+                <h3 class="text-lg font-semibold mb-4 text-emerald-900">Journal Citations</h3>
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <div class="text-gray-600 text-sm mb-1">Total</div>
+                        <div class="text-2xl font-bold" id="stat-journal-total">—</div>
                     </div>
-                    <div class="grid grid-cols-3 gap-3">
-                        <div class="bg-white border border-green-200 rounded-lg p-3 text-center">
-                            <div class="text-xl font-bold text-green-600" id="consensus-count">—</div>
-                            <div class="text-xs text-green-700 font-semibold mt-1">Full Consensus</div>
-                            <div class="text-xs text-green-600" id="consensus-pct">—</div>
-                        </div>
-                        <div class="bg-white border border-yellow-200 rounded-lg p-3 text-center">
-                            <div class="text-xl font-bold text-yellow-600" id="disagreement-count">—</div>
-                            <div class="text-xs text-yellow-700 font-semibold mt-1">Disagreement</div>
-                            <div class="text-xs text-yellow-600" id="disagreement-pct">—</div>
-                        </div>
-                        <div class="bg-white border border-red-200 rounded-lg p-3 text-center">
-                            <div class="text-xl font-bold text-red-600" id="high-disagreement-count">—</div>
-                            <div class="text-xs text-red-700 font-semibold mt-1">High Disagreement</div>
-                            <div class="text-xs text-red-600" id="high-disagreement-pct">—</div>
-                        </div>
+                    <div>
+                        <div class="text-gray-600 text-sm mb-1">Annotated</div>
+                        <div class="text-2xl font-bold" id="stat-journal-annotated">—</div>
                     </div>
+                    <div>
+                        <div class="text-gray-600 text-sm mb-1">Complete</div>
+                        <div class="text-2xl font-bold" id="stat-journal-complete">—</div>
+                    </div>
+                    <div>
+                        <div class="text-gray-600 text-sm mb-1">Progress</div>
+                        <div class="text-2xl font-bold" id="stat-journal-pct">—</div>
+                    </div>
+                </div>
+                <div class="progress-bar" style="height: 6px;">
+                    <div id="journal-progress-fill" class="progress-fill" style="width: 0%; background-color: #10b981;"></div>
                 </div>
             </div>
 
-            <div class="bg-white border rounded-lg p-6">
-                <h3 class="font-semibold text-lg mb-4">Annotator Performance</h3>
-                <table class="table w-full">
-                    <thead>
-                        <tr>
-                            <th>Email</th>
-                            <th>Qualification Score</th>
-                            <th>Agreement Rate</th>
-                            <th>Quality Flag</th>
-                            <th>Annotations</th>
-                        </tr>
-                    </thead>
-                    <tbody id="annotator-details-body">
-                        <tr>
-                            <td colspan="5" class="text-center py-4 text-gray-500">Loading...</td>
-                        </tr>
-                    </tbody>
-                </table>
+            <div class="bg-purple-50 rounded-lg shadow p-6 border-l-4 border-purple-500">
+                <h3 class="text-lg font-semibold mb-4 text-purple-900">Web Citations</h3>
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <div class="text-gray-600 text-sm mb-1">Total</div>
+                        <div class="text-2xl font-bold" id="stat-web-total">—</div>
+                    </div>
+                    <div>
+                        <div class="text-gray-600 text-sm mb-1">Annotated</div>
+                        <div class="text-2xl font-bold" id="stat-web-annotated">—</div>
+                    </div>
+                    <div>
+                        <div class="text-gray-600 text-sm mb-1">Complete</div>
+                        <div class="text-2xl font-bold" id="stat-web-complete">—</div>
+                    </div>
+                    <div>
+                        <div class="text-gray-600 text-sm mb-1">Progress</div>
+                        <div class="text-2xl font-bold" id="stat-web-pct">—</div>
+                    </div>
+                </div>
+                <div class="progress-bar" style="height: 6px;">
+                    <div id="web-progress-fill" class="progress-fill" style="width: 0%; background-color: #a855f7;"></div>
+                </div>
             </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <div class="bg-white rounded-lg shadow p-6">
+                <h3 class="text-lg font-semibold mb-4">Annotations per Annotator</h3>
+                <canvas id="annotatorChart" style="max-height: 300px"></canvas>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6">
+                <h3 class="text-lg font-semibold mb-4">Label Distribution</h3>
+                <canvas id="labelChart" style="max-height: 300px"></canvas>
+            </div>
+        </div>
+
+        <!-- Dataset Progress Chart -->
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <h3 class="text-lg font-semibold mb-4">Dataset Progress</h3>
+            <canvas id="datasetChart" style="max-height: 300px"></canvas>
+        </div>
+
+        <!-- Inter-Annotator Agreement Card -->
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+            <h3 class="text-lg font-semibold text-blue-900 mb-2">Inter-Annotator Agreement</h3>
+            <div class="text-2xl font-bold text-blue-600 mb-2" id="agreement-overall">—</div>
+            <p class="text-xs text-blue-700 mb-4">
+                <strong>📊 Note:</strong> This is a proxy metric based on annotator consensus, not verified accuracy.
+                Qualification score is the ground truth for evaluating annotator quality.
+            </p>
+            <p class="text-xs text-blue-600" id="agreement-details">—</p>
+        </div>
+
+        <!-- Tie Scenarios / Label Distribution Card -->
+        <div class="bg-purple-50 border border-purple-200 rounded-lg p-6 mb-6">
+            <h3 class="text-lg font-semibold text-purple-900 mb-4">Label Distribution (Consensus Breakdown)</h3>
+            <p class="text-xs text-purple-700 mb-4">
+                For pairs with 2+ annotations, shows how many unique labels were assigned. Higher consensus (1 label) = easier decisions.
+            </p>
+            <div class="grid grid-cols-3 gap-4">
+                <div class="bg-white p-4 rounded-lg border border-purple-200">
+                    <div class="text-sm text-gray-600 font-medium mb-1">Full Consensus</div>
+                    <div class="text-2xl font-bold text-purple-600" id="consensus-one">—</div>
+                    <div class="text-xs text-gray-500" id="consensus-one-pct">—</div>
+                    <div class="text-xs text-gray-500 mt-1">1 unique label</div>
+                </div>
+                <div class="bg-white p-4 rounded-lg border border-purple-200">
+                    <div class="text-sm text-gray-600 font-medium mb-1">Disagreement</div>
+                    <div class="text-2xl font-bold text-yellow-600" id="consensus-two">—</div>
+                    <div class="text-xs text-gray-500" id="consensus-two-pct">—</div>
+                    <div class="text-xs text-gray-500 mt-1">2 unique labels</div>
+                </div>
+                <div class="bg-white p-4 rounded-lg border border-purple-200">
+                    <div class="text-sm text-gray-600 font-medium mb-1">High Disagreement</div>
+                    <div class="text-2xl font-bold text-red-600" id="consensus-three">—</div>
+                    <div class="text-xs text-gray-500" id="consensus-three-pct">—</div>
+                    <div class="text-xs text-gray-500 mt-1">3+ unique labels</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Annotator Details Table -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold mb-4">Annotator Details</h3>
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-2 text-left font-semibold">Email</th>
+                        <th class="px-4 py-2 text-left font-semibold">Annotations</th>
+                        <th class="px-4 py-2 text-center font-semibold">Qual Score</th>
+                        <th class="px-4 py-2 text-center font-semibold">Agreement %</th>
+                        <th class="px-4 py-2 text-center font-semibold">Quality</th>
+                        <th class="px-4 py-2 text-left font-semibold">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="annotator-details-body" class="divide-y">
+                    <tr>
+                        <td colspan="6" class="px-4 py-4 text-center text-gray-500">Loading...</td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
     </div>
 
@@ -367,7 +466,11 @@
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+// Chart variables for dashboard
+let annotatorChart, labelChart, datasetChart;
+
 // Debounce state to prevent double-clicks
 let adminIsProcessing = false;
 
@@ -1008,97 +1111,290 @@ function auditLogNextPage() {
     if (currentAuditPage < auditLogPages) loadAuditLog(currentAuditPage + 1);
 }
 
-// Dashboard Functions
+// Dashboard Functions (Merged: Project Stats + Quality Metrics)
 async function loadDashboard() {
     try {
-        // Load agreement metrics
-        const agreementResponse = await fetch("/api/results/agreement");
-        const agreementData = await agreementResponse.json();
-
-        document.getElementById("agreement-overall").textContent = agreementData.overall_agreement_rate
-            ? (agreementData.overall_agreement_rate * 100).toFixed(1) + "%"
-            : "—";
-
-        // Load tie scenarios (label distribution)
-        const tieResponse = await fetch("/api/results/tie-scenarios");
-        const tieData = await tieResponse.json();
-
-        document.getElementById("consensus-count").textContent = tieData.full_consensus_count || "—";
-        document.getElementById("consensus-pct").textContent = tieData.full_consensus_pct
-            ? (tieData.full_consensus_pct * 100).toFixed(1) + "%"
-            : "—";
-
-        document.getElementById("disagreement-count").textContent = tieData.disagreement_count || "—";
-        document.getElementById("disagreement-pct").textContent = tieData.disagreement_pct
-            ? (tieData.disagreement_pct * 100).toFixed(1) + "%"
-            : "—";
-
-        document.getElementById("high-disagreement-count").textContent = tieData.high_disagreement_count || "—";
-        document.getElementById("high-disagreement-pct").textContent = tieData.high_disagreement_pct
-            ? (tieData.high_disagreement_pct * 100).toFixed(1) + "%"
-            : "—";
-
-        // Load annotator details
-        const annotatorResponse = await fetch("/api/results/by-annotator");
-        const annotatorData = await annotatorResponse.json();
-
-        const agreementByAnnotatorResponse = await fetch("/api/results/agreement/by-annotator");
-        const agreementByAnnotator = await agreementByAnnotatorResponse.json();
-
-        // Merge agreement data with annotator data
-        const annotatorMap = {};
-        annotatorData.forEach(ann => {
-            annotatorMap[ann.email] = ann;
-        });
-
-        agreementByAnnotator.forEach(agr => {
-            if (annotatorMap[agr.email]) {
-                annotatorMap[agr.email].agreement_rate = agr.agreement_rate;
-            }
-        });
-
-        // Determine quality flag based on qualification score and agreement
-        Object.values(annotatorMap).forEach(ann => {
-            const qualScore = ann.qualification_score || 0;
-            const agreementRate = ann.agreement_rate || 0;
-
-            let flag = "Fair";
-            let flagColor = "bg-yellow-100 text-yellow-800";
-
-            if (qualScore >= 80 && agreementRate >= 0.7) {
-                flag = "Excellent";
-                flagColor = "bg-green-100 text-green-800";
-            } else if (qualScore >= 60 && agreementRate >= 0.5) {
-                flag = "Good";
-                flagColor = "bg-emerald-100 text-emerald-800";
-            } else if (qualScore < 50 || agreementRate < 0.3) {
-                flag = "Poor";
-                flagColor = "bg-red-100 text-red-800";
-            }
-
-            ann.quality_flag = flag;
-            ann.quality_flag_color = flagColor;
-        });
-
-        const tbody = document.getElementById("annotator-details-body");
-        const rows = Object.values(annotatorMap).map(ann => `
-            <tr>
-                <td class="text-sm">${ann.email}</td>
-                <td class="text-sm font-semibold text-emerald-600">${ann.qualification_score || "—"}</td>
-                <td class="text-sm">${ann.agreement_rate ? (ann.agreement_rate * 100).toFixed(1) + "%" : "—"}</td>
-                <td>
-                    <span class="px-2 py-1 rounded text-xs font-semibold ${ann.quality_flag_color}">
-                        ${ann.quality_flag}
-                    </span>
-                </td>
-                <td class="text-sm font-semibold">${ann.annotations_count || 0}</td>
-            </tr>
-        `);
-
-        tbody.innerHTML = rows.length > 0 ? rows.join("") : '<tr><td colspan="5" class="text-center py-4 text-gray-500">No annotators yet</td></tr>';
+        await Promise.all([
+            loadSummary(),
+            loadCitationTypeData(),
+            loadAnnotatorData(),
+            loadLabelDistribution(),
+            loadDatasetData(),
+            loadTieScenarios()
+        ]);
     } catch (error) {
         console.error("Failed to load dashboard:", error);
         showStatus("error", "Failed to load dashboard metrics");
+    }
+}
+
+async function loadSummary() {
+    try {
+        const response = await fetch("/api/results/summary");
+        const data = await response.json();
+
+        document.getElementById("stat-total-pairs").textContent = data.total_pairs;
+        document.getElementById("stat-total-anno").textContent = data.total_annotations;
+        document.getElementById("stat-anno-1").textContent = data.pairs_with_1_annotation;
+        document.getElementById("stat-completion").textContent = `${data.completion_pct}%`;
+
+        document.getElementById("completion-text").textContent =
+            `${data.pairs_with_threshold_annotations} / ${data.min_target} samples meeting threshold`;
+        document.getElementById("completion-fill").style.width = `${Math.min(data.completion_pct, 100)}%`;
+    } catch (error) {
+        console.error("Error loading summary:", error);
+    }
+}
+
+async function loadCitationTypeData() {
+    try {
+        const response = await fetch("/api/results/per-citation-type");
+        const data = await response.json();
+
+        const journal = data.JOURNAL || {};
+        document.getElementById("stat-journal-total").textContent = journal.total_samples || 0;
+        document.getElementById("stat-journal-annotated").textContent = journal.annotated_samples || 0;
+        document.getElementById("stat-journal-complete").textContent = journal.complete_samples || 0;
+        document.getElementById("stat-journal-pct").textContent = `${journal.annotation_percentage || 0}%`;
+        document.getElementById("journal-progress-fill").style.width = `${Math.min(journal.annotation_percentage || 0, 100)}%`;
+
+        const web = data.WEB || {};
+        document.getElementById("stat-web-total").textContent = web.total_samples || 0;
+        document.getElementById("stat-web-annotated").textContent = web.annotated_samples || 0;
+        document.getElementById("stat-web-complete").textContent = web.complete_samples || 0;
+        document.getElementById("stat-web-pct").textContent = `${web.annotation_percentage || 0}%`;
+        document.getElementById("web-progress-fill").style.width = `${Math.min(web.annotation_percentage || 0, 100)}%`;
+    } catch (error) {
+        console.error("Error loading citation type data:", error);
+    }
+}
+
+async function loadAnnotatorData() {
+    try {
+        const [byAnnotatorRes, agreementRes, overallAgreementRes] = await Promise.all([
+            fetch("/api/results/by-annotator"),
+            fetch("/api/results/agreement/by-annotator"),
+            fetch("/api/results/agreement")
+        ]);
+
+        const byAnnotatorData = await byAnnotatorRes.json();
+        const agreementData = await agreementRes.json();
+        const overallAgreement = await overallAgreementRes.json();
+
+        document.getElementById("agreement-overall").textContent = overallAgreement.overall_agreement_pct + "%";
+        document.getElementById("agreement-details").textContent = `Evaluated on ${overallAgreement.pairs_evaluated} pairs with 2+ annotations.`;
+
+        const agreementMap = {};
+        agreementData.forEach((a) => {
+            agreementMap[a.email] = a;
+        });
+
+        const mergedData = byAnnotatorData.map((ann) => ({
+            ...ann,
+            agreement_rate_pct: agreementMap[ann.email]?.agreement_rate_pct,
+            agreement_evaluated: agreementMap[ann.email]?.annotations_evaluated
+        }));
+
+        const labels = mergedData.map((d) => d.email);
+        const counts = mergedData.map((d) => d.annotation_count);
+        const colors = mergedData.map((d) => {
+            if (d.qualification_status === "passed") return "#10b981";
+            if (d.qualification_status === "failed") return "#ef4444";
+            return "#999999";
+        });
+
+        const chartConfig = {
+            type: "bar",
+            data: {
+                labels,
+                datasets: [
+                    {
+                        label: "Annotations",
+                        data: counts,
+                        backgroundColor: colors,
+                    },
+                ],
+            },
+            options: {
+                indexAxis: "y",
+                plugins: {
+                    legend: { display: false },
+                },
+                scales: {
+                    x: { beginAtZero: true },
+                },
+            },
+        };
+
+        const ctx = document.getElementById("annotatorChart");
+        if (ctx && ctx.getContext) {
+            if (annotatorChart) annotatorChart.destroy();
+            annotatorChart = new Chart(ctx.getContext("2d"), chartConfig);
+        }
+
+        const tbody = document.getElementById("annotator-details-body");
+        tbody.innerHTML = mergedData
+            .map((d) => {
+                let qualityFlag = "—";
+                let qualityClass = "";
+                if (d.qualification_score !== null && d.agreement_rate_pct !== null) {
+                    const avgQuality = (d.qualification_score + (d.agreement_rate_pct || 0)) / 2;
+                    if (avgQuality >= 70) {
+                        qualityFlag = "✅ Good";
+                        qualityClass = "bg-green-100 text-green-800";
+                    } else if (avgQuality >= 50) {
+                        qualityFlag = "⚠️ Fair";
+                        qualityClass = "bg-yellow-100 text-yellow-800";
+                    } else {
+                        qualityFlag = "❌ Poor";
+                        qualityClass = "bg-red-100 text-red-800";
+                    }
+                }
+
+                return `
+                    <tr>
+                        <td class="px-4 py-2 text-sm">${d.email}</td>
+                        <td class="px-4 py-2 text-center font-semibold">${d.annotation_count}</td>
+                        <td class="px-4 py-2 text-center">${d.qualification_score || "—"}</td>
+                        <td class="px-4 py-2 text-center">${d.agreement_rate_pct !== null ? d.agreement_rate_pct + "%" : "—"}</td>
+                        <td class="px-4 py-2 text-center">
+                            <span class="px-2 py-1 rounded text-xs font-semibold ${qualityClass}">
+                                ${qualityFlag}
+                            </span>
+                        </td>
+                        <td class="px-4 py-2">
+                            <span class="px-2 py-1 rounded text-xs font-semibold
+                                ${
+                                    d.qualification_status === "passed"
+                                        ? "bg-green-100 text-green-800"
+                                        : d.qualification_status === "failed"
+                                          ? "bg-red-100 text-red-800"
+                                          : "bg-gray-100 text-gray-800"
+                                }
+                            ">
+                                ${d.qualification_status}
+                            </span>
+                        </td>
+                    </tr>
+                `;
+            })
+            .join("");
+    } catch (error) {
+        console.error("Error loading annotator data:", error);
+    }
+}
+
+async function loadLabelDistribution() {
+    try {
+        const response = await fetch("/api/results/label-distribution");
+        const data = await response.json();
+
+        const labels = Object.keys(data);
+        const values = labels.map((label) => data[label].percentage);
+        const colors = {
+            TRUE: "#10b981",
+            FALSE: "#ef4444",
+            MIXED: "#f59e0b",
+            NO_SUFFICIENT_INFO: "#f97316",
+            UNVERIFIABLE: "#999999",
+        };
+
+        const chartConfig = {
+            type: "pie",
+            data: {
+                labels: labels.map((l) => l.replace(/_/g, " ")),
+                datasets: [
+                    {
+                        data: values,
+                        backgroundColor: labels.map((l) => colors[l]),
+                    },
+                ],
+            },
+            options: {
+                plugins: {
+                    legend: { position: "bottom" },
+                },
+            },
+        };
+
+        const ctx = document.getElementById("labelChart");
+        if (ctx && ctx.getContext) {
+            if (labelChart) labelChart.destroy();
+            labelChart = new Chart(ctx.getContext("2d"), chartConfig);
+        }
+    } catch (error) {
+        console.error("Error loading label distribution:", error);
+    }
+}
+
+async function loadDatasetData() {
+    try {
+        const response = await fetch("/api/results/per-dataset");
+        const data = await response.json();
+
+        const labels = data.map((d) => d.dataset_name);
+        const annotated = data.map((d) => d.annotated_samples);
+        const unannotated = data.map((d) => d.total_samples - d.annotated_samples);
+
+        const chartConfig = {
+            type: "bar",
+            data: {
+                labels,
+                datasets: [
+                    {
+                        label: "Annotated",
+                        data: annotated,
+                        backgroundColor: "#10b981",
+                    },
+                    {
+                        label: "Remaining",
+                        data: unannotated,
+                        backgroundColor: "#e5e7eb",
+                    },
+                ],
+            },
+            options: {
+                scales: {
+                    x: { stacked: true },
+                    y: { stacked: true, beginAtZero: true },
+                },
+            },
+        };
+
+        const ctx = document.getElementById("datasetChart");
+        if (ctx && ctx.getContext) {
+            if (datasetChart) datasetChart.destroy();
+            datasetChart = new Chart(ctx.getContext("2d"), chartConfig);
+        }
+    } catch (error) {
+        console.error("Error loading dataset data:", error);
+    }
+}
+
+async function loadTieScenarios() {
+    try {
+        const response = await fetch("/api/results/tie-scenarios");
+        const data = await response.json();
+
+        if (data.total_pairs === 0) {
+            document.getElementById("consensus-one").textContent = "—";
+            document.getElementById("consensus-one-pct").textContent = "—";
+            document.getElementById("consensus-two").textContent = "—";
+            document.getElementById("consensus-two-pct").textContent = "—";
+            document.getElementById("consensus-three").textContent = "—";
+            document.getElementById("consensus-three-pct").textContent = "—";
+            return;
+        }
+
+        const dist = data.label_distribution;
+        document.getElementById("consensus-one").textContent = dist.one_label.count;
+        document.getElementById("consensus-one-pct").textContent = dist.one_label.percentage + "%";
+        document.getElementById("consensus-two").textContent = dist.two_labels.count;
+        document.getElementById("consensus-two-pct").textContent = dist.two_labels.percentage + "%";
+        document.getElementById("consensus-three").textContent = dist.three_plus_labels.count;
+        document.getElementById("consensus-three-pct").textContent = dist.three_plus_labels.percentage + "%";
+    } catch (error) {
+        console.error("Error loading tie scenarios:", error);
     }
 }
 </script>

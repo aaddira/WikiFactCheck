@@ -41,7 +41,19 @@ PYTHON_EOF
 MIGRATE_EXIT=$?
 
 if [ $MIGRATE_EXIT -eq 0 ]; then
-    log_info "Database initialized successfully via Flask-Migrate"
+    log_info "Database upgraded via Flask-Migrate"
+    # Also run db.create_all() to ensure all tables exist (for tables not covered by migrations)
+    log_info "Running db.create_all() to ensure all tables exist..."
+    python -c "
+from main import app, db
+with app.app_context():
+    db.create_all()
+    print('[INFO] All tables created/verified via SQLAlchemy')
+" || {
+        log_err "SQLAlchemy db.create_all() failed"
+        exit 1
+    }
+    log_info "Database initialization complete"
 else
     log_warn "Flask-Migrate upgrade failed (exit code: $MIGRATE_EXIT), falling back to SQLAlchemy..."
     python -c "

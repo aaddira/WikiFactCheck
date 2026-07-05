@@ -308,14 +308,7 @@ def api_progress():
     test_pairs_count = Pair.query.filter_by(is_test_sample=True).count()
 
     # Get active dataset pairs (non-test)
-    active_pairs_count = Pair.query.filter(
-        Pair.is_test_sample == False,
-        Pair.dataset_id.in_(
-            db.session.query(db.func.id).select_from(db.session.query(
-                db.text("id")
-            ).select_from(Pair).distinct().subquery())
-        )
-    ).count()
+    active_pairs_count = Pair.query.filter_by(is_test_sample=False).count()
 
     cap = user.max_annotations_cap
     remaining = cap - actual_count if cap else None

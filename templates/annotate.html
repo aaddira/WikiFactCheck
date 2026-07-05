@@ -36,9 +36,6 @@
                 <a href="/history" class="px-3 py-1 text-sm bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-100 rounded hover:bg-blue-200 dark:hover:bg-blue-800 transition">
                     📋 History
                 </a>
-                <button onclick="goBackToLastPair()" id="go-back-btn" style="display:none;" class="px-3 py-1 text-sm bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-100 rounded hover:bg-purple-200 dark:hover:bg-purple-800 transition">
-                    ↩️ Go Back to Last
-                </button>
                 {% endif %}
             </div>
         </div>
@@ -198,13 +195,18 @@
         </div>
 
         <!-- Buttons -->
-        <div class="btn-group">
-            <button type="button" id="skip-btn" class="btn btn-secondary" onclick="skipWithWarning()" {% if preview_mode %}disabled{% endif %}>
-                Skip
+        <div class="btn-group" style="display: flex; justify-content: space-between; align-items: center;">
+            <button type="button" id="go-back-btn" class="btn btn-secondary" onclick="goBackToLastPair()" style="display:none;" {% if preview_mode %}disabled{% endif %}>
+                ↩️ Go Back to Last
             </button>
-            <button type="button" id="save-btn" class="btn btn-primary" onclick="handleSave()" {% if preview_mode %}disabled{% endif %}>
-                Save & Next
-            </button>
+            <div style="display: flex; gap: 1rem;">
+                <button type="button" id="skip-btn" class="btn btn-secondary" onclick="skipWithWarning()" {% if preview_mode %}disabled{% endif %}>
+                    Skip
+                </button>
+                <button type="button" id="save-btn" class="btn btn-primary" onclick="handleSave()" {% if preview_mode %}disabled{% endif %}>
+                    Save & Next
+                </button>
+            </div>
         </div>
     </div>
 </div>

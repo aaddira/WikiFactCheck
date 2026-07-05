@@ -113,6 +113,17 @@
         <canvas id="datasetChart" style="max-height: 300px"></canvas>
     </div>
 
+    <!-- Inter-Annotator Agreement Card -->
+    <div class="bg-blue-50 rounded-lg shadow p-6 mt-6 border-l-4 border-blue-500">
+        <h3 class="text-lg font-semibold text-blue-900 mb-2">Inter-Annotator Agreement</h3>
+        <div class="text-2xl font-bold text-blue-600 mb-2" id="agreement-overall">—</div>
+        <p class="text-xs text-blue-700 mb-4">
+            <strong>📊 Note:</strong> This is a proxy metric based on annotator consensus, not verified accuracy.
+            Qualification score (above) is the ground truth for evaluating annotator quality.
+        </p>
+        <p class="text-xs text-blue-600" id="agreement-details">—</p>
+    </div>
+
     <!-- Annotator table -->
     <div class="bg-white rounded-lg shadow p-6 mt-6">
         <h3 class="text-lg font-semibold mb-4">Annotator Details</h3>
@@ -121,12 +132,15 @@
                 <tr>
                     <th class="px-4 py-2 text-left font-semibold">Email</th>
                     <th class="px-4 py-2 text-left font-semibold">Annotations</th>
+                    <th class="px-4 py-2 text-center font-semibold">Qual Score</th>
+                    <th class="px-4 py-2 text-center font-semibold">Agreement %</th>
+                    <th class="px-4 py-2 text-center font-semibold">Quality</th>
                     <th class="px-4 py-2 text-left font-semibold">Status</th>
                 </tr>
             </thead>
             <tbody id="annotatorTableBody" class="divide-y">
                 <tr>
-                    <td colspan="3" class="px-4 py-4 text-center text-gray-500">Loading...</td>
+                    <td colspan="6" class="px-4 py-4 text-center text-gray-500">Loading...</td>
                 </tr>
             </tbody>
         </table>
@@ -190,12 +204,36 @@ async function loadCitationTypeData() {
 
 async function loadAnnotatorData() {
     try {
-        const response = await fetch("/api/results/by-annotator");
-        const data = await response.json();
+        // Load both annotator data and agreement rates
+        const [byAnnotatorRes, agreementRes] = await Promise.all([
+            fetch("/api/results/by-annotator"),
+            fetch("/api/results/agreement/by-annotator")
+        ]);
 
-        const labels = data.map((d) => d.email);
-        const counts = data.map((d) => d.annotation_count);
-        const colors = data.map((d) => {
+        const byAnnotatorData = await byAnnotatorRes.json();
+        const agreementData = await agreementRes.json();
+
+        // Load overall agreement
+        const overallAgreementRes = await fetch("/api/results/agreement");
+        const overallAgreement = await overallAgreementRes.json();
+        document.getElementById("agreement-overall").textContent = overallAgreement.overall_agreement_pct + "%";
+        document.getElementById("agreement-details").textContent = `Evaluated on ${overallAgreement.pairs_evaluated} pairs with 2+ annotations.`;
+
+        // Merge agreement data into by-annotator data
+        const agreementMap = {};
+        agreementData.forEach((a) => {
+            agreementMap[a.email] = a;
+        });
+
+        const mergedData = byAnnotatorData.map((ann) => ({
+            ...ann,
+            agreement_rate_pct: agreementMap[ann.email]?.agreement_rate_pct,
+            agreement_evaluated: agreementMap[ann.email]?.annotations_evaluated
+        }));
+
+        const labels = mergedData.map((d) => d.email);
+        const counts = mergedData.map((d) => d.annotation_count);
+        const colors = mergedData.map((d) => {
             if (d.qualification_status === "passed") return "#10b981";
             if (d.qualification_status === "failed") return "#ef4444";
             return "#999999";
@@ -232,30 +270,54 @@ async function loadAnnotatorData() {
         if (annotatorChart) annotatorChart.destroy();
         annotatorChart = new Chart(ctx, chartConfig);
 
-        // Populate table
+        // Populate table with all metrics
         const tbody = document.getElementById("annotatorTableBody");
-        tbody.innerHTML = data
-            .map(
-                (d) => `
-            <tr>
-                <td class="px-4 py-2">${d.email}</td>
-                <td class="px-4 py-2">${d.annotation_count}</td>
-                <td class="px-4 py-2">
-                    <span class="px-2 py-1 rounded text-xs font-semibold
-                        ${
-                            d.qualification_status === "passed"
-                                ? "bg-green-100 text-green-800"
-                                : d.qualification_status === "failed"
-                                  ? "bg-red-100 text-red-800"
-                                  : "bg-gray-100 text-gray-800"
-                        }
-                    ">
-                        ${d.qualification_status}
-                    </span>
-                </td>
-            </tr>
-        `
-            )
+        tbody.innerHTML = mergedData
+            .map((d) => {
+                // Compute quality flag client-side
+                let qualityFlag = "—";
+                let qualityClass = "";
+                if (d.qualification_score !== null && d.agreement_rate_pct !== null) {
+                    const avgQuality = (d.qualification_score + (d.agreement_rate_pct || 0)) / 2;
+                    if (avgQuality >= 70) {
+                        qualityFlag = "✅ Good";
+                        qualityClass = "bg-green-100 text-green-800";
+                    } else if (avgQuality >= 50) {
+                        qualityFlag = "⚠️ Fair";
+                        qualityClass = "bg-yellow-100 text-yellow-800";
+                    } else {
+                        qualityFlag = "❌ Poor";
+                        qualityClass = "bg-red-100 text-red-800";
+                    }
+                }
+
+                return `
+                    <tr>
+                        <td class="px-4 py-2 text-sm">${d.email}</td>
+                        <td class="px-4 py-2 text-center font-semibold">${d.annotation_count}</td>
+                        <td class="px-4 py-2 text-center">${d.qualification_score || "—"}</td>
+                        <td class="px-4 py-2 text-center">${d.agreement_rate_pct !== null ? d.agreement_rate_pct + "%" : "—"}</td>
+                        <td class="px-4 py-2 text-center">
+                            <span class="px-2 py-1 rounded text-xs font-semibold ${qualityClass}">
+                                ${qualityFlag}
+                            </span>
+                        </td>
+                        <td class="px-4 py-2">
+                            <span class="px-2 py-1 rounded text-xs font-semibold
+                                ${
+                                    d.qualification_status === "passed"
+                                        ? "bg-green-100 text-green-800"
+                                        : d.qualification_status === "failed"
+                                          ? "bg-red-100 text-red-800"
+                                          : "bg-gray-100 text-gray-800"
+                                }
+                            ">
+                                ${d.qualification_status}
+                            </span>
+                        </td>
+                    </tr>
+                `;
+            })
             .join("");
     } catch (error) {
         console.error("Error loading annotator data:", error);

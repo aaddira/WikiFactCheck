@@ -442,3 +442,74 @@ def api_test_retake():
         current_app.logger.exception("Error resetting test")
         error_msg = str(e) if current_app.debug else "An unexpected error occurred. Please try again."
         return jsonify({"error": error_msg}), 500
+
+
+@annotate_bp.route("/annotation-history", methods=["GET"])
+@login_required
+def api_annotation_history():
+    """Get all annotations for current user."""
+    user = get_current_user()
+    annotations = Annotation.query.filter_by(user_id=user.id).order_by(Annotation.created_at.desc()).all()
+
+    result = []
+    for ann in annotations:
+        pair = Pair.query.get(ann.pair_id)
+        if pair:
+            result.append({
+                "id": ann.id,
+                "pair_id": pair.id,
+                "article_title": pair.article_title,
+                "passage_text": pair.passage_text,
+                "label": ann.label,
+                "quote": ann.quote,
+                "explanation": ann.explanation,
+                "created_at": ann.created_at.isoformat() if ann.created_at else None
+            })
+
+    return jsonify(result)
+
+
+@annotate_bp.route("/annotation/<int:annotation_id>", methods=["GET"])
+@login_required
+def api_get_annotation(annotation_id):
+    """Get annotation detail."""
+    user = get_current_user()
+    annotation = Annotation.query.filter_by(id=annotation_id, user_id=user.id).first()
+
+    if not annotation:
+        return jsonify({"error": "Annotation not found"}), 404
+
+    pair = Pair.query.get(annotation.pair_id)
+    return jsonify({
+        "id": annotation.id,
+        "article_title": pair.article_title if pair else None,
+        "passage_text": pair.passage_text if pair else None,
+        "label": annotation.label,
+        "quote": annotation.quote,
+        "explanation": annotation.explanation
+    })
+
+
+@annotate_bp.route("/annotation/<int:annotation_id>", methods=["DELETE"])
+@login_required
+def api_delete_annotation(annotation_id):
+    """Delete an annotation."""
+    user = get_current_user()
+    annotation = Annotation.query.filter_by(id=annotation_id, user_id=user.id).first()
+
+    if not annotation:
+        return jsonify({"error": "Annotation not found"}), 404
+
+    try:
+        pair = Pair.query.get(annotation.pair_id)
+        if pair:
+            pair.annotation_count = max(0, pair.annotation_count - 1)
+        user.annotations_count = max(0, user.annotations_count - 1)
+
+        db.session.delete(annotation)
+        db.session.commit()
+        return jsonify({"status": "deleted"})
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.exception("Error deleting annotation")
+        return jsonify({"error": "Failed to delete"}), 500

@@ -44,12 +44,54 @@ async function handleSkip() {
     }
 }
 
+// Track unsaved changes and last pair
+let lastPairId = null;
+let hasUnsavedChanges = false;
+
+function markChanged() {
+    hasUnsavedChanges = true;
+}
+
+function markSaved() {
+    hasUnsavedChanges = false;
+}
+
+// Warn before leaving with unsaved changes
+window.addEventListener('beforeunload', (e) => {
+    const quote = document.getElementById('quote').value.trim();
+    const explanation = document.getElementById('explanation').value.trim();
+    if ((quote || explanation) && hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+    }
+});
+
+function goBackToLastPair() {
+    if (!lastPairId) return;
+    // Reload last pair without marking changes
+    currentPair = null;
+    fetch(`/api/pair/${lastPairId}`)
+        .then(r => r.json())
+        .then(pair => {
+            currentPair = pair;
+            renderPair(pair);
+            clearForm();
+        });
+}
+
 // Initialize on page load
 document.addEventListener("DOMContentLoaded", () => {
     loadNextPair();
     updateProgress();
     loadUserTarget();
     setupKeyboardShortcuts();
+
+    // Track form changes
+    document.getElementById('quote').addEventListener('input', markChanged);
+    document.getElementById('explanation').addEventListener('input', markChanged);
+    document.querySelectorAll("input[name='label']").forEach(el => {
+        el.addEventListener('change', markChanged);
+    });
 });
 
 function setupKeyboardShortcuts() {
@@ -73,6 +115,13 @@ function setupKeyboardShortcuts() {
 
 async function loadNextPair() {
     try {
+        // Store current pair as last before loading next
+        if (currentPair) {
+            lastPairId = currentPair.id;
+            const goBackBtn = document.getElementById('go-back-btn');
+            if (goBackBtn) goBackBtn.style.display = 'inline-block';
+        }
+
         const endpoint = (typeof previewMode !== 'undefined' && previewMode) ? "/api/pair/preview" : "/api/pair/next";
         const response = await fetch(endpoint);
         const data = await response.json();
@@ -90,6 +139,7 @@ async function loadNextPair() {
         currentPair = data.pair;
         renderPair(currentPair);
         clearForm();
+        markSaved();
 
         // In preview mode, disable save/skip buttons
         if (typeof previewMode !== 'undefined' && previewMode) {
@@ -259,6 +309,7 @@ async function skipPair() {
         }
 
         showStatus("info", "Pair skipped. Loading next...");
+        updateProgress();
         setTimeout(loadNextPair, 500);
     } catch (error) {
         showStatus("error", `Error skipping: ${error.message}`);

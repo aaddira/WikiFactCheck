@@ -197,6 +197,65 @@ def api_results_agreement():
     })
 
 
+@dashboard_bp.route("/tie-scenarios")
+@login_required
+def api_results_tie_scenarios():
+    """
+    Get label distribution breakdown for pairs with 2+ annotations.
+    Shows: X% with 1 unique label, Y% with 2 unique labels, Z% with 3+ unique labels
+    """
+    # Query qualifying pairs (2+ annotations, not test samples)
+    query = Pair.query.filter(
+        Pair.annotation_count >= 2,
+        Pair.is_test_sample == False
+    ).all()
+
+    if not query:
+        return jsonify({
+            "total_pairs": 0,
+            "label_distribution": {
+                "one_label": {"count": 0, "percentage": 0},
+                "two_labels": {"count": 0, "percentage": 0},
+                "three_plus_labels": {"count": 0, "percentage": 0}
+            }
+        })
+
+    total_pairs = len(query)
+    one_label = 0
+    two_labels = 0
+    three_plus = 0
+
+    for pair in query:
+        annotations = Annotation.query.filter_by(pair_id=pair.id).all()
+        unique_labels = set(ann.label for ann in annotations)
+        label_count = len(unique_labels)
+
+        if label_count == 1:
+            one_label += 1
+        elif label_count == 2:
+            two_labels += 1
+        elif label_count >= 3:
+            three_plus += 1
+
+    return jsonify({
+        "total_pairs": total_pairs,
+        "label_distribution": {
+            "one_label": {
+                "count": one_label,
+                "percentage": round((one_label / total_pairs * 100) if total_pairs > 0 else 0, 1)
+            },
+            "two_labels": {
+                "count": two_labels,
+                "percentage": round((two_labels / total_pairs * 100) if total_pairs > 0 else 0, 1)
+            },
+            "three_plus_labels": {
+                "count": three_plus,
+                "percentage": round((three_plus / total_pairs * 100) if total_pairs > 0 else 0, 1)
+            }
+        }
+    })
+
+
 @dashboard_bp.route("/agreement/by-annotator")
 @login_required
 def api_results_agreement_by_annotator():

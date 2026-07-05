@@ -24,20 +24,28 @@
     {% endif %}
 
     <!-- Progress bar -->
-    <div class="mb-6 bg-white rounded-lg shadow p-4">
+    <div class="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow p-4">
         <div class="flex justify-between items-center mb-2">
-            <h2 class="text-lg font-semibold">Your Progress</h2>
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Your Progress</h2>
             <div class="flex items-center gap-3">
-                <span id="progress-text" class="text-sm text-gray-600">Loading...</span>
-                <button onclick="openTargetModal()" class="px-3 py-1 text-sm bg-emerald-100 text-emerald-700 rounded hover:bg-emerald-200 transition">
+                <span id="progress-text" class="text-sm text-gray-600 dark:text-gray-400">Loading...</span>
+                <button onclick="openTargetModal()" class="px-3 py-1 text-sm bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-100 rounded hover:bg-emerald-200 dark:hover:bg-emerald-800 transition">
                     Set Target
                 </button>
+                {% if not preview_mode %}
+                <a href="/history" class="px-3 py-1 text-sm bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-100 rounded hover:bg-blue-200 dark:hover:bg-blue-800 transition">
+                    📋 History
+                </a>
+                <button onclick="goBackToLastPair()" id="go-back-btn" style="display:none;" class="px-3 py-1 text-sm bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-100 rounded hover:bg-purple-200 dark:hover:bg-purple-800 transition">
+                    ↩️ Go Back to Last
+                </button>
+                {% endif %}
             </div>
         </div>
         <div class="progress-bar">
             <div id="progress-fill" class="progress-fill" style="width: 0%"></div>
         </div>
-        <div id="target-info" class="text-xs text-gray-500 mt-2"></div>
+        <div id="target-info" class="text-xs text-gray-500 dark:text-gray-400 mt-2"></div>
     </div>
 
     <!-- Article Header -->

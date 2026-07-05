@@ -240,6 +240,13 @@ def annotate_page():
     return render_template("annotate.html", preview_mode=preview_mode)
 
 
+@app.route("/history")
+@login_required
+def history_page():
+    """View and manage past annotations."""
+    return render_template("history.html")
+
+
 @app.route("/dashboard")
 @login_required
 def dashboard_page():

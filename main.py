@@ -115,21 +115,15 @@ def import_jsonl():
 
 @app.route("/")
 def index():
-    """Home page — landing page if not logged in, otherwise redirect based on status."""
+    """Home page — landing page if not logged in, dashboard if logged in."""
     user = get_current_user()
     if not user:
         return render_template("landing.html")
     # Check if session has admin token auth (from /admin/login)
     if session.get("admin_authenticated"):
         return redirect(url_for("admin_page"))
-    # If test not submitted yet, go to test post-login page
-    if not user.test_submitted:
-        return redirect(url_for("test_post_login_page"))
-    # If test submitted but not approved yet, show test results
-    if not user.test_approved_by_admin:
-        return redirect(url_for("test_results_page"))
-    # If approved, go to annotation page
-    return redirect(url_for("annotate_page"))
+    # All logged-in annotators go to dashboard (test is optional, taken when user decides)
+    return redirect(url_for("dashboard_page"))
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -140,14 +134,8 @@ def login_page():
         wiki_username = request.form.get("wiki_username", "").strip()
         if email:
             do_login(email, wiki_username=wiki_username)
-            user = get_current_user()
-            # Route to test post-login page or annotation based on status
-            if not user.test_submitted:
-                return redirect(url_for("test_post_login_page"))
-            elif not user.test_approved_by_admin:
-                return redirect(url_for("test_results_page"))
-            else:
-                return redirect(url_for("annotate_page"))
+            # All logged-in users go to dashboard (test is optional)
+            return redirect(url_for("dashboard_page"))
     return render_template("login.html")
 
 
@@ -245,8 +233,9 @@ def test_page():
 def annotate_page():
     """Annotation interface."""
     user = get_current_user()
-    if not user.qualification_passed:
-        return redirect(url_for("test_page"))
+    if not user.test_approved_by_admin:
+        # User must take and pass qualification test first
+        return redirect(url_for("test_post_login_page"))
     return render_template("annotate.html")
 
 

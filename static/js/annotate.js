@@ -250,8 +250,8 @@ async function loadNextPair() {
             if (goBackBtn) {
                 goBackBtn.style.visibility = 'visible';
                 goBackBtn.style.width = 'auto';
-                goBackBtn.style.margin = '';
-                goBackBtn.style.padding = '';
+                goBackBtn.style.margin = '0';
+                goBackBtn.style.padding = '0.5rem 1rem';
             }
         }
 

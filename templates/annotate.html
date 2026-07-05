@@ -199,7 +199,7 @@
 
         <!-- Buttons -->
         <div class="btn-group">
-            <button type="button" id="skip-btn" class="btn btn-secondary" onclick="handleSkip()" {% if preview_mode %}disabled{% endif %}>
+            <button type="button" id="skip-btn" class="btn btn-secondary" onclick="skipWithWarning()" {% if preview_mode %}disabled{% endif %}>
                 Skip
             </button>
             <button type="button" id="save-btn" class="btn btn-primary" onclick="handleSave()" {% if preview_mode %}disabled{% endif %}>

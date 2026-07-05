@@ -164,26 +164,49 @@ def api_pair_get(pair_id):
 @annotate_bp.route("/annotation", methods=["POST"])
 @login_required
 def api_annotation_save():
-    """Save an annotation (label, quote, explanation)."""
+    """Save an annotation (label, quote, explanation). Handles both create and update."""
     user = get_current_user()
     data = request.get_json() or {}
 
+    annotation_id = data.get("annotation_id")
     pair_id = data.get("pair_id")
     label = data.get("label")
     quote = data.get("quote", "").strip()
     explanation = data.get("explanation", "").strip()
 
-    if not pair_id or not label:
-        return jsonify({"error": "Missing pair_id or label"}), 400
-
-    pair = Pair.query.get(pair_id)
-    if not pair:
-        return jsonify({"error": "Pair not found"}), 404
+    if not label:
+        return jsonify({"error": "Missing label"}), 400
 
     # Validate label
     valid_labels = ["TRUE", "FALSE", "MIXED", "NO_SUFFICIENT_INFO", "UNVERIFIABLE"]
     if label not in valid_labels:
         return jsonify({"error": f"Invalid label. Must be one of: {valid_labels}"}), 400
+
+    # Case 1: Updating existing annotation via history page
+    if annotation_id:
+        annotation = Annotation.query.filter_by(id=annotation_id, user_id=user.id).first()
+        if not annotation:
+            return jsonify({"error": "Annotation not found"}), 404
+
+        annotation.label = label
+        annotation.quote = quote
+        annotation.explanation = explanation
+        annotation.updated_at = datetime.utcnow()
+        db.session.commit()
+
+        return jsonify({
+            "status": "updated",
+            "annotation_id": annotation_id,
+            "label": label,
+        })
+
+    # Case 2: Creating or updating annotation via annotate page
+    if not pair_id:
+        return jsonify({"error": "Missing pair_id or annotation_id"}), 400
+
+    pair = Pair.query.get(pair_id)
+    if not pair:
+        return jsonify({"error": "Pair not found"}), 404
 
     # Check if already annotated
     existing = Annotation.query.filter_by(pair_id=pair_id, user_id=user.id).first()

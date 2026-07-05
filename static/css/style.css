@@ -831,3 +831,119 @@ html.dark .instructions {
     color: var(--text-primary);
     border-color: #4b5563;
 }
+
+/* Buttons dark mode */
+[data-theme="dark"] .btn-primary,
+html.dark .btn-primary {
+    background: #34d399;
+    color: #111827;
+}
+
+[data-theme="dark"] .btn-primary:hover,
+html.dark .btn-primary:hover {
+    background: #2dd4bf;
+}
+
+[data-theme="dark"] .btn-secondary,
+html.dark .btn-secondary {
+    background: #34d399;
+    color: #111827;
+}
+
+[data-theme="dark"] .btn-secondary:hover,
+html.dark .btn-secondary:hover {
+    background: #2dd4bf;
+}
+
+[data-theme="dark"] .btn-danger,
+html.dark .btn-danger {
+    background: #f87171;
+    color: #111827;
+}
+
+[data-theme="dark"] .btn-danger:hover,
+html.dark .btn-danger:hover {
+    background: #ef4444;
+}
+
+/* Disabled button dark mode */
+[data-theme="dark"] button:disabled,
+html.dark button:disabled {
+    background-color: #4b5563;
+    color: #9ca3af;
+    cursor: not-allowed;
+    opacity: 0.65;
+}
+
+[data-theme="dark"] textarea:disabled,
+[data-theme="dark"] input:disabled,
+html.dark textarea:disabled,
+html.dark input:disabled {
+    background-color: #374151;
+    color: #9ca3af;
+    border-color: #4b5563;
+    cursor: not-allowed;
+    opacity: 0.65;
+}
+
+/* Dashboard text colors dark mode */
+[data-theme="dark"] .text-gray-600,
+html.dark .text-gray-600 {
+    color: #d1d5db !important;
+}
+
+[data-theme="dark"] .text-emerald-900,
+html.dark .text-emerald-900 {
+    color: #d1fae5 !important;
+}
+
+[data-theme="dark"] .text-purple-900,
+html.dark .text-purple-900 {
+    color: #e9d5ff !important;
+}
+
+[data-theme="dark"] .bg-emerald-50,
+html.dark .bg-emerald-50 {
+    background-color: #051f15 !important;
+    border-color: #10b981;
+}
+
+[data-theme="dark"] .bg-purple-50,
+html.dark .bg-purple-50 {
+    background-color: #2d1b4e !important;
+    border-color: #a855f7;
+}
+
+[data-theme="dark"] h1,
+[data-theme="dark"] h2,
+[data-theme="dark"] h3,
+[data-theme="dark"] h4,
+html.dark h1,
+html.dark h2,
+html.dark h3,
+html.dark h4 {
+    color: #f3f4f6;
+}
+
+[data-theme="dark"] .text-sm,
+html.dark .text-sm {
+    color: #d1d5db;
+}
+
+[data-theme="dark"] .font-semibold,
+html.dark .font-semibold {
+    color: inherit;
+}
+
+/* Ensure proper text contrast in dark mode containers */
+[data-theme="dark"] .shadow,
+[data-theme="dark"] .rounded-lg,
+html.dark .shadow,
+html.dark .rounded-lg {
+    border-color: #4b5563;
+}
+
+[data-theme="dark"] .border-l-4,
+html.dark .border-l-4 {
+    border-left-color: #34d399;
+}

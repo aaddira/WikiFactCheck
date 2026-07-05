@@ -48,6 +48,44 @@ async function handleSkip() {
 let lastPairId = null;
 let hasUnsavedChanges = false;
 
+// Draft persistence functions
+function saveDrafts() {
+    if (!currentPair) return;
+    const drafts = {
+        pair_id: currentPair.id,
+        label: document.querySelector("input[name='label']:checked")?.value || '',
+        quote: document.getElementById('quote').value,
+        explanation: document.getElementById('explanation').value,
+        timestamp: Date.now()
+    };
+    localStorage.setItem('annotation_draft', JSON.stringify(drafts));
+}
+
+function loadDrafts() {
+    try {
+        const saved = localStorage.getItem('annotation_draft');
+        if (!saved || !currentPair) return;
+
+        const drafts = JSON.parse(saved);
+        // Only load drafts if they're for the current pair
+        if (drafts.pair_id === currentPair.id) {
+            if (drafts.label) {
+                const labelEl = document.getElementById(`label-${drafts.label.toLowerCase().replace(/_/g, '-')}`);
+                if (labelEl) labelEl.checked = true;
+            }
+            if (drafts.quote) document.getElementById('quote').value = drafts.quote;
+            if (drafts.explanation) document.getElementById('explanation').value = drafts.explanation;
+            markChanged();
+        }
+    } catch (error) {
+        console.error('Error loading drafts:', error);
+    }
+}
+
+function clearDrafts() {
+    localStorage.removeItem('annotation_draft');
+}
+
 function markChanged() {
     hasUnsavedChanges = true;
 }
@@ -63,8 +101,22 @@ window.addEventListener('beforeunload', (e) => {
     if ((quote || explanation) && hasUnsavedChanges) {
         e.preventDefault();
         e.returnValue = '';
+        return '';
     }
 });
+
+// Intercept skip to warn about unsaved changes
+async function skipWithWarning() {
+    const quote = document.getElementById('quote').value.trim();
+    const explanation = document.getElementById('explanation').value.trim();
+    if ((quote || explanation) && hasUnsavedChanges) {
+        if (!confirm('You have unsaved changes. Do you want to skip this pair and lose your changes?')) {
+            return;
+        }
+    }
+    clearDrafts();
+    await handleSkip();
+}
 
 function goBackToLastPair() {
     if (!lastPairId) return;
@@ -86,12 +138,29 @@ document.addEventListener("DOMContentLoaded", () => {
     loadUserTarget();
     setupKeyboardShortcuts();
 
-    // Track form changes
-    document.getElementById('quote').addEventListener('input', markChanged);
-    document.getElementById('explanation').addEventListener('input', markChanged);
-    document.querySelectorAll("input[name='label']").forEach(el => {
-        el.addEventListener('change', markChanged);
+    // Track form changes and save drafts
+    const quoteInput = document.getElementById('quote');
+    const explanationInput = document.getElementById('explanation');
+
+    quoteInput.addEventListener('input', () => {
+        markChanged();
+        saveDrafts();
     });
+
+    explanationInput.addEventListener('input', () => {
+        markChanged();
+        saveDrafts();
+    });
+
+    document.querySelectorAll("input[name='label']").forEach(el => {
+        el.addEventListener('change', () => {
+            markChanged();
+            saveDrafts();
+        });
+    });
+
+    // Load saved drafts on page load
+    loadDrafts();
 });
 
 function setupKeyboardShortcuts() {
@@ -140,6 +209,7 @@ async function loadNextPair() {
         renderPair(currentPair);
         clearForm();
         markSaved();
+        loadDrafts();
 
         // In preview mode, disable save/skip buttons
         if (typeof previewMode !== 'undefined' && previewMode) {
@@ -235,19 +305,22 @@ function validateForm() {
     const label = document.querySelector("input[name='label']:checked");
     const quote = document.getElementById("quote").value.trim();
     const explanation = document.getElementById("explanation").value.trim();
+    const errors = [];
 
     if (!label) {
-        showStatus("error", "Please select a label");
-        return false;
+        errors.push("Please select a label");
     }
 
     if (!quote) {
-        showStatus("error", "Please provide a quote from the source");
-        return false;
+        errors.push("Please provide a quote from the source");
     }
 
     if (!explanation) {
-        showStatus("error", "Please provide an explanation");
+        errors.push("Please provide an explanation");
+    }
+
+    if (errors.length > 0) {
+        showStatus("error", "⚠️ Please complete the form:\n" + errors.join("\n"));
         return false;
     }
 
@@ -284,6 +357,7 @@ async function savePair() {
         }
 
         showStatus("success", "Annotation saved! Loading next pair...");
+        clearDrafts();
         updateProgress();
         setTimeout(loadNextPair, 500);
     } catch (error) {
@@ -318,26 +392,29 @@ async function skipPair() {
 
 async function updateProgress() {
     try {
-        const response = await fetch("/api/progress");
-        const data = await response.json();
+        const [progressRes, targetRes] = await Promise.all([
+            fetch("/api/progress"),
+            fetch("/api/user/target")
+        ]);
 
-        // Get user target
-        const userResponse = await fetch("/api/user/target");
-        const userData = await userResponse.json();
+        const data = await progressRes.json();
+        const userData = await targetRes.json();
+
+        const current = data.annotations_count || 0;
         const target = userData.annotation_target;
-        const current = data.annotations_count;
 
         let progressText = `${current} annotations`;
         let progressPercent = 0;
 
-        if (target) {
+        if (target && target > 0) {
             progressPercent = Math.min(100, (current / target) * 100);
             progressText = `${current} / ${target}`;
             document.getElementById("target-info").textContent = `Your target: ${target} annotations`;
-        } else if (data.remaining_until_cap !== null) {
-            progressPercent = Math.min(100, ((data.max_annotations_cap - data.remaining_until_cap) / data.max_annotations_cap) * 100);
-            progressText = `${current} annotations (${data.remaining_until_cap} remaining)`;
-            document.getElementById("target-info").textContent = `Cap: ${data.max_annotations_cap} annotations`;
+        } else if (data.max_annotations_cap && data.max_annotations_cap > 0) {
+            const remaining = data.remaining_until_cap || 0;
+            progressPercent = Math.min(100, ((current / data.max_annotations_cap) * 100));
+            progressText = `${current} / ${data.max_annotations_cap}`;
+            document.getElementById("target-info").textContent = `Cap: ${data.max_annotations_cap} annotations (${remaining} remaining)`;
         } else {
             document.getElementById("target-info").textContent = "No target set";
         }

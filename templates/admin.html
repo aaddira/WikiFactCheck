@@ -19,31 +19,101 @@
     <div id="status-container"></div>
 
     <!-- Tabs for navigation -->
-    <div class="flex gap-4 mb-6 border-b">
-        <button onclick="switchTab('upload')" class="px-4 py-2 border-b-2 border-emerald-600 font-semibold">
+    <div class="flex gap-4 mb-6 border-b overflow-x-auto">
+        <button onclick="switchTab('upload')" class="px-4 py-2 border-b-2 border-emerald-600 font-semibold whitespace-nowrap">
             Upload Dataset
         </button>
-        <button onclick="switchTab('datasets')" class="px-4 py-2 border-b-2 border-gray-300 font-semibold text-gray-600">
+        <button onclick="switchTab('dashboard')" class="px-4 py-2 border-b-2 border-gray-300 font-semibold text-gray-600 whitespace-nowrap">
+            📊 Dashboard
+        </button>
+        <button onclick="switchTab('datasets')" class="px-4 py-2 border-b-2 border-gray-300 font-semibold text-gray-600 whitespace-nowrap">
             Datasets
         </button>
-        <button onclick="switchTab('config')" class="px-4 py-2 border-b-2 border-gray-300 font-semibold text-gray-600">
+        <button onclick="switchTab('config')" class="px-4 py-2 border-b-2 border-gray-300 font-semibold text-gray-600 whitespace-nowrap">
             Configuration
         </button>
-        <button onclick="switchTab('test')" class="px-4 py-2 border-b-2 border-gray-300 font-semibold text-gray-600">
+        <button onclick="switchTab('test')" class="px-4 py-2 border-b-2 border-gray-300 font-semibold text-gray-600 whitespace-nowrap">
             Test Samples
         </button>
-        <button onclick="switchTab('results')" class="px-4 py-2 border-b-2 border-gray-300 font-semibold text-gray-600">
+        <button onclick="switchTab('results')" class="px-4 py-2 border-b-2 border-gray-300 font-semibold text-gray-600 whitespace-nowrap">
             Test Results
         </button>
-        <button onclick="switchTab('submissions')" class="px-4 py-2 border-b-2 border-gray-300 font-semibold text-gray-600">
+        <button onclick="switchTab('submissions')" class="px-4 py-2 border-b-2 border-gray-300 font-semibold text-gray-600 whitespace-nowrap">
             Review Submissions
         </button>
-        <button onclick="switchTab('export')" class="px-4 py-2 border-b-2 border-gray-300 font-semibold text-gray-600">
+        <button onclick="switchTab('export')" class="px-4 py-2 border-b-2 border-gray-300 font-semibold text-gray-600 whitespace-nowrap">
             Export
         </button>
-        <button onclick="switchTab('audit')" class="px-4 py-2 border-b-2 border-gray-300 font-semibold text-gray-600">
+        <button onclick="switchTab('audit')" class="px-4 py-2 border-b-2 border-gray-300 font-semibold text-gray-600 whitespace-nowrap">
             Audit Log
         </button>
+    </div>
+
+    <!-- Dashboard Tab -->
+    <div id="tab-dashboard" class="tab-content hidden">
+        <div class="admin-section">
+            <div class="admin-section-title">Dashboard & Quality Metrics</div>
+            <div class="grid grid-cols-2 gap-6 mb-6">
+                <!-- Inter-Annotator Agreement Card -->
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h3 class="font-semibold text-lg text-blue-900">Inter-Annotator Agreement</h3>
+                            <p class="text-sm text-blue-700 mt-2">Proxy metric based on annotator consensus, not verified accuracy</p>
+                        </div>
+                        <span class="text-2xl">🤝</span>
+                    </div>
+                    <div id="agreement-overall" class="text-3xl font-bold text-blue-600">—</div>
+                    <p class="text-sm text-blue-700 mt-2">Overall agreement rate</p>
+                    <div id="agreement-by-dataset" class="mt-4 space-y-2 text-sm"></div>
+                </div>
+
+                <!-- Label Distribution Card -->
+                <div class="bg-purple-50 border border-purple-200 rounded-lg p-6">
+                    <div class="flex justify-between items-start mb-4">
+                        <h3 class="font-semibold text-lg text-purple-900">Label Distribution (Consensus Breakdown)</h3>
+                        <span class="text-2xl">📊</span>
+                    </div>
+                    <div class="grid grid-cols-3 gap-3">
+                        <div class="bg-white border border-green-200 rounded-lg p-3 text-center">
+                            <div class="text-xl font-bold text-green-600" id="consensus-count">—</div>
+                            <div class="text-xs text-green-700 font-semibold mt-1">Full Consensus</div>
+                            <div class="text-xs text-green-600" id="consensus-pct">—</div>
+                        </div>
+                        <div class="bg-white border border-yellow-200 rounded-lg p-3 text-center">
+                            <div class="text-xl font-bold text-yellow-600" id="disagreement-count">—</div>
+                            <div class="text-xs text-yellow-700 font-semibold mt-1">Disagreement</div>
+                            <div class="text-xs text-yellow-600" id="disagreement-pct">—</div>
+                        </div>
+                        <div class="bg-white border border-red-200 rounded-lg p-3 text-center">
+                            <div class="text-xl font-bold text-red-600" id="high-disagreement-count">—</div>
+                            <div class="text-xs text-red-700 font-semibold mt-1">High Disagreement</div>
+                            <div class="text-xs text-red-600" id="high-disagreement-pct">—</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white border rounded-lg p-6">
+                <h3 class="font-semibold text-lg mb-4">Annotator Performance</h3>
+                <table class="table w-full">
+                    <thead>
+                        <tr>
+                            <th>Email</th>
+                            <th>Qualification Score</th>
+                            <th>Agreement Rate</th>
+                            <th>Quality Flag</th>
+                            <th>Annotations</th>
+                        </tr>
+                    </thead>
+                    <tbody id="annotator-details-body">
+                        <tr>
+                            <td colspan="5" class="text-center py-4 text-gray-500">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
     <!-- Upload Dataset Tab -->
@@ -364,6 +434,7 @@ function switchTab(tabName) {
     else if (tabName === "results") loadTestResults();
     else if (tabName === "submissions") loadPendingSubmissions();
     else if (tabName === "test") loadDatasetsForTestSamples();
+    else if (tabName === "dashboard") loadDashboard();
     else if (tabName === "audit") loadAuditLog(1);
 }
 
@@ -377,6 +448,7 @@ window.addEventListener('DOMContentLoaded', () => {
         tabName === 'test' ? 'test samples' :
         tabName === 'results' ? 'test results' :
         tabName === 'submissions' ? 'review' :
+        tabName === 'dashboard' ? 'dashboard' :
         tabName === 'export' ? 'export' :
         tabName === 'audit' ? 'audit' : '')
     );
@@ -398,6 +470,7 @@ window.addEventListener('hashchange', () => {
         tabName === 'test' ? 'test samples' :
         tabName === 'results' ? 'test results' :
         tabName === 'submissions' ? 'review' :
+        tabName === 'dashboard' ? 'dashboard' :
         tabName === 'export' ? 'export' :
         tabName === 'audit' ? 'audit' : '')
     );
@@ -933,6 +1006,100 @@ function auditLogPrevPage() {
 
 function auditLogNextPage() {
     if (currentAuditPage < auditLogPages) loadAuditLog(currentAuditPage + 1);
+}
+
+// Dashboard Functions
+async function loadDashboard() {
+    try {
+        // Load agreement metrics
+        const agreementResponse = await fetch("/api/results/agreement");
+        const agreementData = await agreementResponse.json();
+
+        document.getElementById("agreement-overall").textContent = agreementData.overall_agreement_rate
+            ? (agreementData.overall_agreement_rate * 100).toFixed(1) + "%"
+            : "—";
+
+        // Load tie scenarios (label distribution)
+        const tieResponse = await fetch("/api/results/tie-scenarios");
+        const tieData = await tieResponse.json();
+
+        document.getElementById("consensus-count").textContent = tieData.full_consensus_count || "—";
+        document.getElementById("consensus-pct").textContent = tieData.full_consensus_pct
+            ? (tieData.full_consensus_pct * 100).toFixed(1) + "%"
+            : "—";
+
+        document.getElementById("disagreement-count").textContent = tieData.disagreement_count || "—";
+        document.getElementById("disagreement-pct").textContent = tieData.disagreement_pct
+            ? (tieData.disagreement_pct * 100).toFixed(1) + "%"
+            : "—";
+
+        document.getElementById("high-disagreement-count").textContent = tieData.high_disagreement_count || "—";
+        document.getElementById("high-disagreement-pct").textContent = tieData.high_disagreement_pct
+            ? (tieData.high_disagreement_pct * 100).toFixed(1) + "%"
+            : "—";
+
+        // Load annotator details
+        const annotatorResponse = await fetch("/api/results/by-annotator");
+        const annotatorData = await annotatorResponse.json();
+
+        const agreementByAnnotatorResponse = await fetch("/api/results/agreement/by-annotator");
+        const agreementByAnnotator = await agreementByAnnotatorResponse.json();
+
+        // Merge agreement data with annotator data
+        const annotatorMap = {};
+        annotatorData.forEach(ann => {
+            annotatorMap[ann.email] = ann;
+        });
+
+        agreementByAnnotator.forEach(agr => {
+            if (annotatorMap[agr.email]) {
+                annotatorMap[agr.email].agreement_rate = agr.agreement_rate;
+            }
+        });
+
+        // Determine quality flag based on qualification score and agreement
+        Object.values(annotatorMap).forEach(ann => {
+            const qualScore = ann.qualification_score || 0;
+            const agreementRate = ann.agreement_rate || 0;
+
+            let flag = "Fair";
+            let flagColor = "bg-yellow-100 text-yellow-800";
+
+            if (qualScore >= 80 && agreementRate >= 0.7) {
+                flag = "Excellent";
+                flagColor = "bg-green-100 text-green-800";
+            } else if (qualScore >= 60 && agreementRate >= 0.5) {
+                flag = "Good";
+                flagColor = "bg-emerald-100 text-emerald-800";
+            } else if (qualScore < 50 || agreementRate < 0.3) {
+                flag = "Poor";
+                flagColor = "bg-red-100 text-red-800";
+            }
+
+            ann.quality_flag = flag;
+            ann.quality_flag_color = flagColor;
+        });
+
+        const tbody = document.getElementById("annotator-details-body");
+        const rows = Object.values(annotatorMap).map(ann => `
+            <tr>
+                <td class="text-sm">${ann.email}</td>
+                <td class="text-sm font-semibold text-emerald-600">${ann.qualification_score || "—"}</td>
+                <td class="text-sm">${ann.agreement_rate ? (ann.agreement_rate * 100).toFixed(1) + "%" : "—"}</td>
+                <td>
+                    <span class="px-2 py-1 rounded text-xs font-semibold ${ann.quality_flag_color}">
+                        ${ann.quality_flag}
+                    </span>
+                </td>
+                <td class="text-sm font-semibold">${ann.annotations_count || 0}</td>
+            </tr>
+        `);
+
+        tbody.innerHTML = rows.length > 0 ? rows.join("") : '<tr><td colspan="5" class="text-center py-4 text-gray-500">No annotators yet</td></tr>';
+    } catch (error) {
+        console.error("Failed to load dashboard:", error);
+        showStatus("error", "Failed to load dashboard metrics");
+    }
 }
 </script>
 {% endblock %}

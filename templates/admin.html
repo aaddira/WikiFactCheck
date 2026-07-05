@@ -6,9 +6,14 @@
 <div class="max-w-6xl mx-auto px-4 py-6">
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-3xl font-bold">Admin Control Panel</h1>
-        <a href="/admin/preview" target="_blank" class="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition">
-            👁️ Preview Annotation Interface
-        </a>
+        <div class="flex gap-3">
+            <a href="/admin/preview" target="_blank" class="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition">
+                👁️ Preview Annotation Interface
+            </a>
+            <a href="/logout" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition">
+                Logout
+            </a>
+        </div>
     </div>
 
     <div id="status-container"></div>
@@ -294,6 +299,9 @@
 
 <script>
 function switchTab(tabName) {
+    // Update URL hash
+    window.location.hash = `#${tabName}`;
+
     // Hide all tabs
     document.querySelectorAll(".tab-content").forEach((tab) => {
         tab.classList.add("hidden");
@@ -318,6 +326,47 @@ function switchTab(tabName) {
     else if (tabName === "test") loadDatasetsForTestSamples();
     else if (tabName === "audit") loadAuditLog(1);
 }
+
+// Restore tab from URL hash on page load
+window.addEventListener('DOMContentLoaded', () => {
+    const tabName = window.location.hash.slice(1) || 'upload';
+    const tabBtn = Array.from(document.querySelectorAll('button')).find(btn =>
+        btn.textContent.toLowerCase().includes(tabName === 'upload' ? 'upload' :
+        tabName === 'datasets' ? 'datasets' :
+        tabName === 'config' ? 'configuration' :
+        tabName === 'test' ? 'test samples' :
+        tabName === 'results' ? 'test results' :
+        tabName === 'submissions' ? 'review' :
+        tabName === 'export' ? 'export' :
+        tabName === 'audit' ? 'audit' : '')
+    );
+    if (tabBtn) {
+        // Simulate button click event
+        const event = new Event('click', { bubbles: true });
+        event.target = tabBtn;
+        switchTab(tabName);
+    }
+});
+
+// Listen for hash changes (back button)
+window.addEventListener('hashchange', () => {
+    const tabName = window.location.hash.slice(1) || 'upload';
+    const tabBtn = Array.from(document.querySelectorAll('button')).find(btn =>
+        btn.textContent.toLowerCase().includes(tabName === 'upload' ? 'upload' :
+        tabName === 'datasets' ? 'datasets' :
+        tabName === 'config' ? 'configuration' :
+        tabName === 'test' ? 'test samples' :
+        tabName === 'results' ? 'test results' :
+        tabName === 'submissions' ? 'review' :
+        tabName === 'export' ? 'export' :
+        tabName === 'audit' ? 'audit' : '')
+    );
+    if (tabBtn) {
+        const event = new Event('click', { bubbles: true });
+        event.target = tabBtn;
+        switchTab(tabName);
+    }
+});
 
 async function submitUpload(event) {
     event.preventDefault();

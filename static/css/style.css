@@ -795,3 +795,39 @@ html.dark .status-info {
     color: #93c5fd;
     border-color: #1e40af;
 }
+
+/* Additional Dark Mode - Progress Bar and Headers */
+
+[data-theme="dark"] .bg-white,
+html.dark .bg-white {
+    background-color: var(--bg-panel) !important;
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] #progress-text,
+html.dark #progress-text {
+    color: var(--text-secondary);
+}
+
+[data-theme="dark"] #articleLink,
+html.dark #articleLink {
+    color: #34d399;
+}
+
+[data-theme="dark"] .annotation-form,
+html.dark .annotation-form {
+    background: var(--bg-panel);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .form-section-title,
+html.dark .form-section-title {
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .instructions,
+html.dark .instructions {
+    background: #374151;
+    color: var(--text-primary);
+    border-color: #4b5563;
+}

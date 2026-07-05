@@ -147,9 +147,9 @@ def login_page():
 def test_post_login_page():
     """Qualification test page (after login, before test submission)."""
     user = get_current_user()
-    # If already approved, go to annotation
+    # If already approved, show banner instead of hiding the page
     if user.test_approved_by_admin:
-        return redirect(url_for("annotate_page"))
+        return render_template("test_approved.html")
     # Get test samples
     test_pairs = Pair.query.filter_by(is_test_sample=True).all()
     return render_template("test_post_login.html", test_pairs=test_pairs)

@@ -277,6 +277,9 @@ def api_progress():
     """Get user's annotation progress."""
     user = get_current_user()
 
+    # Query actual annotation count from DB instead of cached user.annotations_count
+    actual_count = db.session.query(db.func.count(Annotation.id)).filter_by(user_id=user.id).scalar() or 0
+
     # Get all test pairs
     test_pairs_count = Pair.query.filter_by(is_test_sample=True).count()
 
@@ -291,10 +294,10 @@ def api_progress():
     ).count()
 
     cap = user.max_annotations_cap
-    remaining = cap - user.annotations_count if cap else None
+    remaining = cap - actual_count if cap else None
 
     return jsonify({
-        "annotations_count": user.annotations_count,
+        "annotations_count": actual_count,
         "max_annotations_cap": cap,
         "remaining_until_cap": remaining,
         "test_pairs_count": test_pairs_count,

@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}Test Approved - WikiFactCheck{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto px-4 py-12">
+    <div class="bg-emerald-50 dark:bg-emerald-900/20 border-l-4 border-emerald-500 p-6 rounded-lg">
+        <div class="flex items-start gap-4">
+            <div class="text-3xl">✅</div>
+            <div>
+                <h2 class="text-2xl font-bold text-emerald-900 dark:text-emerald-100 mb-2">
+                    Your Qualification Test Has Been Approved!
+                </h2>
+                <p class="text-emerald-800 dark:text-emerald-200 mb-4">
+                    Congratulations! Your test results were reviewed and approved by an admin. You can now start annotating Wikipedia citations.
+                </p>
+                <a href="{{ url_for('annotate_page') }}" class="inline-block px-6 py-3 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 transition">
+                    Start Annotating →
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

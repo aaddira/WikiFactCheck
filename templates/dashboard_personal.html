@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - WikiFactCheck{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold text-gray-900 mb-2">Your Dashboard</h1>
+    <p class="text-gray-600 mb-8">Track your annotation progress and see how you compare to other annotators.</p>
+
+    <!-- Personal Stats Section -->
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">Your Progress</h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Annotations Count -->
+            <div>
+                <div class="text-sm text-gray-600 font-medium mb-2">Annotations Completed</div>
+                <div class="flex items-baseline gap-2">
+                    <div class="text-4xl font-bold text-emerald-600" id="user-annotations">0</div>
+                    <div class="text-gray-600" id="user-target-text"></div>
+                </div>
+            </div>
+
+            <!-- Target Progress -->
+            <div id="target-section">
+                <div class="text-sm text-gray-600 font-medium mb-2">Target Progress</div>
+                <div class="flex items-center gap-4">
+                    <div class="flex-1">
+                        <div class="progress-bar" style="height: 24px;">
+                            <div id="target-progress-fill" class="progress-fill" style="width: 0%; background-color: #10b981;"></div>
+                        </div>
+                    </div>
+                    <div class="text-lg font-semibold text-gray-900" id="target-percentage">0%</div>
+                </div>
+                <p class="text-xs text-gray-500 mt-2" id="target-text">Set a target to get started</p>
+            </div>
+        </div>
+
+        <!-- Set Target Button/Section -->
+        <div id="no-target-prompt" class="mt-6 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+            <p class="text-emerald-900 font-medium mb-3">📊 Set an annotation target</p>
+            <p class="text-emerald-800 text-sm mb-4">Choose how many samples you'd like to annotate. This helps us track your progress.</p>
+            <div class="flex gap-3">
+                <input
+                    type="number"
+                    id="target-input"
+                    min="1"
+                    placeholder="Enter target (e.g., 100)"
+                    class="flex-1 px-3 py-2 border border-emerald-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+                <button
+                    id="set-target-btn"
+                    class="bg-emerald-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-emerald-700 transition"
+                >
+                    Set
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Annotator Leaderboard -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">Annotator Leaderboard</h2>
+        <p class="text-sm text-gray-600 mb-4">Top contributors ranked by annotation count.</p>
+
+        <table class="w-full text-sm">
+            <thead class="bg-gray-50 border-b border-gray-200">
+                <tr>
+                    <th class="px-4 py-3 text-left font-semibold text-gray-900">Rank</th>
+                    <th class="px-4 py-3 text-left font-semibold text-gray-900">Wikipedia Username</th>
+                    <th class="px-4 py-3 text-right font-semibold text-gray-900">Annotations</th>
+                </tr>
+            </thead>
+            <tbody id="leaderboard-body" class="divide-y divide-gray-200">
+                <tr>
+                    <td colspan="3" class="px-4 py-4 text-center text-gray-500">Loading...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+async function loadPersonalDashboard() {
+    try {
+        // Load user profile
+        const profileRes = await fetch('/api/settings/profile');
+        if (!profileRes.ok) throw new Error('Failed to load profile');
+        const user = await profileRes.json();
+
+        document.getElementById('user-annotations').textContent = user.annotations_count;
+
+        if (user.annotation_target) {
+            // Show progress
+            document.getElementById('no-target-prompt').style.display = 'none';
+            const percentage = Math.min(100, Math.round((user.annotations_count / user.annotation_target) * 100));
+            document.getElementById('target-progress-fill').style.width = percentage + '%';
+            document.getElementById('target-percentage').textContent = percentage + '%';
+            document.getElementById('target-text').textContent = `${user.annotations_count} / ${user.annotation_target} annotations`;
+            document.getElementById('user-target-text').textContent = `of ${user.annotation_target} target`;
+        } else {
+            // Show prompt
+            document.getElementById('no-target-prompt').style.display = 'block';
+            document.getElementById('user-target-text').textContent = 'no target set';
+        }
+
+        // Load leaderboard
+        await loadLeaderboard();
+    } catch (error) {
+        console.error('Error loading dashboard:', error);
+    }
+}
+
+async function loadLeaderboard() {
+    try {
+        const response = await fetch('/api/results/leaderboard');
+        if (!response.ok) throw new Error('Failed to load leaderboard');
+        const data = await response.json();
+
+        const body = document.getElementById('leaderboard-body');
+        body.innerHTML = '';
+
+        if (!data.leaderboard || data.leaderboard.length === 0) {
+            body.innerHTML = '<tr><td colspan="3" class="px-4 py-4 text-center text-gray-500">No annotators yet</td></tr>';
+            return;
+        }
+
+        data.leaderboard.forEach((entry, index) => {
+            const row = document.createElement('tr');
+            row.className = 'hover:bg-gray-50';
+            row.innerHTML = `
+                <td class="px-4 py-3 font-medium text-gray-900">#${index + 1}</td>
+                <td class="px-4 py-3 text-gray-900">${entry.wiki_username || 'Anonymous'}</td>
+                <td class="px-4 py-3 text-right font-semibold text-emerald-600">${entry.annotations_count}</td>
+            `;
+            body.appendChild(row);
+        });
+    } catch (error) {
+        console.error('Error loading leaderboard:', error);
+        document.getElementById('leaderboard-body').innerHTML =
+            '<tr><td colspan="3" class="px-4 py-4 text-center text-red-500">Error loading leaderboard</td></tr>';
+    }
+}
+
+// Set target button
+document.getElementById('set-target-btn').addEventListener('click', async () => {
+    const target = parseInt(document.getElementById('target-input').value);
+    if (!target || target < 1) {
+        alert('Please enter a valid target number');
+        return;
+    }
+
+    try {
+        // Use the Config API to set the annotation target (or create a new endpoint)
+        // For now, we'll call a placeholder endpoint that will be implemented
+        const response = await fetch('/api/settings/target', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ target })
+        });
+
+        if (response.ok) {
+            loadPersonalDashboard();
+        } else {
+            alert('Failed to set target');
+        }
+    } catch (error) {
+        console.error('Error setting target:', error);
+        alert('Error setting target');
+    }
+});
+
+document.addEventListener('DOMContentLoaded', loadPersonalDashboard);
+</script>
+{% endblock %}

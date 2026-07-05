@@ -16,16 +16,15 @@
                     <img src="{{ url_for('static', filename='images/wikipedia_logo.svg') }}" alt="Wikipedia" class="w-6 h-6">
                     <a href="/" class="text-xl font-bold text-gray-900">WikiFactCheck</a>
                 </div>
-                <div class="flex items-center gap-4">
+                <div class="flex items-center gap-6">
                     {% if current_user %}
-                        <span class="text-sm text-gray-600">{{ current_user.email }}</span>
                         {% if current_user.is_admin %}
-                        <a href="/admin" class="text-sm text-emerald-600 hover:text-emerald-800">Admin Panel</a>
+                            <a href="/admin" class="text-sm font-medium text-emerald-600 hover:text-emerald-800">Admin Panel</a>
                         {% else %}
-                        <a href="/settings" class="text-sm text-gray-600 hover:text-gray-900">Preferences</a>
-                        {% endif %}
-                        {% if current_user.test_approved_by_admin %}
-                        <a href="/dashboard" class="text-sm text-emerald-600 hover:text-emerald-800">Dashboard</a>
+                            <a href="/dashboard" class="text-sm font-medium text-emerald-600 hover:text-emerald-800">Dashboard</a>
+                            <a href="/annotate" class="text-sm font-medium text-emerald-600 hover:text-emerald-800">Annotate</a>
+                            <a href="/test/post-login" class="text-sm font-medium text-emerald-600 hover:text-emerald-800">Qualification Test</a>
+                            <a href="/settings" class="text-sm font-medium text-gray-600 hover:text-gray-900">Preferences</a>
                         {% endif %}
                         <a href="/logout" class="text-sm text-gray-600 hover:text-gray-900">Logout</a>
                     {% else %}

@@ -77,6 +77,27 @@ def api_results_by_annotator():
     return jsonify(result)
 
 
+@dashboard_bp.route("/leaderboard")
+@login_required
+def api_results_leaderboard():
+    """Get leaderboard of annotators ranked by annotation count."""
+    annotators = db.session.query(
+        User.wiki_username,
+        User.email,
+        func.count(Annotation.id).label("annotation_count"),
+    ).outerjoin(Annotation).group_by(User.id).order_by(func.count(Annotation.id).desc()).all()
+
+    result = []
+    for wiki_username, email, count in annotators:
+        result.append({
+            "wiki_username": wiki_username or "Anonymous",
+            "email": email,
+            "annotations_count": count or 0,
+        })
+
+    return jsonify({"leaderboard": result})
+
+
 @dashboard_bp.route("/label-distribution")
 @login_required
 def api_results_label_distribution():

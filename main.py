@@ -132,10 +132,13 @@ def login_page():
     if request.method == "POST":
         email = request.form.get("email", "").strip()
         wiki_username = request.form.get("wiki_username", "").strip()
-        if email:
-            do_login(email, wiki_username=wiki_username)
-            # All logged-in users go to dashboard (test is optional)
-            return redirect(url_for("dashboard_page"))
+        if not email:
+            return render_template("login.html", error="Email is required")
+        if not wiki_username:
+            return render_template("login.html", error="Wikipedia username is required")
+        do_login(email, wiki_username=wiki_username)
+        # All logged-in users go to dashboard (test is optional)
+        return redirect(url_for("dashboard_page"))
     return render_template("login.html")
 
 
@@ -231,19 +234,21 @@ def test_page():
 @app.route("/annotate")
 @login_required
 def annotate_page():
-    """Annotation interface."""
+    """Annotation interface — full if approved, read-only preview if not."""
     user = get_current_user()
-    if not user.test_approved_by_admin:
-        # User must take and pass qualification test first
-        return redirect(url_for("test_post_login_page"))
-    return render_template("annotate.html")
+    preview_mode = not user.test_approved_by_admin
+    return render_template("annotate.html", preview_mode=preview_mode)
 
 
 @app.route("/dashboard")
 @login_required
 def dashboard_page():
-    """Results dashboard."""
-    return render_template("dashboard.html")
+    """Dashboard — admin panel for admins, personal stats for annotators."""
+    user = get_current_user()
+    if user.is_admin:
+        return render_template("dashboard.html")  # Admin dashboard
+    else:
+        return render_template("dashboard_personal.html")  # Personal dashboard
 
 
 @app.route("/settings")

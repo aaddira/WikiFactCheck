@@ -73,3 +73,26 @@ def api_settings_email():
     except IntegrityError:
         db.session.rollback()
         return jsonify({"error": "Email already in use"}), 409
+
+
+@settings_bp.route("/target", methods=["POST"])
+@login_required
+def api_settings_target():
+    """Set user's annotation target."""
+    user = get_current_user()
+    data = request.get_json() or {}
+
+    target = data.get("target")
+    if target is None:
+        return jsonify({"error": "Target is required"}), 400
+
+    try:
+        target = int(target)
+        if target < 1:
+            return jsonify({"error": "Target must be at least 1"}), 400
+    except (ValueError, TypeError):
+        return jsonify({"error": "Invalid target value"}), 400
+
+    user.annotation_target = target
+    db.session.commit()
+    return jsonify({"status": "success"}), 200

@@ -491,14 +491,21 @@ def send_approval_email(user):
     }
 
     def _send_in_background():
+        print(f"[THREAD_START] Approval email thread spawned for {config['user_email']}")
         try:
+            print(f"[THREAD_CONTEXT] Entering app context")
             with app.app_context():
+                print(f"[THREAD_CONFIG] SMTP: {config['server']}:{config['port']}, TLS: {config['use_tls']}, User: {config['username']}")
                 server = smtplib.SMTP(config['server'], config['port'])
+                print(f"[THREAD_SMTP_CONNECTED] Connected to SMTP")
+
                 if config['use_tls']:
                     server.starttls()
+                    print(f"[THREAD_TLS_STARTED] TLS enabled")
 
                 if config['username'] and config['password']:
                     server.login(config['username'], config['password'])
+                    print(f"[THREAD_AUTH_SUCCESS] Authenticated as {config['username']}")
 
                 recipients = [config['user_email']]
                 if config['cc_admin']:
@@ -522,15 +529,24 @@ def send_approval_email(user):
                 part = MIMEText(html, 'html')
                 msg.attach(part)
 
+                print(f"[THREAD_SENDING] Sending email to {recipients}")
                 server.sendmail(config['sender'], recipients, msg.as_string())
+                print(f"[THREAD_SENT] Email sent")
+
                 server.quit()
+                print(f"[THREAD_QUIT] SMTP connection closed")
                 app.logger.info(f"Approval email sent to {config['user_email']}")
         except Exception as e:
+            print(f"[THREAD_ERROR] Exception: {type(e).__name__}: {str(e)}")
+            import traceback
+            print(traceback.format_exc())
             app.logger.error(f"SMTP Error sending approval email to {config['user_email']}: {type(e).__name__}: {str(e)}")
 
     # Start email send in background thread (non-blocking)
+    print(f"[MAIN] About to spawn approval email thread for {config['user_email']}")
     thread = threading.Thread(target=_send_in_background, daemon=True)
     thread.start()
+    print(f"[MAIN] Approval email thread started")
 
 
 def send_rejection_email(user, reason):
@@ -557,14 +573,21 @@ def send_rejection_email(user, reason):
     }
 
     def _send_in_background():
+        print(f"[THREAD_START] Rejection email thread spawned for {config['user_email']}")
         try:
+            print(f"[THREAD_CONTEXT] Entering app context")
             with app.app_context():
+                print(f"[THREAD_CONFIG] SMTP: {config['server']}:{config['port']}, TLS: {config['use_tls']}, User: {config['username']}")
                 server = smtplib.SMTP(config['server'], config['port'])
+                print(f"[THREAD_SMTP_CONNECTED] Connected to SMTP")
+
                 if config['use_tls']:
                     server.starttls()
+                    print(f"[THREAD_TLS_STARTED] TLS enabled")
 
                 if config['username'] and config['password']:
                     server.login(config['username'], config['password'])
+                    print(f"[THREAD_AUTH_SUCCESS] Authenticated as {config['username']}")
 
                 recipients = [config['user_email']]
                 if config['cc_admin']:
@@ -588,15 +611,24 @@ def send_rejection_email(user, reason):
                 part = MIMEText(html, 'html')
                 msg.attach(part)
 
+                print(f"[THREAD_SENDING] Sending email to {recipients}")
                 server.sendmail(config['sender'], recipients, msg.as_string())
+                print(f"[THREAD_SENT] Email sent")
+
                 server.quit()
+                print(f"[THREAD_QUIT] SMTP connection closed")
                 app.logger.info(f"Rejection email sent to {config['user_email']}")
         except Exception as e:
+            print(f"[THREAD_ERROR] Exception: {type(e).__name__}: {str(e)}")
+            import traceback
+            print(traceback.format_exc())
             app.logger.error(f"SMTP Error sending rejection email to {config['user_email']}: {type(e).__name__}: {str(e)}")
 
     # Start email send in background thread (non-blocking)
+    print(f"[MAIN] About to spawn rejection email thread for {config['user_email']}")
     thread = threading.Thread(target=_send_in_background, daemon=True)
     thread.start()
+    print(f"[MAIN] Rejection email thread started")
 
     # Start email send in background thread (non-blocking)
     thread = threading.Thread(target=_send_in_background, daemon=True)

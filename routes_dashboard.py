@@ -455,7 +455,7 @@ def api_annotations():
     pair_id = request.args.get("pair_id", type=int)
     annotator_email = request.args.get("annotator_email", type=str)
 
-    query = Annotation.query.join(Pair).filter(Pair.is_test_sample == False)
+    query = Annotation.query.join(Pair).join(User).filter(Pair.is_test_sample == False)
 
     if pair_id:
         query = query.filter(Annotation.pair_id == pair_id)
@@ -471,8 +471,8 @@ def api_annotations():
             {
                 "id": a.id,
                 "pair_id": a.pair_id,
-                "pair_title": Pair.query.get(a.pair_id).article_title if a.pair_id else None,
-                "annotator_email": User.query.get(a.user_id).email if a.user_id else None,
+                "pair_title": a.pair.article_title if a.pair else None,
+                "annotator_email": a.user.email if a.user else None,
                 "label": a.label,
                 "quote": a.quote,
                 "explanation": a.explanation,

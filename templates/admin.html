@@ -597,6 +597,7 @@ function switchTab(tabName) {
     else if (tabName === "test") loadDatasetsForTestSamples();
     else if (tabName === "dashboard") loadDashboard();
     else if (tabName === "audit") loadAuditLog(1);
+    else if (tabName === "annotations") loadAnnotations(1);
 }
 
 // Restore tab from URL hash on page load
@@ -1421,19 +1422,26 @@ async function loadLabelDistribution() {
         };
 
         const chartConfig = {
-            type: "pie",
+            type: "bar",
             data: {
                 labels: labels.map((l) => l.replace(/_/g, " ")),
                 datasets: [
                     {
+                        label: "Annotation Count",
                         data: values,
                         backgroundColor: labels.map((l) => colors[l]),
+                        borderColor: labels.map((l) => colors[l]),
+                        borderWidth: 1,
                     },
                 ],
             },
             options: {
+                indexAxis: "x",
                 plugins: {
-                    legend: { position: "bottom" },
+                    legend: { display: false },
+                },
+                scales: {
+                    y: { beginAtZero: true },
                 },
             },
         };

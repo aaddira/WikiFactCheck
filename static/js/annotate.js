@@ -367,11 +367,11 @@ function renderPair(pair) {
 }
 
 function highlightFacts(text) {
-    // Find <fact>...</fact> markers and highlight the fact in bold red with underline
+    // Find <fact>...</fact> markers and highlight using CSS class (supports dark mode)
     const escaped = escapeHtml(text);
     return escaped.replace(
         /&lt;fact&gt;(.*?)&lt;\/fact&gt;/gs,
-        '<span style="font-weight: bold; color: #dc2626; text-decoration: underline; background-color: #fee2e2; padding: 2px 4px; border-radius: 2px;">$1</span>'
+        '<span class="fact-highlight">$1</span>'
     );
 }
 

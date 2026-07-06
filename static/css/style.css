@@ -123,6 +123,22 @@ fact {
     text-decoration: underline;
 }
 
+/* Fact highlight - used for <fact> tags replaced with spans */
+.fact-highlight {
+    font-weight: bold;
+    color: #dc2626;
+    text-decoration: underline;
+    background-color: #fee2e2;
+    padding: 2px 4px;
+    border-radius: 2px;
+}
+
+[data-theme="dark"] .fact-highlight,
+html.dark .fact-highlight {
+    color: #fca5a5;
+    background-color: #7f1d1d;
+}
+
 /* Collapsible context section */
 .collapsible-section {
     border: 1px solid var(--color-border);

@@ -37,7 +37,7 @@ else:
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production")
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
-app.config["SESSION_COOKIE_SECURE"] = False  # Set to True in production with HTTPS
+app.config["SESSION_COOKIE_SECURE"] = os.getenv("SESSION_COOKIE_SECURE", "false").lower() == "true"
 
 # Email configuration
 app.config["MAIL_SERVER"] = os.getenv("MAIL_SERVER", "smtp.gmail.com")

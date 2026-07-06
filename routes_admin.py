@@ -761,3 +761,76 @@ def api_export_test_results():
         as_attachment=True,
         download_name=f"test_results_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv",
     )
+
+
+# ============================================================================
+# User Management (Admin Testing & Cleanup)
+# ============================================================================
+
+
+@admin_bp.route("/users", methods=["GET"])
+@admin_required
+def api_users_list():
+    """List all users (for admin testing and management)."""
+    users = User.query.order_by(User.created_at.desc()).all()
+    return jsonify([
+        {
+            "id": u.id,
+            "email": u.email,
+            "wiki_username": u.wiki_username,
+            "is_admin": u.is_admin,
+            "qualification_passed": u.qualification_passed,
+            "qualification_score": u.qualification_score,
+            "test_submitted": u.test_submitted,
+            "test_approved_by_admin": u.test_approved_by_admin,
+            "annotations_count": len(u.annotations) if u.annotations else 0,
+            "created_at": u.created_at.isoformat() if u.created_at else None,
+            "last_login": u.last_login.isoformat() if u.last_login else None,
+        }
+        for u in users
+    ])
+
+
+@admin_bp.route("/user/<int:user_id>", methods=["DELETE"])
+@admin_required
+def api_user_delete(user_id):
+    """Delete a user and all their related data (annotations, claims, skips, test submissions)."""
+    admin = g.user
+    user = User.query.get(user_id)
+
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    # Prevent deleting the system admin user
+    if user.email == "admin@system.internal":
+        return jsonify({"error": "Cannot delete system admin user"}), 403
+
+    # Snapshot user data before deletion
+    user_snapshot = {
+        "email": user.email,
+        "wiki_username": user.wiki_username,
+        "qualification_score": user.qualification_score,
+        "test_approved_by_admin": user.test_approved_by_admin,
+        "annotations_count": len(user.annotations) if user.annotations else 0,
+    }
+
+    # Log deletion (before cascading deletes happen)
+    AuditLog.record(
+        action="user_delete",
+        actor_user_id=admin.id,
+        actor_email=admin.email,
+        target_type="User",
+        target_id=str(user_id),
+        details=json.dumps(user_snapshot)
+    )
+
+    # Delete user (cascades to annotations, claims, skips, test_submissions)
+    db.session.delete(user)
+    db.session.commit()
+
+    return jsonify({
+        "status": "deleted",
+        "user_id": user_id,
+        "email": user_snapshot["email"],
+        "message": "User account and all related data deleted"
+    })

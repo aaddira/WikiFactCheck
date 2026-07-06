@@ -50,6 +50,9 @@
         <button onclick="switchTab('annotations')" class="px-4 py-2 border-b-2 border-gray-300 font-semibold text-gray-600 whitespace-nowrap">
             Annotations
         </button>
+        <button onclick="switchTab('users')" class="px-4 py-2 border-b-2 border-gray-300 font-semibold text-gray-600 whitespace-nowrap">
+            👥 Users
+        </button>
     </div>
 
     <!-- Dashboard Tab (Merged: Project Stats + Quality Metrics) -->
@@ -522,6 +525,36 @@
             </div>
         </div>
     </div>
+
+    <!-- Users Tab (Admin Testing & Cleanup) -->
+    <div id="tab-users" class="tab-content hidden">
+        <div class="admin-section">
+            <div class="admin-section-title">User Management</div>
+            <p class="text-gray-600 mb-4">View and manage user accounts. <strong>⚠️ Delete removes user and all annotations.</strong></p>
+
+            <!-- Users Table -->
+            <div style="overflow-x: auto;">
+                <table class="table w-full text-sm">
+                    <thead>
+                        <tr>
+                            <th>Email</th>
+                            <th>Wiki Username</th>
+                            <th>Qual Score</th>
+                            <th>Approved</th>
+                            <th>Annotations</th>
+                            <th>Created</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody">
+                        <tr>
+                            <td colspan="7" class="text-center py-4 text-gray-500">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -598,6 +631,7 @@ function switchTab(tabName) {
     else if (tabName === "dashboard") loadDashboard();
     else if (tabName === "audit") loadAuditLog(1);
     else if (tabName === "annotations") loadAnnotations(1);
+    else if (tabName === "users") loadUsers();
 }
 
 // Restore tab from URL hash on page load
@@ -1570,6 +1604,61 @@ async function loadTieScenarios() {
         document.getElementById("consensus-three-pct").textContent = dist.three_plus_labels.percentage + "%";
     } catch (error) {
         console.error("Error loading tie scenarios:", error);
+    }
+}
+
+// Load users list
+async function loadUsers() {
+    try {
+        const response = await fetch('/admin/users');
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const users = await response.json();
+
+        const tbody = document.getElementById('usersTableBody');
+        if (users.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-gray-500">No users found</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = users.map(user => `
+            <tr>
+                <td class="font-mono text-xs">${user.email}</td>
+                <td>${user.wiki_username || '—'}</td>
+                <td>${user.qualification_score !== null ? user.qualification_score : '—'}</td>
+                <td>${user.test_approved_by_admin ? '✓' : '—'}</td>
+                <td>${user.annotations_count}</td>
+                <td class="text-xs text-gray-500">${user.created_at ? new Date(user.created_at).toLocaleDateString() : '—'}</td>
+                <td>
+                    ${user.is_admin && user.email === 'admin@system.internal' ?
+                        '<span class="text-gray-500 text-xs">System Admin</span>' :
+                        `<button onclick="if (confirm('Delete ${user.email}? This removes all their annotations.')) deleteUser(${user.id}, '${user.email}')"
+                                class="px-2 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700">
+                            Delete
+                        </button>`
+                    }
+                </td>
+            </tr>
+        `).join('');
+    } catch (error) {
+        console.error('Error loading users:', error);
+        document.getElementById('usersTableBody').innerHTML = '<tr><td colspan="7" class="text-center py-4 text-red-500">Error loading users</td></tr>';
+    }
+}
+
+// Delete a user (admin testing cleanup)
+async function deleteUser(userId, email) {
+    try {
+        const response = await fetch(`/admin/user/${userId}`, { method: 'DELETE' });
+        if (!response.ok) {
+            const data = await response.json();
+            alert(`Error: ${data.error}`);
+            return;
+        }
+        alert(`Deleted user: ${email}\n\nAll their annotations, claims, and test submissions have been removed.`);
+        loadUsers(); // Reload the list
+    } catch (error) {
+        console.error('Error deleting user:', error);
+        alert(`Error deleting user: ${error.message}`);
     }
 }
 

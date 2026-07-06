@@ -474,7 +474,6 @@ def send_approval_email(user):
     import os
     import threading
     from sendgrid import SendGridAPIClient
-    from sendgrid.helpers.mail import Mail, Email, To
 
     app = current_app._get_current_object()
     config = {
@@ -499,17 +498,33 @@ def send_approval_email(user):
 <p>Thank you for your contribution!</p>
 """
 
-                mail = Mail(
-                    from_email=Email(config['from_email']),
-                    to_emails=To(config['user_email']),
-                    subject="WikiFactCheck: You're Approved to Start Annotating",
-                    html_content=html_content
-                )
-
+                to_list = [{"email": config['user_email']}]
+                cc_list = []
                 if config['cc_admin']:
-                    mail.add_cc(Email(config['cc_admin']))
+                    cc_list.append({"email": config['cc_admin']})
 
-                response = sg.send(mail)
+                payload = {
+                    "personalizations": [
+                        {
+                            "to": to_list,
+                            "cc": cc_list if cc_list else None,
+                            "subject": "WikiFactCheck: You're Approved to Start Annotating"
+                        }
+                    ],
+                    "from": {"email": config['from_email']},
+                    "content": [
+                        {
+                            "type": "text/html",
+                            "value": html_content
+                        }
+                    ]
+                }
+
+                # Remove None values
+                if not payload['personalizations'][0]['cc']:
+                    del payload['personalizations'][0]['cc']
+
+                response = sg.client.mail.send.post(request_body=payload)
                 app.logger.info(f"Approval email sent to {config['user_email']} (status: {response.status_code})")
         except Exception as e:
             app.logger.error(f"Error sending approval email to {config['user_email']}: {type(e).__name__}: {str(e)}")
@@ -524,7 +539,6 @@ def send_rejection_email(user, reason):
     import os
     import threading
     from sendgrid import SendGridAPIClient
-    from sendgrid.helpers.mail import Mail, Email, To
 
     app = current_app._get_current_object()
     config = {
@@ -550,17 +564,33 @@ def send_rejection_email(user, reason):
 <p>If you have questions, please reach out to us.</p>
 """
 
-                mail = Mail(
-                    from_email=Email(config['from_email']),
-                    to_emails=To(config['user_email']),
-                    subject="WikiFactCheck: Test Result",
-                    html_content=html_content
-                )
-
+                to_list = [{"email": config['user_email']}]
+                cc_list = []
                 if config['cc_admin']:
-                    mail.add_cc(Email(config['cc_admin']))
+                    cc_list.append({"email": config['cc_admin']})
 
-                response = sg.send(mail)
+                payload = {
+                    "personalizations": [
+                        {
+                            "to": to_list,
+                            "cc": cc_list if cc_list else None,
+                            "subject": "WikiFactCheck: Test Result"
+                        }
+                    ],
+                    "from": {"email": config['from_email']},
+                    "content": [
+                        {
+                            "type": "text/html",
+                            "value": html_content
+                        }
+                    ]
+                }
+
+                # Remove None values
+                if not payload['personalizations'][0]['cc']:
+                    del payload['personalizations'][0]['cc']
+
+                response = sg.client.mail.send.post(request_body=payload)
                 app.logger.info(f"Rejection email sent to {config['user_email']} (status: {response.status_code})")
         except Exception as e:
             app.logger.error(f"Error sending rejection email to {config['user_email']}: {type(e).__name__}: {str(e)}")

@@ -420,3 +420,24 @@ def api_results_per_citation_type():
         }
 
     return jsonify(result)
+
+
+@dashboard_bp.route("/annotation-distribution")
+def api_annotation_distribution():
+    """Get distribution of annotation counts (e.g., samples with 1, 2, 3+ annotations)."""
+    # Get all non-test pairs and group by annotation count
+    pairs = Pair.query.filter_by(is_test_sample=False).all()
+
+    distribution = defaultdict(int)
+    max_annotations = 0
+
+    for pair in pairs:
+        count = pair.annotation_count or 0
+        distribution[count] += 1
+        max_annotations = max(max_annotations, count)
+
+    # Return as {count: sample_count, ...}
+    result = {str(k): v for k, v in sorted(distribution.items())}
+    result["max_annotations"] = max_annotations
+
+    return jsonify(result)

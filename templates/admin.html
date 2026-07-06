@@ -153,6 +153,13 @@
             <canvas id="datasetChart" style="max-height: 300px"></canvas>
         </div>
 
+        <!-- Annotation Distribution Chart -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Annotation Coverage</h3>
+            <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Samples by number of annotations received</p>
+            <canvas id="annotationDistributionChart" style="max-height: 300px"></canvas>
+        </div>
+
         <!-- Inter-Annotator Agreement Card -->
         <div class="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
             <h3 class="text-lg font-semibold text-blue-900 mb-2">Inter-Annotator Agreement</h3>
@@ -469,7 +476,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 // Chart variables for dashboard
-let annotatorChart, labelChart, datasetChart;
+let annotatorChart, labelChart, datasetChart, annotationDistributionChart;
 
 // Debounce state to prevent double-clicks
 let adminIsProcessing = false;
@@ -1124,6 +1131,7 @@ async function loadDashboard() {
             loadAnnotatorData(),
             loadLabelDistribution(),
             loadDatasetData(),
+            loadAnnotationDistribution(),
             loadTieScenarios()
         ]);
     } catch (error) {
@@ -1375,6 +1383,52 @@ async function loadDatasetData() {
     }
 }
 
+async function loadAnnotationDistribution() {
+    try {
+        const response = await fetch("/api/results/annotation-distribution");
+        const data = await response.json();
+
+        const maxAnnotations = data.max_annotations;
+        delete data.max_annotations;
+
+        const labels = Object.keys(data).map(k => `${k} annotation${k == 1 ? '' : 's'}`);
+        const values = Object.values(data);
+
+        const chartConfig = {
+            type: "bar",
+            data: {
+                labels,
+                datasets: [
+                    {
+                        label: "Samples",
+                        data: values,
+                        backgroundColor: "#3b82f6",
+                        borderColor: "#1e40af",
+                        borderWidth: 1,
+                    },
+                ],
+            },
+            options: {
+                indexAxis: "x",
+                plugins: {
+                    legend: { display: false },
+                },
+                scales: {
+                    y: { beginAtZero: true, ticks: { stepSize: 1 } },
+                },
+            },
+        };
+
+        const ctx = document.getElementById("annotationDistributionChart");
+        if (ctx && ctx.getContext) {
+            if (annotationDistributionChart) annotationDistributionChart.destroy();
+            annotationDistributionChart = new Chart(ctx.getContext("2d"), chartConfig);
+        }
+    } catch (error) {
+        console.error("Error loading annotation distribution:", error);
+    }
+}
+
 async function loadTieScenarios() {
     try {
         const response = await fetch("/api/results/tie-scenarios");
@@ -1401,5 +1455,12 @@ async function loadTieScenarios() {
         console.error("Error loading tie scenarios:", error);
     }
 }
+
+// Listen for theme changes and reload charts when dark mode toggles
+document.addEventListener("themechange", () => {
+    loadLabelDistribution();
+    loadDatasetData();
+    loadAnnotationDistribution();
+});
 </script>
 {% endblock %}

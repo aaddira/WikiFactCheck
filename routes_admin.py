@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request, send_file, g, current_app
-from models import db, Dataset, Pair, Annotation, User, Config, TestSubmission, AuditLog
+from models import db, Dataset, Pair, Annotation, User, Config, TestSubmission, AuditLog, Claim, Skip
 from auth import admin_required, get_current_user
 from data_loader import parse_jsonl_file
 from io import StringIO, BytesIO
@@ -824,7 +824,13 @@ def api_user_delete(user_id):
         details=json.dumps(user_snapshot)
     )
 
-    # Delete user (cascades to annotations, claims, skips, test_submissions)
+    # Manually delete all related records (in proper order) to avoid cascade issues
+    Annotation.query.filter_by(user_id=user_id).delete()
+    Claim.query.filter_by(user_id=user_id).delete()
+    Skip.query.filter_by(user_id=user_id).delete()
+    TestSubmission.query.filter_by(user_id=user_id).delete()
+
+    # Now delete the user
     db.session.delete(user)
     db.session.commit()
 

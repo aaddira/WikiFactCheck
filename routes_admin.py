@@ -7,7 +7,6 @@ import json
 import csv
 from datetime import datetime
 import os
-from flask_mail import Mail, Message
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -471,40 +470,63 @@ def api_test_submission_reject(user_id):
 
 def send_approval_email(user):
     """Send approval email to user (non-blocking, background thread)."""
-    from flask_mail import Mail, Message
     from flask import current_app
     import os
     import threading
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
 
     app = current_app._get_current_object()
+    config = {
+        'server': app.config.get('MAIL_SERVER'),
+        'port': app.config.get('MAIL_PORT'),
+        'username': app.config.get('MAIL_USERNAME'),
+        'password': app.config.get('MAIL_PASSWORD'),
+        'use_tls': app.config.get('MAIL_USE_TLS'),
+        'sender': app.config.get('MAIL_DEFAULT_SENDER'),
+        'app_url': app.config.get('APP_URL'),
+        'user_email': user.email,
+        'cc_admin': os.getenv("MAIL_CC_ADMIN", "").strip()
+    }
 
     def _send_in_background():
         try:
             with app.app_context():
-                mail = Mail(app)
-                recipients = [user.email]
+                server = smtplib.SMTP(config['server'], config['port'])
+                if config['use_tls']:
+                    server.starttls()
 
-                # CC admin if configured
-                admin_cc = os.getenv("MAIL_CC_ADMIN", "").strip()
-                if admin_cc:
-                    recipients.append(admin_cc)
+                if config['username'] and config['password']:
+                    server.login(config['username'], config['password'])
 
-                msg = Message(
-                    subject="WikiFactCheck: You're Approved to Start Annotating",
-                    recipients=recipients,
-                    html=f"""
+                recipients = [config['user_email']]
+                if config['cc_admin']:
+                    recipients.append(config['cc_admin'])
+
+                msg = MIMEMultipart('alternative')
+                msg['Subject'] = "WikiFactCheck: You're Approved to Start Annotating"
+                msg['From'] = config['sender']
+                msg['To'] = config['user_email']
+                if config['cc_admin']:
+                    msg['Cc'] = config['cc_admin']
+
+                html = f"""
 <h2>Great News!</h2>
-<p>Hi {user.email},</p>
+<p>Hi {config['user_email']},</p>
 <p>Congratulations! Your test submission has been reviewed and approved by our research team.</p>
 <p>You can now start annotating Wikipedia citations and earning $3-5 per review.</p>
-<p><a href="{app.config.get('APP_URL', 'https://app.example.com')}/">Log in and start annotating</a></p>
+<p><a href="{config['app_url']}/">Log in and start annotating</a></p>
 <p>Thank you for your contribution!</p>
 """
-                )
-                mail.send(msg)
-                app.logger.info(f"Approval email sent to {user.email}")
+                part = MIMEText(html, 'html')
+                msg.attach(part)
+
+                server.sendmail(config['sender'], recipients, msg.as_string())
+                server.quit()
+                app.logger.info(f"Approval email sent to {config['user_email']}")
         except Exception as e:
-            app.logger.exception(f"Background: Error sending approval email to {user.email}: {str(e)}")
+            app.logger.error(f"SMTP Error sending approval email to {config['user_email']}: {type(e).__name__}: {str(e)}")
 
     # Start email send in background thread (non-blocking)
     thread = threading.Thread(target=_send_in_background, daemon=True)
@@ -513,40 +535,68 @@ def send_approval_email(user):
 
 def send_rejection_email(user, reason):
     """Send rejection email to user (non-blocking, background thread)."""
-    from flask_mail import Mail, Message
     from flask import current_app
     import os
     import threading
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
 
     app = current_app._get_current_object()
+    config = {
+        'server': app.config.get('MAIL_SERVER'),
+        'port': app.config.get('MAIL_PORT'),
+        'username': app.config.get('MAIL_USERNAME'),
+        'password': app.config.get('MAIL_PASSWORD'),
+        'use_tls': app.config.get('MAIL_USE_TLS'),
+        'sender': app.config.get('MAIL_DEFAULT_SENDER'),
+        'app_url': app.config.get('APP_URL'),
+        'user_email': user.email,
+        'reason': reason,
+        'cc_admin': os.getenv("MAIL_CC_ADMIN", "").strip()
+    }
 
     def _send_in_background():
         try:
             with app.app_context():
-                mail = Mail(app)
-                recipients = [user.email]
+                server = smtplib.SMTP(config['server'], config['port'])
+                if config['use_tls']:
+                    server.starttls()
 
-                # CC admin if configured
-                admin_cc = os.getenv("MAIL_CC_ADMIN", "").strip()
-                if admin_cc:
-                    recipients.append(admin_cc)
+                if config['username'] and config['password']:
+                    server.login(config['username'], config['password'])
 
-                msg = Message(
-                    subject="WikiFactCheck: Test Result",
-                    recipients=recipients,
-                    html=f"""
+                recipients = [config['user_email']]
+                if config['cc_admin']:
+                    recipients.append(config['cc_admin'])
+
+                msg = MIMEMultipart('alternative')
+                msg['Subject'] = "WikiFactCheck: Test Result"
+                msg['From'] = config['sender']
+                msg['To'] = config['user_email']
+                if config['cc_admin']:
+                    msg['Cc'] = config['cc_admin']
+
+                html = f"""
 <h2>Test Submission Review</h2>
-<p>Hi {user.email},</p>
+<p>Hi {config['user_email']},</p>
 <p>Thank you for submitting your test. Unfortunately, we were unable to approve your submission at this time.</p>
-<p><strong>Reason:</strong> {reason}</p>
-<p>You can retake the test anytime. <a href="{app.config.get('APP_URL', 'https://app.example.com')}/">Log in to try again</a></p>
+<p><strong>Reason:</strong> {config['reason']}</p>
+<p>You can retake the test anytime. <a href="{config['app_url']}/">Log in to try again</a></p>
 <p>If you have questions, please reach out to us.</p>
 """
-                )
-                mail.send(msg)
-                app.logger.info(f"Rejection email sent to {user.email}")
+                part = MIMEText(html, 'html')
+                msg.attach(part)
+
+                server.sendmail(config['sender'], recipients, msg.as_string())
+                server.quit()
+                app.logger.info(f"Rejection email sent to {config['user_email']}")
         except Exception as e:
-            app.logger.exception(f"Background: Error sending rejection email to {user.email}: {str(e)}")
+            app.logger.error(f"SMTP Error sending rejection email to {config['user_email']}: {type(e).__name__}: {str(e)}")
+
+    # Start email send in background thread (non-blocking)
+    thread = threading.Thread(target=_send_in_background, daemon=True)
+    thread.start()
 
     # Start email send in background thread (non-blocking)
     thread = threading.Thread(target=_send_in_background, daemon=True)

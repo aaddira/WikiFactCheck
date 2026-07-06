@@ -582,6 +582,15 @@ def api_audit_log():
         page=page, per_page=per_page, error_out=False
     )
 
+    def parse_details(details_str):
+        """Safely parse details JSON, fallback to string if invalid."""
+        if not details_str:
+            return None
+        try:
+            return json.loads(details_str)
+        except (json.JSONDecodeError, ValueError):
+            return details_str
+
     return jsonify({
         "logs": [
             {
@@ -591,7 +600,7 @@ def api_audit_log():
                 "actor_email": log.actor_email,
                 "target_type": log.target_type,
                 "target_id": log.target_id,
-                "details": json.loads(log.details) if log.details else None,
+                "details": parse_details(log.details),
                 "created_at": log.created_at.isoformat() if log.created_at else None,
             }
             for log in paginated.items

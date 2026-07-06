@@ -411,13 +411,8 @@ def api_test_submission_approve(user_id):
     )
     db.session.commit()
 
-    # Send approval email
-    try:
-        send_approval_email(user)
-    except Exception as e:
-        # Log error but don't fail the approval
-        from flask import current_app
-        current_app.logger.exception(f"Error sending approval email to {user.email}")
+    # Send approval email (async, non-blocking)
+    send_approval_email(user)
 
     return jsonify({
         "status": "approved",
@@ -464,12 +459,8 @@ def api_test_submission_reject(user_id):
     user.test_submission_date = None
     db.session.commit()
 
-    # Send rejection email
-    try:
-        send_rejection_email(user, reason)
-    except Exception as e:
-        from flask import current_app
-        current_app.logger.exception(f"Error sending rejection email to {user.email}")
+    # Send rejection email (async, non-blocking)
+    send_rejection_email(user, reason)
 
     return jsonify({
         "status": "rejected",
@@ -479,23 +470,27 @@ def api_test_submission_reject(user_id):
 
 
 def send_approval_email(user):
-    """Send approval email to user."""
+    """Send approval email to user (non-blocking, background thread)."""
     from flask_mail import Mail, Message
     from flask import current_app
     import os
+    import threading
 
-    mail = Mail(current_app)
-    recipients = [user.email]
+    def _send_in_background():
+        try:
+            with current_app.app_context():
+                mail = Mail(current_app)
+                recipients = [user.email]
 
-    # CC admin if configured
-    admin_cc = os.getenv("MAIL_CC_ADMIN", "").strip()
-    if admin_cc:
-        recipients.append(admin_cc)
+                # CC admin if configured
+                admin_cc = os.getenv("MAIL_CC_ADMIN", "").strip()
+                if admin_cc:
+                    recipients.append(admin_cc)
 
-    msg = Message(
-        subject="WikiFactCheck: You're Approved to Start Annotating",
-        recipients=recipients,
-        html=f"""
+                msg = Message(
+                    subject="WikiFactCheck: You're Approved to Start Annotating",
+                    recipients=recipients,
+                    html=f"""
 <h2>Great News!</h2>
 <p>Hi {user.email},</p>
 <p>Congratulations! Your test submission has been reviewed and approved by our research team.</p>
@@ -503,28 +498,38 @@ def send_approval_email(user):
 <p><a href="{current_app.config.get('APP_URL', 'https://app.example.com')}/">Log in and start annotating</a></p>
 <p>Thank you for your contribution!</p>
 """
-    )
-    mail.send(msg)
+                )
+                mail.send(msg)
+        except Exception:
+            current_app.logger.exception(f"Background: Error sending approval email to {user.email}")
+
+    # Start email send in background thread (non-blocking)
+    thread = threading.Thread(target=_send_in_background, daemon=True)
+    thread.start()
 
 
 def send_rejection_email(user, reason):
-    """Send rejection email to user."""
+    """Send rejection email to user (non-blocking, background thread)."""
     from flask_mail import Mail, Message
     from flask import current_app
     import os
+    import threading
 
-    mail = Mail(current_app)
-    recipients = [user.email]
+    def _send_in_background():
+        try:
+            with current_app.app_context():
+                mail = Mail(current_app)
+                recipients = [user.email]
 
-    # CC admin if configured
-    admin_cc = os.getenv("MAIL_CC_ADMIN", "").strip()
-    if admin_cc:
-        recipients.append(admin_cc)
+                # CC admin if configured
+                admin_cc = os.getenv("MAIL_CC_ADMIN", "").strip()
+                if admin_cc:
+                    recipients.append(admin_cc)
 
-    msg = Message(
-        subject="WikiFactCheck: Test Result",
-        recipients=recipients,
-        html=f"""
+                msg = Message(
+                    subject="WikiFactCheck: Test Result",
+                    recipients=recipients,
+                    html=f"""
 <h2>Test Submission Review</h2>
 <p>Hi {user.email},</p>
 <p>Thank you for submitting your test. Unfortunately, we were unable to approve your submission at this time.</p>
@@ -532,8 +537,14 @@ def send_rejection_email(user, reason):
 <p>You can retake the test anytime. <a href="{current_app.config.get('APP_URL', 'https://app.example.com')}/">Log in to try again</a></p>
 <p>If you have questions, please reach out to us.</p>
 """
-    )
-    mail.send(msg)
+                )
+                mail.send(msg)
+        except Exception:
+            current_app.logger.exception(f"Background: Error sending rejection email to {user.email}")
+
+    # Start email send in background thread (non-blocking)
+    thread = threading.Thread(target=_send_in_background, daemon=True)
+    thread.start()
 
 
 # ============================================================================

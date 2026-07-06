@@ -473,53 +473,24 @@ def send_approval_email(user):
     from flask import current_app
     import os
     import threading
-    import smtplib
-    from email.mime.text import MIMEText
-    from email.mime.multipart import MIMEMultipart
+    from sendgrid import SendGridAPIClient
+    from sendgrid.helpers.mail import Mail, Email, To
 
     app = current_app._get_current_object()
     config = {
-        'server': app.config.get('MAIL_SERVER'),
-        'port': app.config.get('MAIL_PORT'),
-        'username': app.config.get('MAIL_USERNAME'),
-        'password': app.config.get('MAIL_PASSWORD'),
-        'use_tls': app.config.get('MAIL_USE_TLS'),
-        'sender': app.config.get('MAIL_DEFAULT_SENDER'),
+        'api_key': os.getenv('SENDGRID_API_KEY'),
+        'from_email': os.getenv('SENDGRID_FROM_EMAIL', 'noreply@wikifactcheck.com'),
         'app_url': app.config.get('APP_URL'),
         'user_email': user.email,
         'cc_admin': os.getenv("MAIL_CC_ADMIN", "").strip()
     }
 
     def _send_in_background():
-        print(f"[THREAD_START] Approval email thread spawned for {config['user_email']}")
         try:
-            print(f"[THREAD_CONTEXT] Entering app context")
             with app.app_context():
-                print(f"[THREAD_CONFIG] SMTP: {config['server']}:{config['port']}, TLS: {config['use_tls']}, User: {config['username']}")
-                print(f"[THREAD_SMTP_CONNECTING] Attempting to connect (timeout=10s)...")
-                server = smtplib.SMTP(config['server'], config['port'], timeout=10)
-                print(f"[THREAD_SMTP_CONNECTED] Connected to SMTP")
+                sg = SendGridAPIClient(config['api_key'])
 
-                if config['use_tls']:
-                    server.starttls()
-                    print(f"[THREAD_TLS_STARTED] TLS enabled")
-
-                if config['username'] and config['password']:
-                    server.login(config['username'], config['password'])
-                    print(f"[THREAD_AUTH_SUCCESS] Authenticated as {config['username']}")
-
-                recipients = [config['user_email']]
-                if config['cc_admin']:
-                    recipients.append(config['cc_admin'])
-
-                msg = MIMEMultipart('alternative')
-                msg['Subject'] = "WikiFactCheck: You're Approved to Start Annotating"
-                msg['From'] = config['sender']
-                msg['To'] = config['user_email']
-                if config['cc_admin']:
-                    msg['Cc'] = config['cc_admin']
-
-                html = f"""
+                html_content = f"""
 <h2>Great News!</h2>
 <p>Hi {config['user_email']},</p>
 <p>Congratulations! Your test submission has been reviewed and approved by our research team.</p>
@@ -527,27 +498,24 @@ def send_approval_email(user):
 <p><a href="{config['app_url']}/">Log in and start annotating</a></p>
 <p>Thank you for your contribution!</p>
 """
-                part = MIMEText(html, 'html')
-                msg.attach(part)
 
-                print(f"[THREAD_SENDING] Sending email to {recipients}")
-                server.sendmail(config['sender'], recipients, msg.as_string())
-                print(f"[THREAD_SENT] Email sent")
+                mail = Mail(
+                    from_email=Email(config['from_email']),
+                    to_emails=To(config['user_email']),
+                    subject="WikiFactCheck: You're Approved to Start Annotating",
+                    html_content=html_content
+                )
 
-                server.quit()
-                print(f"[THREAD_QUIT] SMTP connection closed")
-                app.logger.info(f"Approval email sent to {config['user_email']}")
+                if config['cc_admin']:
+                    mail.add_cc(Email(config['cc_admin']))
+
+                response = sg.send(mail)
+                app.logger.info(f"Approval email sent to {config['user_email']} (status: {response.status_code})")
         except Exception as e:
-            print(f"[THREAD_ERROR] Exception: {type(e).__name__}: {str(e)}")
-            import traceback
-            print(traceback.format_exc())
-            app.logger.error(f"SMTP Error sending approval email to {config['user_email']}: {type(e).__name__}: {str(e)}")
+            app.logger.error(f"Error sending approval email to {config['user_email']}: {type(e).__name__}: {str(e)}")
 
-    # Start email send in background thread (non-blocking)
-    print(f"[MAIN] About to spawn approval email thread for {config['user_email']}")
     thread = threading.Thread(target=_send_in_background, daemon=True)
     thread.start()
-    print(f"[MAIN] Approval email thread started")
 
 
 def send_rejection_email(user, reason):
@@ -555,18 +523,13 @@ def send_rejection_email(user, reason):
     from flask import current_app
     import os
     import threading
-    import smtplib
-    from email.mime.text import MIMEText
-    from email.mime.multipart import MIMEMultipart
+    from sendgrid import SendGridAPIClient
+    from sendgrid.helpers.mail import Mail, Email, To
 
     app = current_app._get_current_object()
     config = {
-        'server': app.config.get('MAIL_SERVER'),
-        'port': app.config.get('MAIL_PORT'),
-        'username': app.config.get('MAIL_USERNAME'),
-        'password': app.config.get('MAIL_PASSWORD'),
-        'use_tls': app.config.get('MAIL_USE_TLS'),
-        'sender': app.config.get('MAIL_DEFAULT_SENDER'),
+        'api_key': os.getenv('SENDGRID_API_KEY'),
+        'from_email': os.getenv('SENDGRID_FROM_EMAIL', 'noreply@wikifactcheck.com'),
         'app_url': app.config.get('APP_URL'),
         'user_email': user.email,
         'reason': reason,
@@ -574,35 +537,11 @@ def send_rejection_email(user, reason):
     }
 
     def _send_in_background():
-        print(f"[THREAD_START] Rejection email thread spawned for {config['user_email']}")
         try:
-            print(f"[THREAD_CONTEXT] Entering app context")
             with app.app_context():
-                print(f"[THREAD_CONFIG] SMTP: {config['server']}:{config['port']}, TLS: {config['use_tls']}, User: {config['username']}")
-                print(f"[THREAD_SMTP_CONNECTING] Attempting to connect (timeout=10s)...")
-                server = smtplib.SMTP(config['server'], config['port'], timeout=10)
-                print(f"[THREAD_SMTP_CONNECTED] Connected to SMTP")
+                sg = SendGridAPIClient(config['api_key'])
 
-                if config['use_tls']:
-                    server.starttls()
-                    print(f"[THREAD_TLS_STARTED] TLS enabled")
-
-                if config['username'] and config['password']:
-                    server.login(config['username'], config['password'])
-                    print(f"[THREAD_AUTH_SUCCESS] Authenticated as {config['username']}")
-
-                recipients = [config['user_email']]
-                if config['cc_admin']:
-                    recipients.append(config['cc_admin'])
-
-                msg = MIMEMultipart('alternative')
-                msg['Subject'] = "WikiFactCheck: Test Result"
-                msg['From'] = config['sender']
-                msg['To'] = config['user_email']
-                if config['cc_admin']:
-                    msg['Cc'] = config['cc_admin']
-
-                html = f"""
+                html_content = f"""
 <h2>Test Submission Review</h2>
 <p>Hi {config['user_email']},</p>
 <p>Thank you for submitting your test. Unfortunately, we were unable to approve your submission at this time.</p>
@@ -610,27 +549,24 @@ def send_rejection_email(user, reason):
 <p>You can retake the test anytime. <a href="{config['app_url']}/">Log in to try again</a></p>
 <p>If you have questions, please reach out to us.</p>
 """
-                part = MIMEText(html, 'html')
-                msg.attach(part)
 
-                print(f"[THREAD_SENDING] Sending email to {recipients}")
-                server.sendmail(config['sender'], recipients, msg.as_string())
-                print(f"[THREAD_SENT] Email sent")
+                mail = Mail(
+                    from_email=Email(config['from_email']),
+                    to_emails=To(config['user_email']),
+                    subject="WikiFactCheck: Test Result",
+                    html_content=html_content
+                )
 
-                server.quit()
-                print(f"[THREAD_QUIT] SMTP connection closed")
-                app.logger.info(f"Rejection email sent to {config['user_email']}")
+                if config['cc_admin']:
+                    mail.add_cc(Email(config['cc_admin']))
+
+                response = sg.send(mail)
+                app.logger.info(f"Rejection email sent to {config['user_email']} (status: {response.status_code})")
         except Exception as e:
-            print(f"[THREAD_ERROR] Exception: {type(e).__name__}: {str(e)}")
-            import traceback
-            print(traceback.format_exc())
-            app.logger.error(f"SMTP Error sending rejection email to {config['user_email']}: {type(e).__name__}: {str(e)}")
+            app.logger.error(f"Error sending rejection email to {config['user_email']}: {type(e).__name__}: {str(e)}")
 
-    # Start email send in background thread (non-blocking)
-    print(f"[MAIN] About to spawn rejection email thread for {config['user_email']}")
     thread = threading.Thread(target=_send_in_background, daemon=True)
     thread.start()
-    print(f"[MAIN] Rejection email thread started")
 
     # Start email send in background thread (non-blocking)
     thread = threading.Thread(target=_send_in_background, daemon=True)

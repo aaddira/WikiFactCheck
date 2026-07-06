@@ -167,12 +167,15 @@ def api_results_agreement():
     for pair in pairs:
         majority_label, all_labels, is_tie = compute_pair_majority_label(pair.id)
 
+        # Count all pairs (ties included in denominator)
+        total_count += 1
+        by_dataset[pair.dataset_id]["total"] += 1
+        by_citation_type[pair.citation_type]["total"] += 1
+
+        # Only count as agreement if there's no tie (all annotators agreed on same label)
         if not is_tie and majority_label:
-            total_count += 1
             agreement_count += 1
-            by_dataset[pair.dataset_id]["total"] += 1
             by_dataset[pair.dataset_id]["agreement"] += 1
-            by_citation_type[pair.citation_type]["total"] += 1
             by_citation_type[pair.citation_type]["agreement"] += 1
 
     overall_pct = (agreement_count / total_count * 100) if total_count > 0 else 0

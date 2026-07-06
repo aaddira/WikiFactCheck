@@ -1299,7 +1299,8 @@ async function loadAnnotatorData() {
 async function loadLabelDistribution() {
     try {
         const response = await fetch("/api/results/label-distribution");
-        const data = await response.json();
+        const result = await response.json();
+        const data = result.distribution || {};
 
         const labels = Object.keys(data);
         const values = labels.map((label) => data[label].percentage);

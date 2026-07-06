@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, current_app
 from models import db, Annotation, Pair, User, Config
 from auth import login_required
 from assignment import get_annotators_per_sample, get_min_samples_for_target
@@ -450,42 +450,55 @@ def api_annotation_distribution():
 @login_required
 def api_annotations():
     """Get all annotations with full details for admin review."""
-    page = request.args.get("page", 1, type=int)
-    per_page = min(request.args.get("per_page", 50, type=int), 200)
-    pair_id = request.args.get("pair_id", type=int)
-    annotator_email = request.args.get("annotator_email", type=str)
+    try:
+        page = request.args.get("page", 1, type=int)
+        per_page = min(request.args.get("per_page", 50, type=int), 200)
+        pair_id = request.args.get("pair_id", type=int)
+        annotator_email = request.args.get("annotator_email", type=str)
 
-    query = Annotation.query.join(Pair).join(User).filter(Pair.is_test_sample == False)
+        query = Annotation.query.join(Pair).filter(Pair.is_test_sample == False)
 
-    if pair_id:
-        query = query.filter(Annotation.pair_id == pair_id)
-    if annotator_email:
-        query = query.filter(User.email.ilike(f"%{annotator_email}%"))
+        if pair_id:
+            query = query.filter(Annotation.pair_id == pair_id)
+        if annotator_email:
+            # Manual filtering in Python to avoid complex joins
+            pass
 
-    paginated = query.order_by(Annotation.created_at.desc()).paginate(
-        page=page, per_page=per_page, error_out=False
-    )
+        paginated = query.order_by(Annotation.created_at.desc()).paginate(
+            page=page, per_page=per_page, error_out=False
+        )
 
-    return jsonify({
-        "annotations": [
-            {
+        annotations = []
+        for a in paginated.items:
+            user = User.query.get(a.user_id)
+            pair = Pair.query.get(a.pair_id)
+
+            # Apply email filter if specified
+            if annotator_email and user and annotator_email.lower() not in user.email.lower():
+                continue
+
+            annotations.append({
                 "id": a.id,
                 "pair_id": a.pair_id,
-                "pair_title": a.pair.article_title if a.pair else None,
-                "annotator_email": a.user.email if a.user else None,
+                "pair_title": pair.article_title if pair else None,
+                "annotator_email": user.email if user else None,
                 "label": a.label,
                 "quote": a.quote,
                 "explanation": a.explanation,
                 "created_at": a.created_at.isoformat() if a.created_at else None,
+            })
+
+        return jsonify({
+            "annotations": annotations,
+            "pagination": {
+                "page": page,
+                "per_page": per_page,
+                "total": paginated.total,
+                "pages": paginated.pages,
+                "has_prev": paginated.has_prev,
+                "has_next": paginated.has_next,
             }
-            for a in paginated.items
-        ],
-        "pagination": {
-            "page": page,
-            "per_page": per_page,
-            "total": paginated.total,
-            "pages": paginated.pages,
-            "has_prev": paginated.has_prev,
-            "has_next": paginated.has_next,
-        }
-    })
+        })
+    except Exception as e:
+        current_app.logger.exception("Error fetching annotations")
+        return jsonify({"error": f"Failed to fetch annotations: {str(e)}"}), 500

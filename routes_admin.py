@@ -476,10 +476,12 @@ def send_approval_email(user):
     import os
     import threading
 
+    app = current_app._get_current_object()
+
     def _send_in_background():
         try:
-            with current_app.app_context():
-                mail = Mail(current_app)
+            with app.app_context():
+                mail = Mail(app)
                 recipients = [user.email]
 
                 # CC admin if configured
@@ -495,13 +497,14 @@ def send_approval_email(user):
 <p>Hi {user.email},</p>
 <p>Congratulations! Your test submission has been reviewed and approved by our research team.</p>
 <p>You can now start annotating Wikipedia citations and earning $3-5 per review.</p>
-<p><a href="{current_app.config.get('APP_URL', 'https://app.example.com')}/">Log in and start annotating</a></p>
+<p><a href="{app.config.get('APP_URL', 'https://app.example.com')}/">Log in and start annotating</a></p>
 <p>Thank you for your contribution!</p>
 """
                 )
                 mail.send(msg)
-        except Exception:
-            current_app.logger.exception(f"Background: Error sending approval email to {user.email}")
+                app.logger.info(f"Approval email sent to {user.email}")
+        except Exception as e:
+            app.logger.exception(f"Background: Error sending approval email to {user.email}: {str(e)}")
 
     # Start email send in background thread (non-blocking)
     thread = threading.Thread(target=_send_in_background, daemon=True)
@@ -515,10 +518,12 @@ def send_rejection_email(user, reason):
     import os
     import threading
 
+    app = current_app._get_current_object()
+
     def _send_in_background():
         try:
-            with current_app.app_context():
-                mail = Mail(current_app)
+            with app.app_context():
+                mail = Mail(app)
                 recipients = [user.email]
 
                 # CC admin if configured
@@ -534,13 +539,14 @@ def send_rejection_email(user, reason):
 <p>Hi {user.email},</p>
 <p>Thank you for submitting your test. Unfortunately, we were unable to approve your submission at this time.</p>
 <p><strong>Reason:</strong> {reason}</p>
-<p>You can retake the test anytime. <a href="{current_app.config.get('APP_URL', 'https://app.example.com')}/">Log in to try again</a></p>
+<p>You can retake the test anytime. <a href="{app.config.get('APP_URL', 'https://app.example.com')}/">Log in to try again</a></p>
 <p>If you have questions, please reach out to us.</p>
 """
                 )
                 mail.send(msg)
-        except Exception:
-            current_app.logger.exception(f"Background: Error sending rejection email to {user.email}")
+                app.logger.info(f"Rejection email sent to {user.email}")
+        except Exception as e:
+            app.logger.exception(f"Background: Error sending rejection email to {user.email}: {str(e)}")
 
     # Start email send in background thread (non-blocking)
     thread = threading.Thread(target=_send_in_background, daemon=True)

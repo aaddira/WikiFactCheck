@@ -496,7 +496,8 @@ def send_approval_email(user):
             print(f"[THREAD_CONTEXT] Entering app context")
             with app.app_context():
                 print(f"[THREAD_CONFIG] SMTP: {config['server']}:{config['port']}, TLS: {config['use_tls']}, User: {config['username']}")
-                server = smtplib.SMTP(config['server'], config['port'])
+                print(f"[THREAD_SMTP_CONNECTING] Attempting to connect (timeout=10s)...")
+                server = smtplib.SMTP(config['server'], config['port'], timeout=10)
                 print(f"[THREAD_SMTP_CONNECTED] Connected to SMTP")
 
                 if config['use_tls']:
@@ -578,7 +579,8 @@ def send_rejection_email(user, reason):
             print(f"[THREAD_CONTEXT] Entering app context")
             with app.app_context():
                 print(f"[THREAD_CONFIG] SMTP: {config['server']}:{config['port']}, TLS: {config['use_tls']}, User: {config['username']}")
-                server = smtplib.SMTP(config['server'], config['port'])
+                print(f"[THREAD_SMTP_CONNECTING] Attempting to connect (timeout=10s)...")
+                server = smtplib.SMTP(config['server'], config['port'], timeout=10)
                 print(f"[THREAD_SMTP_CONNECTED] Connected to SMTP")
 
                 if config['use_tls']:

@@ -482,11 +482,19 @@ def send_approval_email(user):
     """Send approval email to user."""
     from flask_mail import Mail, Message
     from flask import current_app
+    import os
 
     mail = Mail(current_app)
+    recipients = [user.email]
+
+    # CC admin if configured
+    admin_cc = os.getenv("MAIL_CC_ADMIN", "").strip()
+    if admin_cc:
+        recipients.append(admin_cc)
+
     msg = Message(
         subject="WikiFactCheck: You're Approved to Start Annotating",
-        recipients=[user.email],
+        recipients=recipients,
         html=f"""
 <h2>Great News!</h2>
 <p>Hi {user.email},</p>
@@ -503,11 +511,19 @@ def send_rejection_email(user, reason):
     """Send rejection email to user."""
     from flask_mail import Mail, Message
     from flask import current_app
+    import os
 
     mail = Mail(current_app)
+    recipients = [user.email]
+
+    # CC admin if configured
+    admin_cc = os.getenv("MAIL_CC_ADMIN", "").strip()
+    if admin_cc:
+        recipients.append(admin_cc)
+
     msg = Message(
         subject="WikiFactCheck: Test Result",
-        recipients=[user.email],
+        recipients=recipients,
         html=f"""
 <h2>Test Submission Review</h2>
 <p>Hi {user.email},</p>

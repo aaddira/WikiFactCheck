@@ -1075,14 +1075,18 @@ async function loadAuditLog(page) {
         if (targetType) url += `&target_type=${encodeURIComponent(targetType)}`;
 
         const response = await fetch(url);
+        if (!response.ok) {
+            const errText = await response.text();
+            throw new Error(`HTTP ${response.status}: ${errText}`);
+        }
         const data = await response.json();
 
-        currentAuditPage = data.pagination.page;
-        auditLogTotal = data.pagination.total;
-        auditLogPages = data.pagination.pages;
+        currentAuditPage = data.pagination?.page || 1;
+        auditLogTotal = data.pagination?.total || 0;
+        auditLogPages = data.pagination?.pages || 0;
 
         const tbody = document.getElementById("auditTableBody");
-        tbody.innerHTML = data.logs
+        tbody.innerHTML = (data.logs || [])
             .map((log) => `
                 <tr>
                     <td class="text-sm">${new Date(log.created_at).toLocaleString()}</td>
@@ -1095,9 +1099,9 @@ async function loadAuditLog(page) {
             .join("");
 
         // Update pagination
-        document.getElementById("audit-page-info").textContent = `Page ${data.pagination.page} of ${data.pagination.pages}`;
-        document.getElementById("audit-btn-prev").disabled = !data.pagination.has_prev;
-        document.getElementById("audit-btn-next").disabled = !data.pagination.has_next;
+        document.getElementById("audit-page-info").textContent = `Page ${data.pagination?.page || 1} of ${data.pagination?.pages || 1}`;
+        document.getElementById("audit-btn-prev").disabled = !data.pagination?.has_prev;
+        document.getElementById("audit-btn-next").disabled = !data.pagination?.has_next;
     } catch (error) {
         showStatus("error", `Failed to load audit log: ${error.message}`);
     }

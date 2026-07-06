@@ -15,14 +15,27 @@ All production infrastructure is complete and deployed. This checklist verifies 
 ## Part A: Database & Infrastructure ✓
 
 ### A1: Flask-Migrate & Database Initialization
-- [ ] **Database tables exist**: SSH into Railway and run `SELECT COUNT(*) FROM audit_logs; SELECT COUNT(*) FROM users;`
-  - Expected: Tables exist with 0 rows (or populated if data was seeded)
+- [ ] **Database tables exist**: SSH into Railway and run:
+  ```bash
+  psql $DATABASE_URL -c "SELECT COUNT(*) FROM audit_logs; SELECT COUNT(*) FROM users;"
+  ```
+  - Expected: Two rows with counts (e.g., `count: 23` for audit_logs, `count: 4` for users)
   - **Why**: Migrations must run on deployment before gunicorn starts
 
-- [ ] **Audit log schema validated**: Check that `audit_logs` table has all columns:
-  - `id, action, actor_user_id, actor_email, target_type, target_id, details, created_at`
-  - All correct types and indexes present
+- [ ] **Audit log schema validated**: SSH into Railway and run:
+  ```bash
+  psql $DATABASE_URL -c "\d audit_logs"
+  ```
+  - Expected: Shows all columns: `id, action, actor_user_id, actor_email, target_type, target_id, details, created_at`
+  - Expected indexes: Primary key on `id`, indexes on `action`, `actor_user_id`, `created_at`, and composite `(action, created_at)`
   - **Why**: AuditLog model must be fully functional for production logging
+
+- [ ] **Sample audit entries**: SSH into Railway and run:
+  ```bash
+  psql $DATABASE_URL -c "SELECT action, actor_email, target_type, created_at FROM audit_logs ORDER BY created_at DESC LIMIT 5;"
+  ```
+  - Expected: Shows recent actions like `admin_login`, `dataset_upload`, `config_set`, etc.
+  - **Why**: Confirms logging is actively recording actions
 
 ### A2: Admin Login & Session Security
 - [ ] **Admin login still works**: Visit `/admin/login`, enter your secret token, verify redirect to `/admin`
@@ -195,19 +208,29 @@ Test each page in BOTH light and dark mode:
 
 ### D1: Quality Metrics Endpoints
 - [ ] **`/api/results/agreement` works**: 
-  - As admin, call `curl https://wikifactcheck.up.railway.app/api/results/agreement`
+  - Open browser, log in as admin, paste into console:
+  ```javascript
+  fetch('/api/results/agreement').then(r => r.json()).then(data => console.log(JSON.stringify(data, null, 2)))
+  ```
   - Expected: JSON with `overall_agreement_pct`, `pairs_evaluated`, `by_dataset`, `by_citation_type`
-  - **Example response**: `{"overall_agreement_pct": 85.5, "pairs_evaluated": 120, ...}`
+  - **Example**: `{"overall_agreement_pct": 75.5, "pairs_evaluated": 12, "by_dataset": {...}, ...}`
   - **Why**: Core metric for quality assessment
 
 - [ ] **`/api/results/agreement/by-annotator` works**: 
-  - As admin, call endpoint
-  - Expected: Array of objects with `email`, `agreement_rate_pct`, `annotations_evaluated`
+  - Paste into browser console (as admin):
+  ```javascript
+  fetch('/api/results/agreement/by-annotator').then(r => r.json()).then(data => console.log(data))
+  ```
+  - Expected: Array of objects, each with `email`, `agreement_rate_pct`, `annotations_evaluated`
+  - **Example**: `[{email: "user1@example.com", agreement_rate_pct: 80, annotations_evaluated: 10}, ...]`
   - **Why**: Per-annotator quality tracking
 
 - [ ] **`/api/results/by-annotator` includes qualification_score**: 
-  - As admin, call endpoint
-  - Expected: Each annotator record includes `qualification_score` field
+  - Paste into browser console (as admin):
+  ```javascript
+  fetch('/api/results/by-annotator').then(r => r.json()).then(data => console.log(data[0]))
+  ```
+  - Expected: First object has `qualification_score` field (e.g., `qualification_score: 85`)
   - **Why**: Needed for quality flag calculation
 
 ### D2: Dashboard Quality Metrics UI
@@ -277,14 +300,20 @@ Test each page in BOTH light and dark mode:
 - [ ] **Environment variables set on Railway**: 
   - Check Railway dashboard → Variables
   - Required vars present:
-    - `SESSION_COOKIE_SECURE=true` (new)
+    - `SESSION_COOKIE_SECURE=true` ✅ (user added)
     - `FLASK_DEBUG=false`
     - `ADMIN_SECRET_TOKEN=...`
-    - `MAIL_SERVER`, `MAIL_USERNAME`, `MAIL_PASSWORD`
+    - `MAIL_SERVER=smtp.gmail.com` (TODO: add if missing)
+    - `MAIL_PORT=587`
+    - `MAIL_USE_TLS=True`
+    - `MAIL_USERNAME=...` (Gmail app password) (TODO: add if missing)
+    - `MAIL_PASSWORD=...` (Gmail app password) (TODO: add if missing)
+    - `MAIL_DEFAULT_SENDER=noreply@wikifactcheck.com`
     - `DATABASE_URL` (PostgreSQL on Railway)
     - `SECRET_KEY`
-    - `APP_URL` (https://wikifactcheck.up.railway.app)
+    - `APP_URL=https://wikifactcheck.up.railway.app` ✅ (user added)
   - **Why**: Production config must be complete
+  - **Note on emails**: If you want to be CC'd on all annotator emails, add a new env var `MAIL_CC_ADMIN=your-email@gmail.com` and the app will forward all outgoing emails to that address
 
 - [ ] **Entrypoint runs migrations**: 
   - Push a dummy commit to trigger redeploy
@@ -373,6 +402,20 @@ Test each page in BOTH light and dark mode:
   7. ✅ Dark mode complete (anti-FOUC, Tailwind, CSS variables, theme.js)
   8. ✅ Quality metrics endpoints + dashboard UI
   9. ✅ SESSION_COOKIE_SECURE env-driven
+
+---
+
+## Known Fixes Applied (2026-07-06)
+
+**Issue**: Audit Log tab showed "Cannot read properties of undefined (reading 'page')" error
+- **Root cause**: JavaScript wasn't checking for HTTP errors before parsing response JSON
+- **Fix**: Updated `loadAuditLog()` in admin.html to check `response.ok` before processing, and added optional chaining for all pagination fields
+- **Status**: ✅ Fixed — Audit Log should now load correctly
+
+**Issue**: Dark mode text unreadable on Settings page (email, created_at, last_login)
+- **Root cause**: Missing `dark:text-gray-100` class on display text; containers also missing `dark:bg-gray-800`
+- **Fix**: Added dark mode classes throughout settings.html (text, backgrounds, form inputs)
+- **Status**: ✅ Fixed — Settings page now renders correctly in dark mode
 
 ---
 

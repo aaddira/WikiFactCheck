@@ -13,6 +13,7 @@ from models import db, User, Dataset, Pair, Annotation, Claim, Skip, Config, Tes
 from auth import do_login, do_logout, login_required, admin_required, get_current_user, is_admin_email
 from data_loader import parse_jsonl_file, seed_default_config
 from email_utils import send_confirmation_email
+from scheduler import init_scheduler
 import secrets
 
 # Load environment variables
@@ -69,6 +70,12 @@ logging.basicConfig(
 )
 app.config["DEBUG"] = os.getenv("FLASK_DEBUG", "false").lower() == "true"
 
+# Scheduler configuration (P4: Progress Notifications)
+app.config["SCHEDULER_ENABLED"] = os.getenv("SCHEDULER_ENABLED", "true").lower() == "true"
+app.config["DIGEST_SCHEDULE_DAY"] = int(os.getenv("DIGEST_SCHEDULE_DAY", "0"))  # 0 = Monday
+app.config["DIGEST_SCHEDULE_HOUR"] = int(os.getenv("DIGEST_SCHEDULE_HOUR", "9"))  # 9 AM UTC
+scheduler = init_scheduler(app)
+
 
 # CLI Commands
 @app.cli.command()
@@ -108,6 +115,23 @@ def import_jsonl():
         print(f"[ERROR] Errors: {len(result['errors'])}")
         for error in result["errors"][:5]:  # Show first 5
             print(f"  - {error}")
+
+
+@app.cli.command()
+def send_test_digest():
+    """Send test digest email to first confirmed annotator (for testing)."""
+    from scheduler import send_weekly_digests_job
+    user = User.query.filter(User.is_admin == False, User.email_confirmed == True).first()
+    if not user:
+        print("[ERROR] No confirmed annotators found")
+        return
+
+    try:
+        from email_utils import send_weekly_digest_email
+        send_weekly_digest_email(user, app.config["APP_URL"])
+        print(f"[OK] Test digest sent to {user.email}")
+    except Exception as e:
+        print(f"[ERROR] Failed to send digest: {str(e)}")
 
 
 # ============================================================================

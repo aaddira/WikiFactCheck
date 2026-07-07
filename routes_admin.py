@@ -493,9 +493,10 @@ def send_approval_email(user):
 <h2>Great News!</h2>
 <p>Hi {config['user_email']},</p>
 <p>Congratulations! Your test submission has been reviewed and approved by our research team.</p>
-<p>You can now start annotating Wikipedia citations and earning $3-5 per review.</p>
-<p><a href="{config['app_url']}/">Log in and start annotating</a></p>
-<p>Thank you for your contribution!</p>
+<p>You are now qualified to begin contributing to our fact-checking research. You will receive $3 per annotation completed, in accordance with the research participation agreement.</p>
+<p>Within the next few days, you will receive a formal research participation agreement detailing the annotation guidelines, payment terms, and data usage. Please review and sign it to proceed with annotating.</p>
+<p><a href="{config['app_url']}/">Log in and get started</a></p>
+<p>Thank you for contributing to this important research initiative!</p>
 """
 
                 to_list = [{"email": config['user_email']}]
@@ -558,10 +559,10 @@ def send_rejection_email(user, reason):
                 html_content = f"""
 <h2>Test Submission Review</h2>
 <p>Hi {config['user_email']},</p>
-<p>Thank you for submitting your test. Unfortunately, we were unable to approve your submission at this time.</p>
-<p><strong>Reason:</strong> {config['reason']}</p>
-<p>You can retake the test anytime. <a href="{config['app_url']}/">Log in to try again</a></p>
-<p>If you have questions, please reach out to us.</p>
+<p>Thank you for your submission and interest in contributing to our research. We have completed our initial review of your test responses.</p>
+<p><strong>Status:</strong> {config['reason']}</p>
+<p>We encourage you to review the task instructions and retake the test at your convenience. <a href="{config['app_url']}/">Log in to try again</a></p>
+<p>If you have any questions about the task requirements or need clarification, please contact our research team.</p>
 """
 
                 to_list = [{"email": config['user_email']}]

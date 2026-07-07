@@ -5,13 +5,15 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_mail import Mail
 from flask_migrate import Migrate
 from dotenv import load_dotenv
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 import sys
 
 from models import db, User, Dataset, Pair, Annotation, Claim, Skip, Config, TestSubmission, AuditLog
 from auth import do_login, do_logout, login_required, admin_required, get_current_user, is_admin_email
 from data_loader import parse_jsonl_file, seed_default_config
+from email_utils import send_confirmation_email
+import secrets
 
 # Load environment variables
 load_dotenv()
@@ -126,11 +128,90 @@ def index():
     return redirect(url_for("dashboard_page"))
 
 
+@app.route("/register", methods=["GET", "POST"])
+def register_page():
+    """Registration page — new users register with email + wiki_username."""
+    if get_current_user():
+        return redirect(url_for("dashboard_page"))  # Already logged in
+
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        wiki_username = request.form.get("wiki_username", "").strip()
+
+        # Validation
+        if not email or not wiki_username:
+            return render_template("register.html", error="Email and Wikipedia username are required")
+
+        if "@" not in email or "." not in email:
+            return render_template("register.html", error="Please enter a valid email address")
+
+        # Check if email already registered
+        existing = User.query.filter_by(email=email).first()
+        if existing:
+            return render_template("register.html", error="This email is already registered. Please log in.")
+
+        # Check if username taken (by confirmed users)
+        username_taken = User.query.filter_by(wiki_username=wiki_username, wiki_username_provided=True).first()
+        if username_taken:
+            return render_template("register.html", error="This Wikipedia username is already taken. Please choose another.")
+
+        # Reject admin emails
+        if is_admin_email(email):
+            return render_template("register.html", error="Admin accounts cannot self-register. Contact support.")
+
+        # Create user with confirmation token
+        confirmation_token = secrets.token_hex(16)
+        expires_at = datetime.utcnow() + timedelta(hours=24)
+
+        user = User(
+            email=email,
+            wiki_username=wiki_username,
+            wiki_username_provided=True,
+            confirmation_token=confirmation_token,
+            confirmation_token_expires_at=expires_at,
+            email_confirmed=False
+        )
+        db.session.add(user)
+        db.session.commit()
+
+        # Send confirmation email
+        send_confirmation_email(user, confirmation_token, app.config["APP_URL"])
+
+        return render_template("register.html", success=True, email=email)
+
+    return render_template("register.html")
+
+
+@app.route("/confirm/<token>", methods=["GET", "POST"])
+def confirm_email_page(token):
+    """Confirm email with token."""
+    user = User.query.filter_by(confirmation_token=token).first()
+
+    if not user:
+        return render_template("confirm_email.html", error="Invalid confirmation link")
+
+    if user.email_confirmed:
+        return render_template("confirm_email.html", message="Email already confirmed. You can now log in.")
+
+    if user.confirmation_token_expired():
+        return render_template("confirm_email.html", error="Confirmation link has expired. Please register again.")
+
+    if request.method == "POST":
+        # Confirm the email
+        user.email_confirmed = True
+        user.confirmation_token = None
+        user.confirmation_token_expires_at = None
+        db.session.commit()
+        return render_template("confirm_email.html", success=True)
+
+    return render_template("confirm_email.html", token=token)
+
+
 @app.route("/login", methods=["GET", "POST"])
 def login_page():
     """Login page (annotators only — admins use /admin/login with token)."""
     if request.method == "POST":
-        email = request.form.get("email", "").strip()
+        email = request.form.get("email", "").strip().lower()
         wiki_username = request.form.get("wiki_username", "").strip()
         if not email:
             return render_template("login.html", error="Email is required")
@@ -140,6 +221,14 @@ def login_page():
         # Reject admin emails from regular login
         if is_admin_email(email):
             return render_template("login.html", error="Admin accounts must log in via /admin/login with a secret token")
+
+        # Check if user exists and is confirmed
+        user = User.query.filter_by(email=email, wiki_username=wiki_username).first()
+        if not user:
+            return render_template("login.html", error="Email/username combination not found. Please register first.")
+
+        if not user.email_confirmed:
+            return render_template("login.html", error="Your email is not confirmed. Check your inbox for a confirmation link.")
 
         do_login(email, wiki_username=wiki_username)
         # All logged-in annotators go to dashboard (test is optional)

@@ -4,11 +4,19 @@
 
 {% block content %}
 <div class="max-w-7xl mx-auto px-4 py-6">
-    <!-- Login prompt banner -->
+    <!-- Login/Register prompt banner -->
     <div class="mb-6 bg-emerald-50 dark:bg-emerald-900 border-l-4 border-emerald-500 p-4 rounded">
         <p class="text-emerald-900 dark:text-emerald-100 font-semibold">
-            Log in to start annotating Wikipedia citations for accuracy.
+            Join our research team to start annotating Wikipedia citations for accuracy.
         </p>
+        <div class="flex gap-2 mt-3">
+            <a href="{{ url_for('login_page') }}" class="inline-block bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded font-semibold transition">
+                Log In
+            </a>
+            <a href="{{ url_for('register_page') }}" class="inline-block bg-emerald-100 dark:bg-emerald-800 hover:bg-emerald-200 dark:hover:bg-emerald-700 text-emerald-900 dark:text-emerald-100 px-4 py-2 rounded font-semibold transition">
+                Sign Up
+            </a>
+        </div>
     </div>
 
     <!-- Annotation interface (disabled demo) -->

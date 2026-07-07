@@ -10,13 +10,13 @@
 
         {% if user.test_approved_by_admin %}
         <div class="bg-green-50 border-l-4 border-green-500 p-6 rounded-lg mb-6">
-            <div class="text-lg font-semibold text-green-900 mb-2">✓ You've Been Approved!</div>
+            <div class="text-lg font-semibold text-green-900 mb-2">✓ Approved for Contribution</div>
             <div class="text-green-900 space-y-2">
                 <p>
-                    Congratulations! Our research team has approved your test submission. You're now eligible to start annotating and earning $3-5 per review.
+                    Congratulations! Your test submission has been approved by our research team. You are now qualified to participate as a contributor. You will receive $3 per annotation completed, subject to the terms outlined in the research participation agreement you'll receive shortly.
                 </p>
                 <p class="font-semibold">
-                    Your test score: <span class="text-2xl">{{ user.qualification_score }}/5</span>
+                    Your assessment score: <span class="text-2xl">{{ user.qualification_score }}/5</span>
                 </p>
                 <p class="text-sm">
                     Approved on: {{ user.test_approval_date.strftime('%B %d, %Y') if user.test_approval_date else 'Recently' }}
@@ -32,19 +32,19 @@
 
         {% else %}
         <div class="bg-yellow-50 border-l-4 border-yellow-500 p-6 rounded-lg mb-6">
-            <div class="text-lg font-semibold text-yellow-900 mb-2">⏳ Pending Review</div>
+            <div class="text-lg font-semibold text-yellow-900 mb-2">⏳ Under Review</div>
             <div class="text-yellow-900 space-y-2">
                 <p>
-                    Thank you for submitting your test! Our research team is manually reviewing your answers.
+                    Thank you for your submission! Our research team is currently evaluating your responses to ensure consistency with our annotation protocol.
                 </p>
                 <p>
-                    <strong>Expected timeline:</strong> 1-2 business days
+                    <strong>Expected decision timeline:</strong> 1-2 business days
                 </p>
                 <p class="text-sm">
                     Submitted on: {{ user.test_submission_date.strftime('%B %d, %Y at %I:%M %p') if user.test_submission_date else 'Recently' }}
                 </p>
                 <p class="text-xs text-yellow-800 mt-3 bg-yellow-100 p-2 rounded">
-                    We'll email you as soon as we've made a decision. Make sure to check your spam folder!
+                    We will contact you via email with the review outcome. Please check your inbox and spam folder for our correspondence.
                 </p>
             </div>
         </div>

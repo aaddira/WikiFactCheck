@@ -35,10 +35,20 @@ class User(db.Model):
     last_login = db.Column(db.DateTime)
     wiki_username_provided = db.Column(db.Boolean, default=False)  # Flag: has user provided wiki username
 
+    # Email confirmation (P2)
+    email_confirmed = db.Column(db.Boolean, default=False)
+    confirmation_token = db.Column(db.String(255), nullable=True, index=True)
+    confirmation_token_expires_at = db.Column(db.DateTime, nullable=True)
+
     # Relationships
     annotations = db.relationship("Annotation", backref="annotator", lazy=True)
     claims = db.relationship("Claim", backref="user", lazy=True)
     skips = db.relationship("Skip", backref="user", lazy=True)
+
+    def confirmation_token_expired(self):
+        if not self.confirmation_token_expires_at:
+            return True
+        return datetime.utcnow() > self.confirmation_token_expires_at
 
 
 class Dataset(db.Model):

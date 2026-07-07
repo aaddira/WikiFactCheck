@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}Register - WikiFactCheck{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto px-4 py-16">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8">
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Create Account</h1>
+        <p class="text-gray-600 dark:text-gray-400 mb-6">Join our research team as an annotator</p>
+
+        {% if success %}
+        <div class="bg-green-50 dark:bg-green-900 border-l-4 border-green-500 p-4 rounded-lg mb-6">
+            <h2 class="text-lg font-semibold text-green-900 dark:text-green-100 mb-2">✓ Registration Successful</h2>
+            <p class="text-green-900 dark:text-green-100 mb-4">
+                A confirmation email has been sent to <strong>{{ email }}</strong>
+            </p>
+            <p class="text-sm text-green-800 dark:text-green-200 mb-4">
+                Please check your email (including spam/promotions folder) and click the confirmation link to complete your registration.
+            </p>
+            <p class="text-sm text-green-800 dark:text-green-200">
+                This link expires in 24 hours. If you don't receive it, you can register again.
+            </p>
+        </div>
+        {% endif %}
+
+        {% if error %}
+        <div class="bg-red-50 dark:bg-red-900 border-l-4 border-red-500 p-4 rounded-lg mb-6">
+            <p class="text-red-900 dark:text-red-100">{{ error }}</p>
+        </div>
+        {% endif %}
+
+        {% if not success %}
+        <form method="POST" class="space-y-4">
+            <div>
+                <label for="email" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    Email Address
+                </label>
+                <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    placeholder="your.email@example.com"
+                    required
+                    class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                >
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    We'll send a confirmation link to this email
+                </p>
+            </div>
+
+            <div>
+                <label for="wiki_username" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    Wikipedia Username
+                </label>
+                <input
+                    type="text"
+                    id="wiki_username"
+                    name="wiki_username"
+                    placeholder="e.g., MyWikiUsername"
+                    required
+                    class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                >
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Your Wikipedia username (or your preferred annotator name)
+                </p>
+            </div>
+
+            <button
+                type="submit"
+                class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 rounded-lg transition mt-6"
+            >
+                Create Account
+            </button>
+        </form>
+
+        <div class="mt-6 text-center">
+            <p class="text-gray-600 dark:text-gray-400">
+                Already have an account?
+                <a href="{{ url_for('login_page') }}" class="text-emerald-600 dark:text-emerald-400 font-semibold hover:underline">
+                    Log In
+                </a>
+            </p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -41,6 +41,9 @@
         <button onclick="switchTab('submissions')" class="px-4 py-2 border-b-2 border-gray-300 font-semibold text-gray-600 whitespace-nowrap">
             Review Submissions
         </button>
+        <button onclick="switchTab('annotators')" class="px-4 py-2 border-b-2 border-gray-300 font-semibold text-gray-600 whitespace-nowrap">
+            👥 Annotators
+        </button>
         <button onclick="switchTab('export')" class="px-4 py-2 border-b-2 border-gray-300 font-semibold text-gray-600 whitespace-nowrap">
             Export
         </button>
@@ -555,6 +558,59 @@
             </div>
         </div>
     </div>
+
+    <!-- Annotators Tab (P1: Unified Dashboard) -->
+    <div id="tab-annotators" class="tab-content hidden">
+        <!-- Summary Stats -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white dark:bg-gray-700 rounded-lg shadow p-4">
+                <div class="text-gray-600 dark:text-gray-300 text-xs font-semibold">Total Annotators</div>
+                <div class="text-2xl font-bold dark:text-white" id="anno-stat-total">—</div>
+            </div>
+            <div class="bg-green-50 dark:bg-green-900 rounded-lg shadow p-4 border-l-4 border-green-500">
+                <div class="text-green-900 dark:text-green-100 text-xs font-semibold">Approved</div>
+                <div class="text-2xl font-bold dark:text-green-100" id="anno-stat-approved">—</div>
+            </div>
+            <div class="bg-yellow-50 dark:bg-yellow-900 rounded-lg shadow p-4 border-l-4 border-yellow-500">
+                <div class="text-yellow-900 dark:text-yellow-100 text-xs font-semibold">Pending Review</div>
+                <div class="text-2xl font-bold dark:text-yellow-100" id="anno-stat-pending">—</div>
+            </div>
+            <div class="bg-blue-50 dark:bg-blue-900 rounded-lg shadow p-4 border-l-4 border-blue-500">
+                <div class="text-blue-900 dark:text-blue-100 text-xs font-semibold">Avg Agreement</div>
+                <div class="text-2xl font-bold dark:text-blue-100" id="anno-stat-avg-agreement">—</div>
+            </div>
+        </div>
+
+        <!-- Search and Filter -->
+        <div class="bg-white dark:bg-gray-700 rounded-lg shadow p-4 mb-6">
+            <div class="flex gap-2 flex-wrap">
+                <input type="text" id="annotator-search" placeholder="Search by email or wiki username..."
+                       class="flex-1 min-w-[200px] px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-lg focus:ring-2 focus:ring-emerald-500">
+                <button onclick="filterAnnotators('all')" class="px-3 py-2 bg-emerald-600 text-white rounded-lg text-sm font-semibold hover:bg-emerald-700">All</button>
+                <button onclick="filterAnnotators('approved')" class="px-3 py-2 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-white rounded-lg text-sm font-semibold hover:bg-gray-300 dark:hover:bg-gray-500">Approved</button>
+                <button onclick="filterAnnotators('pending')" class="px-3 py-2 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-white rounded-lg text-sm font-semibold hover:bg-gray-300 dark:hover:bg-gray-500">Pending</button>
+            </div>
+        </div>
+
+        <!-- Annotators Table -->
+        <div class="bg-white dark:bg-gray-700 rounded-lg shadow overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-100 dark:bg-gray-800 border-b dark:border-gray-600">
+                    <tr>
+                        <th class="px-4 py-3 text-left font-semibold dark:text-white">Email / Wiki</th>
+                        <th class="px-4 py-3 text-left font-semibold dark:text-white">Qual. Score</th>
+                        <th class="px-4 py-3 text-left font-semibold dark:text-white">Annotations</th>
+                        <th class="px-4 py-3 text-left font-semibold dark:text-white">Agreement</th>
+                        <th class="px-4 py-3 text-left font-semibold dark:text-white">Status</th>
+                        <th class="px-4 py-3 text-left font-semibold dark:text-white">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="annotators-table-body" class="dark:text-white">
+                    <tr><td colspan="6" class="px-4 py-6 text-center text-gray-500 dark:text-gray-400">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -627,6 +683,7 @@ function switchTab(tabName) {
     else if (tabName === "config") loadConfig();
     else if (tabName === "results") loadTestResults();
     else if (tabName === "submissions") loadPendingSubmissions();
+    else if (tabName === "annotators") loadAnnotatorsDashboard();
     else if (tabName === "test") loadDatasetsForTestSamples();
     else if (tabName === "dashboard") loadDashboard();
     else if (tabName === "audit") loadAuditLog(1);
@@ -1660,6 +1717,126 @@ async function deleteUser(userId, email) {
         console.error('Error deleting user:', error);
         alert(`Error deleting user: ${error.message}`);
     }
+}
+
+// P1: Annotators Dashboard Functions
+async function loadAnnotatorsDashboard() {
+    try {
+        const response = await fetch('/admin/annotators/dashboard');
+        const data = await response.json();
+
+        // Update summary stats
+        document.getElementById('anno-stat-total').textContent = data.summary.total_annotators;
+        document.getElementById('anno-stat-approved').textContent = data.summary.approved;
+        document.getElementById('anno-stat-pending').textContent = data.summary.pending_review;
+        document.getElementById('anno-stat-avg-agreement').textContent = data.summary.average_agreement_rate + '%';
+
+        // Render table
+        renderAnnotatorsTable(data.annotators);
+    } catch (error) {
+        console.error('Error loading annotators dashboard:', error);
+        showStatus('error', 'Failed to load annotators data');
+    }
+}
+
+function renderAnnotatorsTable(annotators) {
+    const tbody = document.getElementById('annotators-table-body');
+    if (!annotators || annotators.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-6 text-center text-gray-500">No annotators found</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = annotators.map(a => `
+        <tr class="border-b hover:bg-gray-50">
+            <td class="px-4 py-3">
+                <div class="font-semibold">${a.email}</div>
+                <div class="text-xs text-gray-500">@${a.wiki_username}</div>
+            </td>
+            <td class="px-4 py-3 font-semibold">${a.qualification_score}/100</td>
+            <td class="px-4 py-3">
+                <div>${a.annotations_count}/${a.annotation_target}</div>
+                <div class="bg-gray-200 rounded-full h-2 w-20 mt-1">
+                    <div class="bg-emerald-600 h-2 rounded-full" style="width: ${a.target_progress_pct}%"></div>
+                </div>
+            </td>
+            <td class="px-4 py-3 font-semibold">${a.agreement_rate}%</td>
+            <td class="px-4 py-3">
+                <span class="px-2 py-1 rounded-full text-xs font-semibold ${
+                    a.test_status === 'approved' ? 'bg-green-100 text-green-800' :
+                    a.test_status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                    'bg-gray-100 text-gray-800'
+                }">
+                    ${a.test_status}
+                </span>
+            </td>
+            <td class="px-4 py-3 whitespace-nowrap">
+                <div class="flex gap-1">
+                    <button onclick="viewTestAnswers(${a.id})" class="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700">View</button>
+                    ${a.actions.can_approve ? `<button onclick="approveAnnotator(${a.id})" class="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700">Approve</button>` : ''}
+                    ${a.actions.can_reject ? `<button onclick="rejectAnnotator(${a.id})" class="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700">Reject</button>` : ''}
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function viewTestAnswers(userId) {
+    // Show test answers modal
+    fetch(`/admin/annotators/${userId}/test-answers`)
+        .then(r => r.json())
+        .then(data => {
+            const answers = data.answers.map(a => `
+                <div class="border-b py-3">
+                    <div class="font-semibold">${a.article_title}</div>
+                    <div class="text-sm text-gray-600 mt-1">
+                        <strong>Your answer:</strong> ${a.user_answer}
+                        <strong>Correct:</strong> ${a.correct_answer}
+                        <span class="ml-2">${a.is_correct ? '✓' : '✗'}</span>
+                    </div>
+                </div>
+            `).join('');
+            alert(`Test Answers for ${data.email}\n\nAccuracy: ${data.accuracy_pct}%\n\n(See console for full details)`);
+            console.log('Full answers:', data);
+        })
+        .catch(e => alert('Error: ' + e.message));
+}
+
+async function approveAnnotator(userId) {
+    if (!confirm('Approve this annotator?')) return;
+    try {
+        const response = await fetch(`/admin/test/submissions/${userId}/approve`, { method: 'POST' });
+        if (!response.ok) throw new Error('Failed to approve');
+        showStatus('success', 'Annotator approved');
+        loadAnnotatorsDashboard();
+    } catch (error) {
+        showStatus('error', 'Error: ' + error.message);
+    }
+}
+
+async function rejectAnnotator(userId) {
+    const reason = prompt('Rejection reason:');
+    if (!reason) return;
+    try {
+        const response = await fetch(`/admin/test/submissions/${userId}/reject`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason })
+        });
+        if (!response.ok) throw new Error('Failed to reject');
+        showStatus('success', 'Annotator rejected');
+        loadAnnotatorsDashboard();
+    } catch (error) {
+        showStatus('error', 'Error: ' + error.message);
+    }
+}
+
+function filterAnnotators(status) {
+    // Quick filter for demo - in production could filter before rendering
+    const buttons = document.querySelectorAll('#tab-annotators button[onclick*="filterAnnotators"]');
+    buttons.forEach(b => b.classList.remove('bg-emerald-600', 'text-white'));
+    buttons.forEach(b => b.classList.add('bg-gray-200', 'text-gray-700'));
+    event.target.classList.remove('bg-gray-200', 'text-gray-700');
+    event.target.classList.add('bg-emerald-600', 'text-white');
 }
 
 // Listen for theme changes and reload charts when dark mode toggles

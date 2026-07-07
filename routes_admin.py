@@ -5,7 +5,8 @@ from data_loader import parse_jsonl_file
 from io import StringIO, BytesIO
 import json
 import csv
-from datetime import datetime
+from datetime import datetime, timedelta
+from sqlalchemy import func
 import os
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -897,3 +898,139 @@ def api_user_delete(user_id):
         "email": user_snapshot["email"],
         "message": "User account and all related data deleted"
     })
+
+
+# ============================================================================
+# P1: Unified Annotators Dashboard
+# ============================================================================
+
+
+@admin_bp.route("/annotators/dashboard", methods=["GET"])
+@admin_required
+def api_annotators_dashboard():
+    """Get unified annotators dashboard with all users and stats."""
+    from sqlalchemy import and_, func
+
+    try:
+        # Get all annotators (non-admin)
+        annotators = User.query.filter(User.is_admin == False).order_by(User.created_at.desc()).all()
+
+        result = []
+        total_approved = 0
+        total_pending = 0
+        agreement_rates = []
+
+        for user in annotators:
+            # Annotation count
+            ann_count = Annotation.query.filter_by(user_id=user.id).count()
+
+            # Calculate agreement rate (pairwise matches with other annotators)
+            # Get all pairs where this user has annotated
+            user_pairs = db.session.query(Annotation.pair_id).filter_by(user_id=user.id).subquery()
+            total_pairs_with_overlap = db.session.query(func.count(Annotation.pair_id)).filter(
+                Annotation.pair_id.in_(
+                    db.session.query(Annotation.pair_id).group_by(Annotation.pair_id).having(
+                        func.count(Annotation.id) > 1
+                    )
+                ),
+                Annotation.user_id == user.id
+            ).scalar() or 0
+
+            # Count matching annotations with other annotators on same pair
+            matching = db.session.query(func.count(Annotation.id)).filter(
+                Annotation.user_id == user.id,
+                Annotation.pair_id.in_(
+                    db.session.query(Annotation.pair_id).filter(
+                        Annotation.user_id != user.id
+                    ).subquery()
+                )
+            ).scalar() or 0
+
+            agreement_rate = 0
+            if total_pairs_with_overlap > 0:
+                agreement_rate = (matching / total_pairs_with_overlap) * 100
+
+            if agreement_rate > 0:
+                agreement_rates.append(agreement_rate)
+
+            # Test status
+            test_status = "not_submitted"
+            if user.test_approved_by_admin:
+                test_status = "approved"
+                total_approved += 1
+            elif user.test_submitted:
+                test_status = "pending"
+                total_pending += 1
+
+            # Active status (logged in last 7 days)
+            from datetime import timedelta
+            recently_active = user.last_login and user.last_login > datetime.utcnow() - timedelta(days=7)
+
+            result.append({
+                "id": user.id,
+                "email": user.email,
+                "wiki_username": user.wiki_username or "—",
+                "qualification_score": user.qualification_score or 0,
+                "agreement_rate": round(agreement_rate, 1),
+                "annotations_count": ann_count,
+                "annotation_target": user.annotation_target or 300,
+                "target_progress_pct": (ann_count / max(user.annotation_target or 300, 1)) * 100,
+                "test_status": test_status,
+                "test_submitted_at": user.test_submission_date.isoformat() if user.test_submission_date else None,
+                "test_approval_date": user.test_approval_date.isoformat() if user.test_approval_date else None,
+                "recent_activity": user.last_login.isoformat() if user.last_login else None,
+                "is_active": recently_active,
+                "actions": {
+                    "can_approve": test_status == "pending",
+                    "can_reject": test_status == "pending",
+                    "can_view_answers": test_status in ("pending", "approved")
+                }
+            })
+
+        # Summary stats
+        avg_agreement = sum(agreement_rates) / len(agreement_rates) if agreement_rates else 0
+
+        return jsonify({
+            "annotators": result,
+            "summary": {
+                "total_annotators": len(annotators),
+                "approved": total_approved,
+                "pending_review": total_pending,
+                "rejected": len(annotators) - total_approved - total_pending,
+                "average_agreement_rate": round(avg_agreement, 1)
+            }
+        })
+
+    except Exception as e:
+        current_app.logger.exception("Error fetching annotators dashboard")
+        return jsonify({"error": str(e)}), 500
+
+
+@admin_bp.route("/annotators/<int:user_id>/test-answers", methods=["GET"])
+@admin_required
+def api_annotators_test_answers(user_id):
+    """Get test answers for a specific user."""
+    try:
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+
+        # Use existing helper function (defined earlier in this file)
+        batch_id, answers = get_latest_test_submission_answers(user_id)
+
+        return jsonify({
+            "user_id": user_id,
+            "email": user.email,
+            "wiki_username": user.wiki_username or "—",
+            "score": user.qualification_score or 0,
+            "submitted_at": user.test_submission_date.isoformat() if user.test_submission_date else None,
+            "batch_id": batch_id,
+            "total_questions": len(answers),
+            "correct_answers": sum(1 for a in answers if a.get("is_correct")),
+            "accuracy_pct": round((sum(1 for a in answers if a.get("is_correct")) / max(len(answers), 1)) * 100, 1),
+            "answers": answers
+        })
+
+    except Exception as e:
+        current_app.logger.exception(f"Error fetching test answers for user {user_id}")
+        return jsonify({"error": str(e)}), 500

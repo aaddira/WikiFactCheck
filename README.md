@@ -4,7 +4,7 @@
 
 ## What is this?
 
-Wikipedia's 3+ million citations are often assumed to support the passages they're linked to — but nobody systematically verifies that. **WikiFactCheck** is an open-source annotation platform built to crowdsource this verification: humans read passage/citation pairs and label whether the citation actually supports the claim.
+**WikiFactCheck** is an open-source annotation platform built to crowdsource testing of LLMs as a tool for the verficiation of Wikipedia's sources. The tool is part of a [Wikimedia Rapid Grant project](https://meta.wikimedia.org/wiki/Grants:Programs/Wikimedia_Community_Fund/Rapid_Fund/Wikipedia%27s_Factual_GenAI_Assistant_Experiment_(ID:_23544856)), which aims to systemaically compare Claude, GPT and the open soruce fact-checking model MiniCheck on this task. A related project with which we're partnering is [Wikipedia Citation Verification - LLM Benchmarking](https://github.com/alex-o-748/citation-checker-script/blob/main/docs/llm-benchmarking-overview.md), an effort led by the WikiProject AI Tools of English Wikipedia's community.
 
 This matters because:
 - **For Wikipedia editors**: Identifying broken or misplaced citations improves the encyclopedia's reliability at scale

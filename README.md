@@ -1,6 +1,6 @@
 # WikiFactCheck Citation-Support Annotation Platform
 
-> **[🚀 Live Platform](https://wikifactcheck.up.railway.app)** — Start annotating now
+**[🚀 Live Platform](https://wikifactcheck.up.railway.app)** — Test the platform and start annotating
 
 ## What is this?
 

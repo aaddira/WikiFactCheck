@@ -1,6 +1,17 @@
 # WikiFactCheck Citation-Support Annotation Platform
 
-A lightweight, single-purpose web application for annotating whether journal article citations actually support Wikipedia passages they're cited for.
+> **[🚀 Live Platform](https://wikifactcheck.up.railway.app)** — Start annotating now
+
+## What is this?
+
+Wikipedia's 3+ million citations are often assumed to support the passages they're linked to — but nobody systematically verifies that. **WikiFactCheck** is an open-source annotation platform built to crowdsource this verification: humans read passage/citation pairs and label whether the citation actually supports the claim.
+
+This matters because:
+- **For Wikipedia editors**: Identifying broken or misplaced citations improves the encyclopedia's reliability at scale
+- **For LLM research**: Citation support patterns (or lack thereof) help researchers understand what makes sources trustworthy and how to train better fact-checking models
+- **For the open web**: Every annotation generated here feeds into a public dataset that anyone can use
+
+The platform is **lightweight and self-hosted** — no cloud lock-in, no email services, no OAuth. Spin up an instance locally or on Railway in minutes, upload your data, and start collecting high-quality human annotations.
 
 ## Quick Start
 
@@ -95,15 +106,16 @@ View real-time statistics:
 
 ### Key Features
 
-✓ **Smart Assignment** — Queue prioritizes pairs with 1-2 annotations to ensure all pairs get 3x coverage
-✓ **Domain Weighting** — Samples drawn proportionally from medicine/history/animals/artists per config
-✓ **Qualification Test** — Annotators must pass before accessing real dataset
-✓ **Annotation Cap** — Limit per-user annotations (configurable or unlimited)
-✓ **Skip Logic** — Annotators can defer with no penalty; skipped pairs appear to others
-✓ **Real-Time Dashboard** — Live charts showing annotator progress, label distribution, project completion
-✓ **Multi-Dataset** — Multiple import batches in one project, tracked separately
-✓ **Export** — JSONL/CSV download of all annotations with annotator email + timestamp
-✓ **No External Services** — All-in-one: no Auth0, no cloud storage, no email service, no OAuth
+✓ **Smart Assignment** — Queue prioritizes pairs with 1-2 annotations to ensure all pairs get 3x coverage  
+✓ **Domain Weighting** — Samples drawn proportionally from medicine/history/animals/artists per config  
+✓ **Qualification Test** — Annotators must pass before accessing real dataset; tracks individual accuracy  
+✓ **Annotation Cap** — Limit per-user annotations (configurable or unlimited)  
+✓ **Skip Logic** — Annotators can defer with no penalty; skipped pairs appear to others  
+✓ **Real-Time Dashboard** — Live charts showing annotator progress, label distribution, project completion  
+✓ **Multi-Dataset** — Multiple import batches in one project, tracked separately  
+✓ **Export** — JSONL/CSV download of all annotations with full metadata for downstream research  
+✓ **No External Services** — All-in-one: no Auth0, no cloud storage, no paid email, no OAuth  
+✓ **Open Source** — Built in Python/Flask; deploy anywhere (local, Railway, self-hosted)
 
 ## Data Format
 
@@ -253,12 +265,21 @@ ADMIN_EMAILS=aaddira@gmail.com,other@example.com
 - [ ] Custom label sets per project
 - [ ] Anonymous mode (no email collection)
 
+## Using the Data
+
+All exported annotations are in open format (JSONL) with no vendor lock-in. Use them for:
+- **Wikipedia citation audits** — Identify problematic citations at scale
+- **LLM training** — Fine-tune fact-checking and citation-ranking models
+- **Citation analysis** — Study patterns in how sources support claims (or don't)
+- **Your own research** — The data is yours to analyze and publish
+
 ## License
 
-Internal tool. Unlicensed.
+[MIT License](LICENSE) — Use freely, contribute back if you improve it.
 
 ---
 
 **Built with**: Flask, SQLAlchemy, SQLite, Tailwind, Chart.js, Vanilla JS  
 **Status**: Production-ready for small teams (1-50 annotators)  
-**Last Updated**: June 20, 2026
+**Python**: 3.10+  
+**Last Updated**: July 7, 2026

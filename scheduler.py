@@ -5,9 +5,10 @@ from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from flask import Flask
-from models import db, User, Annotation
+from models import db, User, Annotation, Pair
 from email_utils import send_weekly_digest_email
 from backup_manager import create_backup, cleanup_old_backups
+from qualification_test_manager import save_qualification_config
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +48,34 @@ def backup_annotations_job(app):
             logger.error(f"Error in backup_annotations_job: {str(e)}")
 
 
+def backup_qualification_configs_job(app):
+    """Backup all qualification test configurations every 24 hours."""
+    with app.app_context():
+        try:
+            from models import Dataset
+            datasets = Dataset.query.all()
+            backed_up = 0
+
+            for dataset in datasets:
+                # Check if dataset has test samples
+                test_count = db.session.query(db.func.count(Pair.id)).filter_by(
+                    dataset_id=dataset.id,
+                    is_test_sample=True
+                ).scalar()
+
+                if test_count > 0:
+                    save_qualification_config(dataset.id, f"{dataset.name}_auto")
+                    backed_up += 1
+
+            if backed_up > 0:
+                logger.info(f"Qualification config backups completed: {backed_up} datasets")
+            else:
+                logger.info("No qualification configs to backup")
+
+        except Exception as e:
+            logger.error(f"Error in backup_qualification_configs_job: {str(e)}")
+
+
 def init_scheduler(app):
     """Initialize background scheduler with Flask app."""
     scheduler_enabled = app.config.get("SCHEDULER_ENABLED", True)
@@ -81,6 +110,21 @@ def init_scheduler(app):
         args=[app],
         id='backup_annotations_job',
         name='Automatic backup of all annotations (24h)',
+        replace_existing=True,
+        coalesce=True,
+        max_instances=1
+    )
+
+    # Schedule automatic qualification config backups (30 min after annotations)
+    qual_backup_hour = backup_hour
+    qual_backup_minute = 30
+
+    scheduler.add_job(
+        backup_qualification_configs_job,
+        CronTrigger(hour=qual_backup_hour, minute=qual_backup_minute),
+        args=[app],
+        id='backup_qualification_configs_job',
+        name='Automatic backup of qualification test configs (24h)',
         replace_existing=True,
         coalesce=True,
         max_instances=1

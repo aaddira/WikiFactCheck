@@ -319,21 +319,184 @@ def api_test_pair():
 @admin_bp.route("/test/mark-samples", methods=["POST"])
 @admin_required
 def api_test_mark_samples():
-    """Mark samples as test samples with correct labels."""
+    """
+    Mark/update individual test samples with correct labels.
+    IMPORTANT: Only updates the specified samples, never removes others.
+    """
+    admin = g.user
     data = request.get_json() or {}
     samples = data.get("samples", [])  # [{pair_id: int, correct_label: str}, ...]
+    dataset_id = data.get("dataset_id")
+    test_name = data.get("test_name", "qualification_test")
 
-    for sample in samples:
-        pair_id = sample.get("pair_id")
-        correct_label = sample.get("correct_label")
+    if not dataset_id:
+        return jsonify({"error": "dataset_id required"}), 400
 
-        pair = Pair.query.get(pair_id)
-        if pair:
-            pair.is_test_sample = True
-            pair.correct_label = correct_label
+    updated_count = 0
+    errors = []
 
-    db.session.commit()
-    return jsonify({"status": "marked", "count": len(samples)})
+    try:
+        for sample in samples:
+            pair_id = sample.get("pair_id")
+            correct_label = sample.get("correct_label")
+
+            if not pair_id or not correct_label:
+                errors.append(f"Sample missing pair_id or correct_label: {sample}")
+                continue
+
+            pair = Pair.query.get(pair_id)
+            if pair and pair.dataset_id == dataset_id:
+                # Only update if it exists and belongs to this dataset
+                pair.is_test_sample = True
+                pair.correct_label = correct_label
+                updated_count += 1
+            elif not pair:
+                errors.append(f"Pair {pair_id} not found")
+            else:
+                errors.append(f"Pair {pair_id} belongs to different dataset")
+
+        db.session.commit()
+
+        # Auto-backup after update
+        from qualification_test_manager import save_qualification_config
+        save_qualification_config(dataset_id, test_name)
+
+        # Log to audit
+        AuditLog.record(
+            action="test_samples_update",
+            actor_user_id=admin.id,
+            actor_email=admin.email,
+            target_type="Dataset",
+            target_id=str(dataset_id),
+            details=json.dumps({
+                "updated_count": updated_count,
+                "test_name": test_name,
+                "errors": errors if errors else None
+            })
+        )
+        db.session.commit()
+
+        return jsonify({
+            "status": "updated",
+            "count": updated_count,
+            "errors": errors if errors else None
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.exception("Error updating test samples")
+        return jsonify({"error": str(e)}), 500
+
+
+@admin_bp.route("/test/existing-samples", methods=["GET"])
+@admin_required
+def api_test_existing_samples():
+    """Get all existing test samples for a dataset (for editing/dropdown)."""
+    dataset_id = request.args.get("dataset_id", type=int)
+    if not dataset_id:
+        return jsonify({"error": "dataset_id required"}), 400
+
+    test_pairs = Pair.query.filter_by(
+        dataset_id=dataset_id,
+        is_test_sample=True
+    ).all()
+
+    return jsonify({
+        "dataset_id": dataset_id,
+        "count": len(test_pairs),
+        "samples": [
+            {
+                "id": p.id,
+                "pair_id": p.pair_id,
+                "article_title": p.article_title,
+                "correct_label": p.correct_label,
+                "passage_text": (p.passage_text or "")[:150],  # Excerpt for dropdown
+            }
+            for p in test_pairs
+        ]
+    })
+
+
+@admin_bp.route("/test/available-pairs", methods=["GET"])
+@admin_required
+def api_test_available_pairs():
+    """Get all available pairs in a dataset for dropdown selection."""
+    dataset_id = request.args.get("dataset_id", type=int)
+    search = request.args.get("search", "").lower()
+    limit = request.args.get("limit", default=50, type=int)
+
+    if not dataset_id:
+        return jsonify({"error": "dataset_id required"}), 400
+
+    query = Pair.query.filter_by(dataset_id=dataset_id)
+
+    if search:
+        query = query.filter(Pair.article_title.ilike(f"%{search}%"))
+
+    pairs = query.limit(limit).all()
+
+    return jsonify({
+        "dataset_id": dataset_id,
+        "count": len(pairs),
+        "pairs": [
+            {
+                "id": p.id,
+                "pair_id": p.pair_id,
+                "article_title": p.article_title,
+                "is_test_sample": p.is_test_sample,
+                "correct_label": p.correct_label,
+            }
+            for p in pairs
+        ]
+    })
+
+
+@admin_bp.route("/test/backups", methods=["GET"])
+@admin_required
+def api_test_backups():
+    """List available qualification test configuration backups."""
+    from qualification_test_manager import list_qualification_backups
+    backups = list_qualification_backups()
+    return jsonify({
+        "count": len(backups),
+        "backups": backups
+    })
+
+
+@admin_bp.route("/test/restore-backup", methods=["POST"])
+@admin_required
+def api_test_restore_backup():
+    """Restore a qualification test configuration from backup."""
+    admin = g.user
+    data = request.get_json() or {}
+    backup_file = data.get("backup_file")
+
+    if not backup_file:
+        return jsonify({"error": "backup_file required"}), 400
+
+    try:
+        from qualification_test_manager import restore_qualification_config
+        restored = restore_qualification_config(backup_file)
+
+        AuditLog.record(
+            action="test_samples_restore",
+            actor_user_id=admin.id,
+            actor_email=admin.email,
+            target_type="Backup",
+            target_id=backup_file,
+            details=json.dumps({"restored_count": restored})
+        )
+        db.session.commit()
+
+        return jsonify({
+            "status": "restored",
+            "restored_count": restored,
+            "backup_file": backup_file
+        })
+
+    except Exception as e:
+        current_app.logger.exception("Error restoring qualification backup")
+        return jsonify({"error": str(e)}), 500
 
 
 @admin_bp.route("/test/results", methods=["GET"])

@@ -95,6 +95,16 @@ body {
     white-space: pre-wrap;
     margin-bottom: 12px;
     overflow-wrap: break-word;
+    overflow-x: auto;
+}
+
+.passage-text-box pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    max-width: 100%;
+    overflow-x: auto;
+    margin: 0;
 }
 
 /* Fact highlighting note */

@@ -334,15 +334,9 @@ function renderPair(pair) {
         ? pair.citation_raw_text.substring(0, 10000)
         : "No citation text";
 
-    // Metadata (removed article title from here since it's now in header)
-    const citationMeta = [
-        pair.citation_title,
-        pair.citation_journal,
-        pair.citation_year,
-    ]
-        .filter(Boolean)
-        .join(" — ");
-    document.getElementById("citationMeta").textContent = citationMeta || "—";
+    // Note: citation_title, citation_journal, and citation_year are not in the dataset
+    // Only citation_source_url and citation_raw_text are available
+    document.getElementById("citationMeta").textContent = "—";
 
     // URL
     const urlEl = document.getElementById("citationUrl");

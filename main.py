@@ -231,6 +231,87 @@ def confirm_email_page(token):
     return render_template("confirm_email.html", token=token)
 
 
+@app.route("/resend-confirmation", methods=["GET", "POST"])
+def resend_confirmation_page():
+    """Resend confirmation email to user."""
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+
+        if not email:
+            return render_template("resend_confirmation.html", error="Email address is required")
+
+        user = User.query.filter_by(email=email).first()
+
+        if not user:
+            # Security: Don't reveal if email exists
+            return render_template("resend_confirmation.html",
+                message="If this email is registered, a confirmation link will be sent shortly.")
+
+        if user.email_confirmed:
+            return render_template("resend_confirmation.html",
+                message="This email is already confirmed. You can log in now.",
+                already_confirmed=True)
+
+        # Generate new confirmation token
+        confirmation_token = secrets.token_hex(16)
+        expires_at = datetime.utcnow() + timedelta(hours=24)
+
+        user.confirmation_token = confirmation_token
+        user.confirmation_token_expires_at = expires_at
+        db.session.commit()
+
+        # Send confirmation email
+        send_confirmation_email(user, confirmation_token, app.config["APP_URL"])
+
+        return render_template("resend_confirmation.html",
+            message="Confirmation email sent! Check your inbox for the verification link.",
+            success=True)
+
+    return render_template("resend_confirmation.html")
+
+
+@app.route("/forgot-username", methods=["GET", "POST"])
+def forgot_username_page():
+    """Send username reminder to email."""
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+
+        if not email:
+            return render_template("forgot_username.html", error="Email address is required")
+
+        user = User.query.filter_by(email=email).first()
+
+        if not user:
+            # Security: Don't reveal if email exists
+            return render_template("forgot_username.html",
+                message="If this email is registered, your Wikipedia username will be sent shortly.")
+
+        # Send username reminder email
+        try:
+            from flask_mail import Message
+            msg = Message(
+                subject="Your WikiFactCheck Username",
+                recipients=[user.email],
+                html=f"""
+                <h2>Your WikiFactCheck Username</h2>
+                <p>Hi {user.email},</p>
+                <p>Your Wikipedia username associated with this account is:</p>
+                <p><strong style="font-size: 1.2em; font-family: monospace;">{user.wiki_username or 'Not set'}</strong></p>
+                <p>You can now <a href="{app.config['APP_URL']}/login">log in</a> using this username and your email.</p>
+                <p>If you didn't request this, you can ignore this email.</p>
+                """
+            )
+            mail.send(msg)
+        except Exception as e:
+            app.logger.error(f"Error sending username reminder to {user.email}: {str(e)}")
+
+        return render_template("forgot_username.html",
+            message="Your Wikipedia username has been sent to your email.",
+            success=True)
+
+    return render_template("forgot_username.html")
+
+
 @app.route("/login", methods=["GET", "POST"])
 def login_page():
     """Login page (annotators only — admins use /admin/login with token)."""
@@ -252,7 +333,9 @@ def login_page():
             return render_template("login.html", error="Email/username combination not found. Please register first.")
 
         if not user.email_confirmed:
-            return render_template("login.html", error="Your email is not confirmed. Check your inbox for a confirmation link.")
+            return render_template("login.html",
+                error="Your email is not confirmed. Check your inbox for a confirmation link.",
+                unconfirmed_email=email)
 
         do_login(email, wiki_username=wiki_username)
         # All logged-in annotators go to dashboard (test is optional)

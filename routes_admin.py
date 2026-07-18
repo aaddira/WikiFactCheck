@@ -1034,3 +1034,90 @@ def api_annotators_test_answers(user_id):
     except Exception as e:
         current_app.logger.exception(f"Error fetching test answers for user {user_id}")
         return jsonify({"error": str(e)}), 500
+
+
+# ============================================================================
+# Email Confirmation Recovery (Admin)
+# ============================================================================
+
+
+@admin_bp.route("/users/fix-unconfirmed", methods=["POST"])
+@admin_required
+def api_fix_unconfirmed_users():
+    """
+    Fix users stuck with unconfirmed emails (old users from before confirmation was added).
+    Marks them as confirmed if they have no valid confirmation token.
+    """
+    admin = g.user
+
+    try:
+        # Find users who are unconfirmed but have no valid token (or expired token)
+        unconfirmed_users = User.query.filter_by(email_confirmed=False).all()
+
+        fixed_count = 0
+        for user in unconfirmed_users:
+            # If no token or token is expired, mark as confirmed (they're old users)
+            if not user.confirmation_token or user.confirmation_token_expired():
+                user.email_confirmed = True
+                user.confirmation_token = None
+                user.confirmation_token_expires_at = None
+                fixed_count += 1
+
+        db.session.commit()
+
+        AuditLog.record(
+            action="fix_unconfirmed_users",
+            actor_user_id=admin.id,
+            actor_email=admin.email,
+            target_type="User",
+            target_id="bulk",
+            details=json.dumps({"fixed_count": fixed_count})
+        )
+        db.session.commit()
+
+        return jsonify({
+            "status": "success",
+            "message": f"Fixed {fixed_count} unconfirmed users",
+            "fixed_count": fixed_count
+        })
+
+    except Exception as e:
+        current_app.logger.exception("Error fixing unconfirmed users")
+        return jsonify({"error": str(e)}), 500
+
+
+@admin_bp.route("/user/<int:user_id>/confirm-email", methods=["POST"])
+@admin_required
+def api_confirm_user_email(user_id):
+    """Manually confirm a specific user's email."""
+    admin = g.user
+    user = User.query.get(user_id)
+
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    try:
+        user.email_confirmed = True
+        user.confirmation_token = None
+        user.confirmation_token_expires_at = None
+
+        AuditLog.record(
+            action="confirm_user_email",
+            actor_user_id=admin.id,
+            actor_email=admin.email,
+            target_type="User",
+            target_id=str(user_id),
+            details=json.dumps({"user_email": user.email})
+        )
+
+        db.session.commit()
+
+        return jsonify({
+            "status": "success",
+            "message": f"Confirmed email for {user.email}",
+            "user_id": user_id
+        })
+
+    except Exception as e:
+        current_app.logger.exception(f"Error confirming email for user {user_id}")
+        return jsonify({"error": str(e)}), 500

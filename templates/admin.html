@@ -333,99 +333,75 @@
     <!-- Test Samples Tab -->
     <div id="tab-test" class="tab-content hidden">
         <div class="admin-section">
-            <div class="admin-section-title">Mark Test Samples</div>
-            <p class="text-gray-600 mb-4">Select 5 samples from a dataset and mark the correct label for each. These will be used for qualification testing.</p>
+            <div class="admin-section-title">Setup Qualification Test</div>
+            <p class="text-gray-600 mb-4">Select 5 samples and mark correct labels. Changes appear live below but don't save until you click "Save Test Samples".</p>
 
-            <div id="testSelectionPanel" class="bg-white border rounded-lg p-6 mb-6">
-                <div class="grid grid-cols-1 gap-4 mb-4">
-                    <div>
-                        <label class="block font-semibold mb-2">Select Dataset</label>
-                        <select id="testDatasetSelect" onchange="loadDatasetForTestSamples()" class="w-full px-3 py-2 border rounded-lg">
-                            <option value="">-- Choose a dataset --</option>
-                        </select>
-                    </div>
+            <!-- Selection Panel -->
+            <div class="bg-white border rounded-lg p-6 mb-6">
+                <label class="block font-semibold mb-3">1. Choose Dataset</label>
+                <select id="testDatasetSelect" onchange="loadDatasetForTestSamples()" class="w-full px-3 py-2 border rounded-lg mb-4">
+                    <option value="">-- Choose a dataset --</option>
+                </select>
 
-                    <!-- Dropdown Pair Selector -->
+                <label class="block font-semibold mb-3">2. Select Pairs to Add</label>
+                <div class="space-y-3">
                     <div>
-                        <label class="block font-semibold mb-2">Select from Dropdown</label>
+                        <label class="text-sm text-gray-600 block mb-2">Search by article title:</label>
                         <div class="flex gap-2">
-                            <div class="flex-1">
-                                <input type="text" id="pairSearch" placeholder="Search by article title..." onkeyup="searchPairs()" class="w-full px-3 py-2 border rounded-lg">
-                            </div>
-                            <button type="button" onclick="loadAvailablePairs()" class="btn btn-primary">Refresh</button>
+                            <input type="text" id="pairSearch" placeholder="Type to search..." onkeyup="searchPairs()" class="flex-1 px-3 py-2 border rounded-lg">
+                            <button type="button" onclick="loadAvailablePairs()" class="btn btn-secondary">↻ Refresh</button>
                         </div>
-                        <select id="pairDropdown" onchange="addPairFromDropdown()" class="w-full px-3 py-2 border rounded-lg mt-2">
-                            <option value="">-- Select a pair --</option>
+                        <select id="pairDropdown" class="w-full px-3 py-2 border rounded-lg mt-2">
+                            <option value="">-- Select a pair to add --</option>
                         </select>
+                        <button type="button" onclick="addPairFromDropdown()" class="btn btn-primary w-full mt-2">+ Add Selected Pair</button>
                     </div>
 
-                    <!-- Load Existing Test Samples -->
-                    <div>
-                        <label class="block font-semibold mb-2">Edit Existing Test Samples</label>
-                        <button type="button" onclick="loadExistingTestSamples()" class="btn btn-secondary w-full">
-                            Load Current Test Configuration
-                        </button>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block font-semibold mb-2">Random Selection</label>
-                            <div class="flex gap-2">
-                                <input type="number" id="randomCount" value="5" min="1" max="20" class="flex-1 px-3 py-2 border rounded-lg">
-                                <button type="button" onclick="randomSelectTestSamples()" class="btn btn-primary">Random</button>
-                            </div>
+                    <div class="border-t pt-3">
+                        <label class="text-sm text-gray-600 block mb-2">Or random selection:</label>
+                        <div class="flex gap-2">
+                            <input type="number" id="randomCount" value="5" min="1" max="20" class="w-20 px-3 py-2 border rounded-lg">
+                            <button type="button" onclick="randomSelectTestSamples()" class="btn btn-primary flex-1">Random 5 Samples</button>
                         </div>
+                    </div>
 
-                        <div>
-                            <label class="block font-semibold mb-2">Manual Search</label>
-                            <div class="flex gap-2">
-                                <input type="text" id="pairIdSearch" placeholder="pair_id" class="flex-1 px-3 py-2 border rounded-lg">
-                                <button type="button" onclick="searchAndAddPair()" class="btn btn-primary">Add</button>
-                            </div>
+                    <div class="border-t pt-3">
+                        <label class="text-sm text-gray-600 block mb-2">Or manual search:</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="pairIdSearch" placeholder="pair_id..." class="flex-1 px-3 py-2 border rounded-lg">
+                            <button type="button" onclick="searchAndAddPair()" class="btn btn-primary">Add by ID</button>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div id="testSamplesDisplay" style="display:none;">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Pair ID</th>
-                            <th>Passage</th>
-                            <th>Citation</th>
-                            <th>Correct Label</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody id="testSampleTable">
-                    </tbody>
-                </table>
-                <div class="flex gap-2 mt-4">
-                    <button type="button" onclick="saveTestSamples()" class="btn btn-primary">Save Test Samples</button>
-                    <button type="button" onclick="previewSavedTestSamples()" class="btn btn-secondary">Preview Saved Configuration</button>
-                </div>
-            </div>
-
-            <!-- Test Configuration Preview -->
-            <div id="testPreviewSection" style="display:none;" class="mt-8 p-6 bg-blue-50 border border-blue-200 rounded-lg">
+            <!-- Currently Editing Section -->
+            <div id="testEditingSection" style="display:none;" class="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-6 mb-6">
                 <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-lg font-semibold">Current Test Configuration</h3>
-                    <button type="button" onclick="closeTestPreview()" class="text-gray-600 hover:text-gray-900">✕</button>
+                    <h3 class="text-lg font-semibold">📝 Currently Editing (Unsaved Changes)</h3>
+                    <span id="testEditCount" class="text-sm text-gray-600">0 samples</span>
                 </div>
-                <table class="table bg-white">
-                    <thead>
-                        <tr>
-                            <th>Article Title</th>
-                            <th>Correct Label</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="testPreviewTable">
-                        <tr><td colspan="3" class="text-center py-4 text-gray-500">Loading...</td></tr>
-                    </tbody>
-                </table>
-                <p id="testPreviewStats" class="text-sm text-gray-600 mt-4"></p>
+
+                <div id="testEditingCards" class="space-y-4 mb-4">
+                    <!-- Sample cards will be inserted here -->
+                </div>
+
+                <div class="flex gap-2 justify-end">
+                    <button type="button" onclick="clearAllTestSamples()" class="btn btn-secondary">Clear All</button>
+                    <button type="button" onclick="saveTestSamples()" class="btn btn-primary">💾 Save Test Samples</button>
+                </div>
+            </div>
+
+            <!-- Current Saved Configuration -->
+            <div id="currentTestConfigSection" class="bg-blue-50 border border-blue-300 rounded-lg p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold">✓ Current Saved Configuration</h3>
+                    <span id="savedTestCount" class="text-sm text-gray-600">Loading...</span>
+                </div>
+
+                <div id="currentTestConfigCards" class="space-y-4">
+                    <div class="text-center py-8 text-gray-500">Loading current configuration...</div>
+                </div>
             </div>
         </div>
     </div>
@@ -971,14 +947,21 @@ async function loadDatasetForTestSamples() {
     const datasetId = document.getElementById("testDatasetSelect").value;
     if (!datasetId) {
         currentTestSamples = [];
-        document.getElementById("testSamplesDisplay").style.display = "none";
+        document.getElementById("testEditingSection").style.display = "none";
         document.getElementById("pairDropdown").innerHTML = '<option value="">-- Select a pair --</option>';
+        document.getElementById("currentTestConfigCards").innerHTML = '<div class="text-center py-8 text-gray-500">No dataset selected</div>';
         return;
     }
-    // Clear and show loading state
+    // Clear editing samples and show loading state
+    currentTestSamples = [];
+    document.getElementById("testEditingSection").style.display = "none";
     document.getElementById("pairDropdown").innerHTML = '<option value="">Loading pairs...</option>';
+
     // Load available pairs for dropdown
     loadAvailablePairs();
+
+    // Load and display current saved configuration
+    loadCurrentTestConfig();
 }
 
 async function loadAvailablePairs() {
@@ -1037,7 +1020,10 @@ async function addPairFromDropdown() {
     const dropdown = document.getElementById("pairDropdown");
     const pairId = dropdown.value;
 
-    if (!pairId) return;
+    if (!pairId) {
+        showStatus("error", "Please select a pair from the dropdown");
+        return;
+    }
 
     try {
         const datasetId = document.getElementById("testDatasetSelect").value;
@@ -1051,64 +1037,22 @@ async function addPairFromDropdown() {
 
         // Check if already selected
         if (currentTestSamples.find(p => p.id === data.pair.id)) {
-            showStatus("error", "This pair is already selected");
+            showStatus("error", "This pair is already in your selection");
             dropdown.value = "";
             return;
         }
 
         // Check limit
         if (currentTestSamples.length >= 5) {
-            showStatus("error", "Maximum 5 test samples allowed");
-            dropdown.value = "";
+            showStatus("error", "Maximum 5 samples allowed. Remove one to add another.");
             return;
         }
 
-        // Add with existing label if available
-        const existingLabel = dropdown.options[dropdown.selectedIndex].dataset.label || "";
-        currentTestSamples.push({ ...data.pair, correct_label: existingLabel });
+        // Add pair
+        currentTestSamples.push({ ...data.pair, correct_label: "" });
         displayTestSamples();
-        document.getElementById("testSamplesDisplay").style.display = "block";
-        showStatus("success", "Pair added to test samples");
         dropdown.value = "";
-    } catch (error) {
-        showStatus("error", `Error: ${error.message}`);
-    }
-}
-
-async function loadExistingTestSamples() {
-    const datasetId = document.getElementById("testDatasetSelect").value;
-
-    if (!datasetId) {
-        showStatus("error", "Please select a dataset first");
-        return;
-    }
-
-    try {
-        const response = await fetch(`/admin/test/existing-samples?dataset_id=${datasetId}`);
-        const data = await response.json();
-
-        if (!response.ok) {
-            showStatus("error", data.error || "Failed to load test samples");
-            return;
-        }
-
-        if (data.count === 0) {
-            showStatus("info", "No existing test samples in this dataset");
-            return;
-        }
-
-        // Load existing samples into the editor
-        currentTestSamples = data.samples.map(s => ({
-            id: s.id,
-            pair_id: s.pair_id,
-            article_title: s.article_title,
-            correct_label: s.correct_label || "",
-            passage_text: s.passage_text || ""
-        }));
-
-        displayTestSamples();
-        document.getElementById("testSamplesDisplay").style.display = "block";
-        showStatus("success", `Loaded ${data.count} existing test samples for editing`);
+        showStatus("success", `Added "${data.pair.article_title}" to editing`);
     } catch (error) {
         showStatus("error", `Error: ${error.message}`);
     }
@@ -1134,8 +1078,68 @@ async function randomSelectTestSamples() {
 
         currentTestSamples = data.pairs.map(p => ({ ...p, correct_label: "" }));
         displayTestSamples();
+        showStatus("success", `Loaded ${count} random samples. Assign labels and click Save.`);
     } catch (error) {
         showStatus("error", `Error: ${error.message}`);
+    }
+}
+
+async function loadCurrentTestConfig() {
+    const datasetId = document.getElementById("testDatasetSelect").value;
+    const container = document.getElementById("currentTestConfigCards");
+    const countSpan = document.getElementById("savedTestCount");
+
+    if (!datasetId) {
+        container.innerHTML = '<div class="text-center py-8 text-gray-500">No dataset selected</div>';
+        countSpan.textContent = "—";
+        return;
+    }
+
+    try {
+        countSpan.textContent = "Loading...";
+        const response = await fetch(`/admin/test/existing-samples?dataset_id=${datasetId}`);
+        const data = await response.json();
+
+        if (!response.ok) {
+            container.innerHTML = `<div class="text-center py-8 text-gray-500">Error loading configuration</div>`;
+            countSpan.textContent = "Error";
+            return;
+        }
+
+        if (!data.samples || data.count === 0) {
+            container.innerHTML = `
+                <div class="text-center py-8 text-gray-400">
+                    <p>No qualification test configured yet</p>
+                    <p class="text-sm mt-2">Add and save samples above to create one</p>
+                </div>
+            `;
+            countSpan.textContent = "0 samples";
+            return;
+        }
+
+        countSpan.textContent = `${data.count} sample${data.count !== 1 ? "s" : ""} saved`;
+
+        container.innerHTML = data.samples.map((sample, idx) => `
+            <div class="bg-white border-l-4 border-blue-500 rounded-lg p-4 shadow-sm">
+                <div class="flex justify-between items-start mb-3">
+                    <div class="flex-1">
+                        <h4 class="font-semibold text-lg">${idx + 1}. ${sample.article_title}</h4>
+                        <p class="text-sm text-gray-500">ID: ${sample.pair_id}</p>
+                    </div>
+                    <span class="inline-block px-3 py-1 rounded-full text-sm font-semibold ${getLabelBgClass(sample.correct_label)}">
+                        ${sample.correct_label || "Unlabeled"}
+                    </span>
+                </div>
+
+                <div class="bg-gray-50 p-3 rounded max-h-32 overflow-y-auto text-sm">
+                    <p class="text-gray-700 whitespace-pre-wrap">${(sample.passage_text || "").substring(0, 400)}</p>
+                </div>
+            </div>
+        `).join("");
+
+    } catch (error) {
+        container.innerHTML = `<div class="text-center py-8 text-red-500">Error: ${error.message}</div>`;
+        countSpan.textContent = "Error";
     }
 }
 
@@ -1183,98 +1187,66 @@ async function searchAndAddPair() {
 }
 
 function displayTestSamples() {
-    const tbody = document.getElementById("testSampleTable");
-    tbody.innerHTML = currentTestSamples
-        .map((p, idx) => {
-            const selectedOption = `<option value="${p.correct_label}">${p.correct_label || "-- Select --"}</option>`;
-            return `
-            <tr>
-                <td><strong>${p.pair_id}</strong></td>
-                <td class="max-w-xs overflow-hidden text-ellipsis text-sm">${p.article_title || p.passage_text || "—"}</td>
-                <td class="max-w-xs overflow-hidden text-ellipsis text-sm">${(p.citation_raw_text || p.passage_text || "").substring(0, 50)}...</td>
-                <td>
-                    <select onchange="updateTestLabel(${p.id}, event)" class="px-2 py-1 border rounded text-sm">
-                        <option value="">-- Select --</option>
-                        <option value="Supported" ${p.correct_label === "Supported" ? "selected" : ""}>Supported</option>
-                        <option value="Not Supported" ${p.correct_label === "Not Supported" ? "selected" : ""}>Not Supported</option>
-                        <option value="Mixed" ${p.correct_label === "Mixed" ? "selected" : ""}>Mixed</option>
-                        <option value="Unverifiable" ${p.correct_label === "Unverifiable" ? "selected" : ""}>Unverifiable</option>
-                        <option value="Source link error" ${p.correct_label === "Source link error" ? "selected" : ""}>Source Link Error</option>
-                    </select>
-                </td>
-                <td>
-                    <button class="text-red-600 hover:text-red-800 text-sm font-semibold" onclick="removeTestSample(${p.id})">✕ Remove</button>
-                </td>
-            </tr>
-        `}).join("");
+    const container = document.getElementById("testEditingCards");
+    const section = document.getElementById("testEditingSection");
+    const count = document.getElementById("testEditCount");
 
-    document.getElementById("testSamplesDisplay").style.display = currentTestSamples.length > 0 ? "block" : "none";
+    if (currentTestSamples.length === 0) {
+        section.style.display = "none";
+        return;
+    }
+
+    section.style.display = "block";
+    count.textContent = `${currentTestSamples.length} sample${currentTestSamples.length !== 1 ? "s" : ""}`;
+
+    container.innerHTML = currentTestSamples.map((p, idx) => `
+        <div class="bg-white border rounded-lg p-4 shadow-sm">
+            <div class="flex justify-between items-start mb-3">
+                <div class="flex-1">
+                    <h4 class="font-semibold text-lg">${idx + 1}. ${p.article_title || "Untitled"}</h4>
+                    <p class="text-sm text-gray-500">ID: ${p.pair_id}</p>
+                </div>
+                <button class="text-red-600 hover:text-red-800 font-semibold" onclick="removeTestSample(${p.id})">✕ Remove</button>
+            </div>
+
+            <div class="bg-gray-50 p-3 rounded mb-3 max-h-40 overflow-y-auto text-sm">
+                <p class="text-gray-700 whitespace-pre-wrap">${(p.passage_text || p.citation_raw_text || "—").substring(0, 500)}</p>
+            </div>
+
+            <div>
+                <label class="block text-sm font-semibold mb-2">Correct Label:</label>
+                <select onchange="updateTestLabel(${p.id}, event)" class="w-full px-3 py-2 border rounded-lg">
+                    <option value="">-- Select a label --</option>
+                    <option value="Supported" ${p.correct_label === "Supported" ? "selected" : ""}>✓ Supported</option>
+                    <option value="Not Supported" ${p.correct_label === "Not Supported" ? "selected" : ""}>✗ Not Supported</option>
+                    <option value="Mixed" ${p.correct_label === "Mixed" ? "selected" : ""}>≈ Mixed</option>
+                    <option value="Unverifiable" ${p.correct_label === "Unverifiable" ? "selected" : ""}>? Unverifiable</option>
+                    <option value="Source link error" ${p.correct_label === "Source link error" ? "selected" : ""}>⚠ Source Link Error</option>
+                </select>
+            </div>
+        </div>
+    `).join("");
 }
 
 function updateTestLabel(pairId, event) {
     const sample = currentTestSamples.find(p => p.id === pairId);
     if (sample) {
         sample.correct_label = event.target.value;
+        displayTestSamples();
     }
 }
 
 function removeTestSample(pairId) {
     currentTestSamples = currentTestSamples.filter(p => p.id !== pairId);
     displayTestSamples();
+    loadCurrentTestConfig();
 }
 
-async function previewSavedTestSamples() {
-    const datasetId = document.getElementById("testDatasetSelect").value;
-
-    if (!datasetId) {
-        showStatus("error", "Please select a dataset first");
-        return;
+function clearAllTestSamples() {
+    if (confirm("Clear all pending changes? You can still reload the saved configuration.")) {
+        currentTestSamples = [];
+        displayTestSamples();
     }
-
-    try {
-        const response = await fetch(`/admin/test/existing-samples?dataset_id=${datasetId}`);
-        const data = await response.json();
-
-        if (!response.ok) {
-            showStatus("error", data.error || "Failed to load saved test samples");
-            return;
-        }
-
-        const previewTable = document.getElementById("testPreviewTable");
-        const previewStats = document.getElementById("testPreviewStats");
-
-        if (data.count === 0) {
-            previewTable.innerHTML = `<tr><td colspan="3" class="text-center py-4 text-gray-500">No test samples configured for this dataset yet</td></tr>`;
-            previewStats.textContent = "Create your first test samples above.";
-        } else {
-            previewTable.innerHTML = data.samples.map(sample => `
-                <tr>
-                    <td class="font-semibold">${sample.article_title}</td>
-                    <td>
-                        <span class="px-3 py-1 rounded-full text-sm font-semibold ${getLabelBgClass(sample.correct_label)}">
-                            ${sample.correct_label || "—"}
-                        </span>
-                    </td>
-                    <td class="text-sm text-gray-600">pair_id: ${sample.pair_id}</td>
-                </tr>
-            `).join("");
-
-            previewStats.innerHTML = `
-                <strong>✓ Configuration verified:</strong> ${data.count} samples ready for annotation testing
-                <br><small class="text-gray-500">Last updated: ${new Date().toLocaleString()}</small>
-            `;
-        }
-
-        document.getElementById("testPreviewSection").style.display = "block";
-        document.getElementById("testPreviewSection").scrollIntoView({ behavior: "smooth" });
-
-    } catch (error) {
-        showStatus("error", `Error: ${error.message}`);
-    }
-}
-
-function closeTestPreview() {
-    document.getElementById("testPreviewSection").style.display = "none";
 }
 
 function getLabelBgClass(label) {
@@ -1297,13 +1269,14 @@ async function saveTestSamples() {
     }
 
     if (currentTestSamples.length === 0) {
-        showStatus("error", "Please select test samples first");
+        showStatus("error", "Please add test samples first");
         return;
     }
 
     // Check all have labels
-    if (currentTestSamples.some(p => !p.correct_label)) {
-        showStatus("error", "All test samples must have a correct label");
+    const unlabeled = currentTestSamples.find(p => !p.correct_label);
+    if (unlabeled) {
+        showStatus("error", `All samples need a label. Missing: "${unlabeled.article_title}"`);
         return;
     }
 
@@ -1330,10 +1303,15 @@ async function saveTestSamples() {
             return;
         }
 
-        showStatus("success", `✓ ${currentTestSamples.length} test samples saved and backed up`);
+        showStatus("success", `✓ Saved ${currentTestSamples.length} test samples (backed up automatically)`);
+
+        // Clear editing section and reload current config
         currentTestSamples = [];
-        document.getElementById("testSamplesDisplay").style.display = "none";
-        // Don't clear dataset select so user can continue editing if needed
+        document.getElementById("testEditingSection").style.display = "none";
+
+        // Reload to show saved state
+        await loadCurrentTestConfig();
+
     } catch (error) {
         showStatus("error", `Error: ${error.message}`);
     }

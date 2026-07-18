@@ -391,15 +391,20 @@ def api_test_mark_samples():
 @admin_bp.route("/test/existing-samples", methods=["GET"])
 @admin_required
 def api_test_existing_samples():
-    """Get all existing test samples for a dataset (for editing/dropdown)."""
+    """Get existing test samples. If dataset_id provided, get samples from that dataset only. Otherwise get global test."""
     dataset_id = request.args.get("dataset_id", type=int)
-    if not dataset_id:
-        return jsonify({"error": "dataset_id required"}), 400
 
-    test_pairs = Pair.query.filter_by(
-        dataset_id=dataset_id,
-        is_test_sample=True
-    ).all()
+    if dataset_id:
+        # Get test samples from specific dataset (for editing pairs within that dataset)
+        test_pairs = Pair.query.filter_by(
+            dataset_id=dataset_id,
+            is_test_sample=True
+        ).all()
+    else:
+        # Get ALL test samples globally (current global qualification test)
+        test_pairs = Pair.query.filter_by(
+            is_test_sample=True
+        ).all()
 
     return jsonify({
         "dataset_id": dataset_id,
@@ -410,7 +415,8 @@ def api_test_existing_samples():
                 "pair_id": p.pair_id,
                 "article_title": p.article_title,
                 "correct_label": p.correct_label,
-                "passage_text": (p.passage_text or "")[:150],  # Excerpt for dropdown
+                "passage_text": p.passage_text or "",  # Full text
+                "dataset_id": p.dataset_id,
             }
             for p in test_pairs
         ]

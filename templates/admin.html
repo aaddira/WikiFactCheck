@@ -345,6 +345,28 @@
                         </select>
                     </div>
 
+                    <!-- Dropdown Pair Selector -->
+                    <div>
+                        <label class="block font-semibold mb-2">Select from Dropdown</label>
+                        <div class="flex gap-2">
+                            <div class="flex-1">
+                                <input type="text" id="pairSearch" placeholder="Search by article title..." onkeyup="searchPairs()" class="w-full px-3 py-2 border rounded-lg">
+                            </div>
+                            <button type="button" onclick="loadAvailablePairs()" class="btn btn-primary">Refresh</button>
+                        </div>
+                        <select id="pairDropdown" onchange="addPairFromDropdown()" class="w-full px-3 py-2 border rounded-lg mt-2">
+                            <option value="">-- Select a pair --</option>
+                        </select>
+                    </div>
+
+                    <!-- Load Existing Test Samples -->
+                    <div>
+                        <label class="block font-semibold mb-2">Edit Existing Test Samples</label>
+                        <button type="button" onclick="loadExistingTestSamples()" class="btn btn-secondary w-full">
+                            Load Current Test Configuration
+                        </button>
+                    </div>
+
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block font-semibold mb-2">Random Selection</label>
@@ -926,9 +948,139 @@ async function loadDatasetForTestSamples() {
     if (!datasetId) {
         currentTestSamples = [];
         document.getElementById("testSamplesDisplay").style.display = "none";
+        document.getElementById("pairDropdown").innerHTML = '<option value="">-- Select a pair --</option>';
         return;
     }
-    // Load will happen when random/search is triggered
+    // Load available pairs for dropdown
+    loadAvailablePairs();
+}
+
+async function loadAvailablePairs() {
+    const datasetId = document.getElementById("testDatasetSelect").value;
+    const search = document.getElementById("pairSearch").value;
+
+    if (!datasetId) {
+        showStatus("error", "Please select a dataset first");
+        return;
+    }
+
+    try {
+        const url = `/admin/test/available-pairs?dataset_id=${datasetId}&search=${encodeURIComponent(search)}&limit=100`;
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (!response.ok) {
+            showStatus("error", data.error || "Failed to load pairs");
+            return;
+        }
+
+        const dropdown = document.getElementById("pairDropdown");
+        dropdown.innerHTML = '<option value="">-- Select a pair --</option>';
+
+        data.pairs.forEach(pair => {
+            const isSelected = currentTestSamples.find(p => p.id === pair.id) ? " ✓" : "";
+            const label = `${pair.article_title}${isSelected}`;
+            const option = document.createElement("option");
+            option.value = pair.id;
+            option.textContent = label;
+            option.dataset.pairId = pair.pair_id;
+            option.dataset.label = pair.correct_label;
+            dropdown.appendChild(option);
+        });
+
+        if (data.count === 0) {
+            showStatus("info", "No pairs found for this search");
+        }
+    } catch (error) {
+        showStatus("error", `Error: ${error.message}`);
+    }
+}
+
+function searchPairs() {
+    // Debounce search
+    clearTimeout(window.pairSearchTimeout);
+    window.pairSearchTimeout = setTimeout(loadAvailablePairs, 300);
+}
+
+async function addPairFromDropdown() {
+    const dropdown = document.getElementById("pairDropdown");
+    const pairId = dropdown.value;
+
+    if (!pairId) return;
+
+    try {
+        const datasetId = document.getElementById("testDatasetSelect").value;
+        const response = await fetch(`/admin/test/pair?dataset_id=${datasetId}&pair_id=${encodeURIComponent(dropdown.options[dropdown.selectedIndex].dataset.pairId)}`);
+        const data = await response.json();
+
+        if (!response.ok) {
+            showStatus("error", "Pair not found");
+            return;
+        }
+
+        // Check if already selected
+        if (currentTestSamples.find(p => p.id === data.pair.id)) {
+            showStatus("error", "This pair is already selected");
+            dropdown.value = "";
+            return;
+        }
+
+        // Check limit
+        if (currentTestSamples.length >= 5) {
+            showStatus("error", "Maximum 5 test samples allowed");
+            dropdown.value = "";
+            return;
+        }
+
+        // Add with existing label if available
+        const existingLabel = dropdown.options[dropdown.selectedIndex].dataset.label || "";
+        currentTestSamples.push({ ...data.pair, correct_label: existingLabel });
+        displayTestSamples();
+        document.getElementById("testSamplesDisplay").style.display = "block";
+        showStatus("success", "Pair added to test samples");
+        dropdown.value = "";
+    } catch (error) {
+        showStatus("error", `Error: ${error.message}`);
+    }
+}
+
+async function loadExistingTestSamples() {
+    const datasetId = document.getElementById("testDatasetSelect").value;
+
+    if (!datasetId) {
+        showStatus("error", "Please select a dataset first");
+        return;
+    }
+
+    try {
+        const response = await fetch(`/admin/test/existing-samples?dataset_id=${datasetId}`);
+        const data = await response.json();
+
+        if (!response.ok) {
+            showStatus("error", data.error || "Failed to load test samples");
+            return;
+        }
+
+        if (data.count === 0) {
+            showStatus("info", "No existing test samples in this dataset");
+            return;
+        }
+
+        // Load existing samples into the editor
+        currentTestSamples = data.samples.map(s => ({
+            id: s.id,
+            pair_id: s.pair_id,
+            article_title: s.article_title,
+            correct_label: s.correct_label || "",
+            passage_text: s.passage_text || ""
+        }));
+
+        displayTestSamples();
+        document.getElementById("testSamplesDisplay").style.display = "block";
+        showStatus("success", `Loaded ${data.count} existing test samples for editing`);
+    } catch (error) {
+        showStatus("error", `Error: ${error.message}`);
+    }
 }
 
 async function randomSelectTestSamples() {
@@ -1002,27 +1154,28 @@ async function searchAndAddPair() {
 function displayTestSamples() {
     const tbody = document.getElementById("testSampleTable");
     tbody.innerHTML = currentTestSamples
-        .map((p, idx) => `
+        .map((p, idx) => {
+            const selectedOption = `<option value="${p.correct_label}">${p.correct_label || "-- Select --"}</option>`;
+            return `
             <tr>
-                <td>${p.pair_id}</td>
-                <td class="max-w-xs overflow-hidden text-ellipsis">${p.passage_text || "—"}</td>
-                <td class="max-w-xs overflow-hidden text-ellipsis">${(p.citation_raw_text || "").substring(0, 50)}...</td>
+                <td><strong>${p.pair_id}</strong></td>
+                <td class="max-w-xs overflow-hidden text-ellipsis text-sm">${p.article_title || p.passage_text || "—"}</td>
+                <td class="max-w-xs overflow-hidden text-ellipsis text-sm">${(p.citation_raw_text || p.passage_text || "").substring(0, 50)}...</td>
                 <td>
                     <select onchange="updateTestLabel(${p.id}, event)" class="px-2 py-1 border rounded text-sm">
                         <option value="">-- Select --</option>
-                        <option value="Supported">Supported</option>
-                        <option value="Not Supported">Not Supported</option>
-                        <option value="Mixed">Mixed</option>
-                        <option value="Unverifiable">Unverifiable</option>
-                        <option value="Source link error">Source Link Error</option>
+                        <option value="Supported" ${p.correct_label === "Supported" ? "selected" : ""}>Supported</option>
+                        <option value="Not Supported" ${p.correct_label === "Not Supported" ? "selected" : ""}>Not Supported</option>
+                        <option value="Mixed" ${p.correct_label === "Mixed" ? "selected" : ""}>Mixed</option>
+                        <option value="Unverifiable" ${p.correct_label === "Unverifiable" ? "selected" : ""}>Unverifiable</option>
+                        <option value="Source link error" ${p.correct_label === "Source link error" ? "selected" : ""}>Source Link Error</option>
                     </select>
                 </td>
                 <td>
-                    <button class="text-red-600 hover:text-red-800 text-sm" onclick="removeTestSample(${p.id})">Remove</button>
+                    <button class="text-red-600 hover:text-red-800 text-sm font-semibold" onclick="removeTestSample(${p.id})">✕ Remove</button>
                 </td>
             </tr>
-        `)
-        .join("");
+        `}).join("");
 
     document.getElementById("testSamplesDisplay").style.display = currentTestSamples.length > 0 ? "block" : "none";
 }
@@ -1040,6 +1193,13 @@ function removeTestSample(pairId) {
 }
 
 async function saveTestSamples() {
+    const datasetId = document.getElementById("testDatasetSelect").value;
+
+    if (!datasetId) {
+        showStatus("error", "Please select a dataset first");
+        return;
+    }
+
     if (currentTestSamples.length === 0) {
         showStatus("error", "Please select test samples first");
         return;
@@ -1060,7 +1220,11 @@ async function saveTestSamples() {
         const response = await fetch("/admin/test/mark-samples", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ samples: payload }),
+            body: JSON.stringify({
+                samples: payload,
+                dataset_id: datasetId,
+                test_name: `qualification_test_${new Date().getTime()}`
+            }),
         });
 
         const data = await response.json();
@@ -1070,10 +1234,10 @@ async function saveTestSamples() {
             return;
         }
 
-        showStatus("success", `✓ ${currentTestSamples.length} test samples saved`);
+        showStatus("success", `✓ ${currentTestSamples.length} test samples saved and backed up`);
         currentTestSamples = [];
         document.getElementById("testSamplesDisplay").style.display = "none";
-        document.getElementById("testDatasetSelect").value = "";
+        // Don't clear dataset select so user can continue editing if needed
     } catch (error) {
         showStatus("error", `Error: ${error.message}`);
     }

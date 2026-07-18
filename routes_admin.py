@@ -130,28 +130,75 @@ def api_dataset_update(dataset_id):
 @admin_bp.route("/dataset/<int:dataset_id>", methods=["DELETE"])
 @admin_required
 def api_dataset_delete(dataset_id):
-    """Delete a dataset and all its pairs."""
+    """Delete a dataset and all its pairs (with cascading annotations)."""
     user = g.user
     dataset = Dataset.query.get(dataset_id)
     if not dataset:
         return jsonify({"error": "Dataset not found"}), 404
 
-    # Snapshot dataset info before deletion
-    AuditLog.record(
-        action="dataset_delete",
-        actor_user_id=user.id,
-        actor_email=user.email,
-        target_type="Dataset",
-        target_id=str(dataset_id),
-        details=json.dumps({
-            "name": dataset.name,
-            "citation_type": dataset.citation_type,
-            "sample_count": dataset.sample_count
+    try:
+        # Get all pairs in this dataset for cascading deletion
+        pairs = Pair.query.filter_by(dataset_id=dataset_id).all()
+        pair_ids = [p.id for p in pairs]
+        annotation_count = 0
+
+        # Delete in proper cascade order to avoid foreign key constraints
+        # 1. Delete annotations for all pairs in this dataset
+        if pair_ids:
+            from models import Annotation, Claim, Skip
+            annotation_count = Annotation.query.filter(
+                Annotation.pair_id.in_(pair_ids)
+            ).delete(synchronize_session=False)
+
+            # 2. Delete claims for all pairs in this dataset
+            Claim.query.filter(
+                Claim.pair_id.in_(pair_ids)
+            ).delete(synchronize_session=False)
+
+            # 3. Delete skips for all pairs in this dataset
+            Skip.query.filter(
+                Skip.pair_id.in_(pair_ids)
+            ).delete(synchronize_session=False)
+
+            # 4. Delete test submissions for all pairs in this dataset
+            TestSubmission.query.filter(
+                TestSubmission.pair_id.in_(pair_ids)
+            ).delete(synchronize_session=False)
+
+        # 5. Delete all pairs in this dataset
+        Pair.query.filter_by(dataset_id=dataset_id).delete(synchronize_session=False)
+
+        # 6. Finally, delete the dataset
+        db.session.delete(dataset)
+        db.session.commit()
+
+        # Snapshot dataset info after successful deletion
+        AuditLog.record(
+            action="dataset_delete",
+            actor_user_id=user.id,
+            actor_email=user.email,
+            target_type="Dataset",
+            target_id=str(dataset_id),
+            details=json.dumps({
+                "name": dataset.name,
+                "citation_type": dataset.citation_type,
+                "sample_count": dataset.sample_count,
+                "annotations_deleted": annotation_count
+            })
+        )
+        db.session.commit()
+
+        return jsonify({
+            "status": "deleted",
+            "dataset_id": dataset_id,
+            "annotations_deleted": annotation_count,
+            "pairs_deleted": len(pair_ids)
         })
-    )
-    db.session.delete(dataset)
-    db.session.commit()
-    return jsonify({"status": "deleted"})
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.exception(f"Error deleting dataset {dataset_id}")
+        return jsonify({"error": f"Failed to delete dataset: {str(e)}"}), 500
 
 
 # ============================================================================

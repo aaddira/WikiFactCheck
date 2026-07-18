@@ -7,6 +7,7 @@ from apscheduler.triggers.cron import CronTrigger
 from flask import Flask
 from models import db, User, Annotation
 from email_utils import send_weekly_digest_email
+from backup_manager import create_backup, cleanup_old_backups
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,21 @@ def send_weekly_digests_job(app):
             logger.info(f"Weekly digests sent to {sent_count}/{len(users)} annotators")
         except Exception as e:
             logger.error(f"Error in send_weekly_digests_job: {str(e)}")
+
+
+def backup_annotations_job(app):
+    """Backup all annotation data every 24 hours."""
+    with app.app_context():
+        try:
+            backup_file = create_backup()
+            if backup_file:
+                logger.info(f"Annotation backup completed: {backup_file}")
+                # Cleanup backups older than 30 days
+                cleanup_old_backups(days=30)
+            else:
+                logger.error("Annotation backup failed")
+        except Exception as e:
+            logger.error(f"Error in backup_annotations_job: {str(e)}")
 
 
 def init_scheduler(app):
@@ -54,6 +70,20 @@ def init_scheduler(app):
         replace_existing=True,
         coalesce=True,  # Coalesca multiple missed runs into one
         max_instances=1  # Ensure only one instance runs
+    )
+
+    # Schedule automatic backups every 24 hours at 2 AM UTC
+    backup_hour = int(app.config.get("BACKUP_SCHEDULE_HOUR", 2))
+
+    scheduler.add_job(
+        backup_annotations_job,
+        CronTrigger(hour=backup_hour, minute=0),
+        args=[app],
+        id='backup_annotations_job',
+        name='Automatic backup of all annotations (24h)',
+        replace_existing=True,
+        coalesce=True,
+        max_instances=1
     )
 
     def start_scheduler():

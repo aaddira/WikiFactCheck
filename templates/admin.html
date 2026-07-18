@@ -975,6 +975,8 @@ async function loadDatasetForTestSamples() {
         document.getElementById("pairDropdown").innerHTML = '<option value="">-- Select a pair --</option>';
         return;
     }
+    // Clear and show loading state
+    document.getElementById("pairDropdown").innerHTML = '<option value="">Loading pairs...</option>';
     // Load available pairs for dropdown
     loadAvailablePairs();
 }
@@ -994,29 +996,34 @@ async function loadAvailablePairs() {
         const data = await response.json();
 
         if (!response.ok) {
-            showStatus("error", data.error || "Failed to load pairs");
+            const errorMsg = data.error || "Failed to load pairs";
+            showStatus("error", errorMsg);
+            document.getElementById("pairDropdown").innerHTML = `<option value="">Error: ${errorMsg}</option>`;
             return;
         }
 
         const dropdown = document.getElementById("pairDropdown");
         dropdown.innerHTML = '<option value="">-- Select a pair --</option>';
 
-        data.pairs.forEach(pair => {
-            const isSelected = currentTestSamples.find(p => p.id === pair.id) ? " ✓" : "";
-            const label = `${pair.article_title}${isSelected}`;
-            const option = document.createElement("option");
-            option.value = pair.id;
-            option.textContent = label;
-            option.dataset.pairId = pair.pair_id;
-            option.dataset.label = pair.correct_label;
-            dropdown.appendChild(option);
-        });
+        if (data.pairs && data.pairs.length > 0) {
+            data.pairs.forEach(pair => {
+                const isSelected = currentTestSamples.find(p => p.id === pair.id) ? " ✓" : "";
+                const label = `${pair.article_title}${isSelected}`;
+                const option = document.createElement("option");
+                option.value = pair.id;
+                option.textContent = label;
+                option.dataset.pairId = pair.pair_id;
+                option.dataset.label = pair.correct_label;
+                dropdown.appendChild(option);
+            });
+        }
 
-        if (data.count === 0) {
-            showStatus("info", "No pairs found for this search");
+        if (!data.pairs || data.count === 0) {
+            showStatus("info", `No pairs found in this dataset${search ? " for your search" : ""}`);
         }
     } catch (error) {
-        showStatus("error", `Error: ${error.message}`);
+        showStatus("error", `Error loading pairs: ${error.message}`);
+        document.getElementById("pairDropdown").innerHTML = `<option value="">Error: Check browser console</option>`;
     }
 }
 

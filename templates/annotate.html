@@ -62,21 +62,11 @@
 
     <!-- Main annotation panels -->
     <div class="annotation-container">
-        <!-- Left panel: Passage -->
+        <!-- Left panel: Passage to Evaluate (Full Passage Context) -->
         <div class="panel">
             <div class="panel-title">Passage to Evaluate</div>
-            <div class="passage-text-box" id="passageText">
+            <div class="passage-text-box" id="contextContent">
                 <span class="empty-state">Loading passage...</span>
-            </div>
-
-            <div class="collapsible-section">
-                <div class="collapsible-header" onclick="toggleCollapsible(event)">
-                    <span>Full Passage Context</span>
-                    <span class="toggle-icon">▼</span>
-                </div>
-                <div class="collapsible-content" id="contextContent">
-                    <span class="empty-state">No context available</span>
-                </div>
             </div>
         </div>
 

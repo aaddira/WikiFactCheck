@@ -318,18 +318,14 @@ function renderPair(pair) {
     document.getElementById("articleLink").textContent = articleTitle;
     document.getElementById("articleLink").href = `https://en.wikipedia.org/wiki/${encodeURIComponent(articleTitle)}`;
 
-    // Passage
-    const passageEl = document.getElementById("passageText");
-    passageEl.textContent = pair.passage_text || "No passage text";
-
-    // Context with fact highlighting
+    // Passage to Evaluate (now shows full passage context with fact highlighting)
     const contextEl = document.getElementById("contextContent");
     if (pair.passage_context) {
         const highlighted = highlightFacts(pair.passage_context);
         contextEl.innerHTML = `<div class="fact-check-note"><span>Passage to Fact Check Underlined in Red</span></div><pre>${highlighted}</pre>`;
         contextEl.classList.remove("empty-state");
     } else {
-        contextEl.innerHTML = '<span class="empty-state">No context available</span>';
+        contextEl.innerHTML = '<span class="empty-state">No passage available</span>';
         contextEl.classList.add("empty-state");
     }
 

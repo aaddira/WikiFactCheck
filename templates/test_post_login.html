@@ -71,24 +71,24 @@
                 <label class="block font-semibold text-sm mb-3 text-gray-700">Your Answer</label>
                 <div class="space-y-2">
                     <div>
-                        <input type="radio" id="q{{ pair.id }}-true" name="answer_{{ pair.id }}" value="TRUE">
-                        <label for="q{{ pair.id }}-true" class="ml-2">True - Citation clearly supports the passage</label>
+                        <input type="radio" id="q{{ pair.id }}-supported" name="answer_{{ pair.id }}" value="Supported">
+                        <label for="q{{ pair.id }}-supported" class="ml-2">✅ Supported - All claims are correctly grounded in the source</label>
                     </div>
                     <div>
-                        <input type="radio" id="q{{ pair.id }}-false" name="answer_{{ pair.id }}" value="FALSE">
-                        <label for="q{{ pair.id }}-false" class="ml-2">False - Citation contradicts the passage</label>
+                        <input type="radio" id="q{{ pair.id }}-not-supported" name="answer_{{ pair.id }}" value="Not Supported">
+                        <label for="q{{ pair.id }}-not-supported" class="ml-2">❌ Not Supported - Claims are missing from or contradicted by the source</label>
                     </div>
                     <div>
-                        <input type="radio" id="q{{ pair.id }}-mixed" name="answer_{{ pair.id }}" value="MIXED">
-                        <label for="q{{ pair.id }}-mixed" class="ml-2">Mixed - Some parts supported, others not</label>
+                        <input type="radio" id="q{{ pair.id }}-mixed" name="answer_{{ pair.id }}" value="Mixed">
+                        <label for="q{{ pair.id }}-mixed" class="ml-2">⚠️ Mixed - Some parts supported, others not</label>
                     </div>
                     <div>
-                        <input type="radio" id="q{{ pair.id }}-insufficient" name="answer_{{ pair.id }}" value="NO_SUFFICIENT_INFO">
-                        <label for="q{{ pair.id }}-insufficient" class="ml-2">No Sufficient Information - Cannot determine</label>
+                        <input type="radio" id="q{{ pair.id }}-unverifiable" name="answer_{{ pair.id }}" value="Unverifiable">
+                        <label for="q{{ pair.id }}-unverifiable" class="ml-2">🔍 Unverifiable - Claim itself is unverifiable (opinion, subjective)</label>
                     </div>
                     <div>
-                        <input type="radio" id="q{{ pair.id }}-unverifiable" name="answer_{{ pair.id }}" value="UNVERIFIABLE">
-                        <label for="q{{ pair.id }}-unverifiable" class="ml-2">Unverifiable - No factual claims to verify</label>
+                        <input type="radio" id="q{{ pair.id }}-source-link-error" name="answer_{{ pair.id }}" value="Source link error">
+                        <label for="q{{ pair.id }}-source-link-error" class="ml-2">🔗 Source Link Error - URL is broken or leads to unrelated content</label>
                     </div>
                 </div>
             </div>

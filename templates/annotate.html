@@ -109,7 +109,7 @@
             <h4>📋 How to Fact-Check This Citation</h4>
             <ol>
                 <li><strong>Carefully read</strong> the quoted Wikipedia passage and compare it to the source content</li>
-                <li><strong>Select a label:</strong> True, False, Mixed, No sufficient information, or Unverifiable</li>
+                <li><strong>Select a label:</strong> Supported, Not Supported, Mixed, Unverifiable, or Source Link Error</li>
                 <li><strong>Quote exact verbatim</strong> text from the source that supports or contradicts the passage</li>
                 <li><strong>Explain</strong> how the quote relates to the passage, note any uncertainties</li>
                 <li><strong>Skip</strong> any statement you're unsure about or don't wish to evaluate</li>
@@ -121,41 +121,72 @@
             <div class="form-section-title">Fact-Check Decision</div>
             <div class="label-options">
                 <div class="label-radio">
-                    <input type="radio" id="label-true" name="label" value="TRUE">
-                    <label for="label-true">
-                        <span>✅ True</span>
+                    <input type="radio" id="label-supported" name="label" value="Supported">
+                    <label for="label-supported" title="All highlighted claims are correctly grounded in the source text.">
+                        <span>✅ Supported</span>
                         <span class="label-shortcut">Press 1</span>
                     </label>
                 </div>
                 <div class="label-radio">
-                    <input type="radio" id="label-false" name="label" value="FALSE">
-                    <label for="label-false">
-                        <span>❌ False</span>
+                    <input type="radio" id="label-not-supported" name="label" value="Not Supported">
+                    <label for="label-not-supported" title="All highlighted claims are missing from the source or contradicted by it.">
+                        <span>❌ Not Supported</span>
                         <span class="label-shortcut">Press 2</span>
                     </label>
                 </div>
                 <div class="label-radio">
-                    <input type="radio" id="label-mixed" name="label" value="MIXED">
-                    <label for="label-mixed">
+                    <input type="radio" id="label-mixed" name="label" value="Mixed">
+                    <label for="label-mixed" title="Some parts of the claim(s) are supported, some are not.">
                         <span>⚠️ Mixed</span>
                         <span class="label-shortcut">Press 3</span>
                     </label>
                 </div>
                 <div class="label-radio">
-                    <input type="radio" id="label-insufficient" name="label" value="NO_SUFFICIENT_INFO">
-                    <label for="label-insufficient">
-                        <span>❓ No Sufficient Info</span>
+                    <input type="radio" id="label-unverifiable" name="label" value="Unverifiable">
+                    <label for="label-unverifiable" title="Claim itself is inherently unverifiable (e.g. a subjective opinion).">
+                        <span>🔍 Unverifiable</span>
                         <span class="label-shortcut">Press 4</span>
                     </label>
                 </div>
                 <div class="label-radio">
-                    <input type="radio" id="label-unverifiable" name="label" value="UNVERIFIABLE">
-                    <label for="label-unverifiable">
-                        <span>🔍 Unverifiable</span>
+                    <input type="radio" id="label-source-link-error" name="label" value="Source link error">
+                    <label for="label-source-link-error" title="URL leads to unrelated content.">
+                        <span>🔗 Source Link Error</span>
                         <span class="label-shortcut">Press 5</span>
                     </label>
                 </div>
             </div>
+
+            <!-- Label definitions (expandable) -->
+            <details class="label-definitions" style="margin-top: 1.5rem; padding: 1rem; background: #f9fafb; border-radius: 6px; border-left: 3px solid #3b82f6;">
+                <summary style="cursor: pointer; font-weight: 600; color: #1f2937; user-select: none;">
+                    📖 View Label Definitions
+                </summary>
+                <div style="margin-top: 1rem; space-y: 0.75rem;">
+                    <div style="margin-bottom: 1rem;">
+                        <div style="font-weight: 600; color: #059669; margin-bottom: 0.25rem;">✅ Supported</div>
+                        <div style="font-size: 0.95em; color: #4b5563;">All highlighted claims are correctly grounded in the source text.</div>
+                    </div>
+                    <div style="margin-bottom: 1rem;">
+                        <div style="font-weight: 600; color: #dc2626; margin-bottom: 0.25rem;">❌ Not Supported</div>
+                        <div style="font-size: 0.95em; color: #4b5563;">All highlighted claims are missing from the source or contradicted by it.</div>
+                    </div>
+                    <div style="margin-bottom: 1rem;">
+                        <div style="font-weight: 600; color: #f59e0b; margin-bottom: 0.25rem;">⚠️ Mixed</div>
+                        <div style="font-size: 0.95em; color: #4b5563;">A claim or more in the response are correctly grounded in the source text, but other claims (either explicit or implicit) are not.</div>
+                    </div>
+                    <div style="margin-bottom: 1rem;">
+                        <div style="font-weight: 600; color: #7c3aed; margin-bottom: 0.25rem;">🔍 Unverifiable</div>
+                        <div style="font-size: 0.95em; color: #4b5563;">The response has no factual claims to verify due to consisting of opinions, subjective claims, unquantifiable statements, responding to an unanswerable question, or similar.</div>
+                        <div style="font-size: 0.85em; color: #6b7280; margin-top: 0.5rem; font-style: italic;">Example: "Lord of the Rings is the best book ever written"</div>
+                    </div>
+                    <div>
+                        <div style="font-weight: 600; color: #0284c7; margin-bottom: 0.25rem;">🔗 Source Link Error</div>
+                        <div style="font-size: 0.95em; color: #4b5563;">The source document is either a broken link or clearly irrelevant content that was mistakenly cited.</div>
+                        <div style="font-size: 0.85em; color: #6b7280; margin-top: 0.5rem; font-style: italic;">Example: A web page about hamsters is linked in a claim for the red pandas article, no red pandas are mentioned in the source!</div>
+                    </div>
+                </div>
+            </details>
         </div>
 
         <!-- Quote field -->

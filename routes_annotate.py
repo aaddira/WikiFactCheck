@@ -202,7 +202,7 @@ def api_annotation_save():
         return jsonify({"error": "Missing label"}), 400
 
     # Validate label
-    valid_labels = ["TRUE", "FALSE", "MIXED", "NO_SUFFICIENT_INFO", "UNVERIFIABLE"]
+    valid_labels = ["Supported", "Not Supported", "Mixed", "Unverifiable", "Source link error"]
     if label not in valid_labels:
         return jsonify({"error": f"Invalid label. Must be one of: {valid_labels}"}), 400
 

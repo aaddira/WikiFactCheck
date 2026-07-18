@@ -361,11 +361,11 @@ async function loadLabelDistribution() {
         const labels = Object.keys(data);
         const values = labels.map((label) => data[label].percentage);
         const colors = {
-            TRUE: "#10b981",
-            FALSE: "#ef4444",
-            MIXED: "#f59e0b",
-            NO_SUFFICIENT_INFO: "#f97316",
-            UNVERIFIABLE: "#999999",
+            Supported: "#10b981",
+            "Not Supported": "#ef4444",
+            Mixed: "#f59e0b",
+            Unverifiable: "#8b5cf6",
+            "Source link error": "#0284c7",
         };
 
         const chartConfig = {

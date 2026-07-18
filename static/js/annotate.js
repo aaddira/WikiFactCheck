@@ -249,11 +249,11 @@ function setupKeyboardShortcuts() {
         if (e.target.tagName === "TEXTAREA") return;
 
         const labelMap = {
-            "1": "TRUE",
-            "2": "FALSE",
-            "3": "MIXED",
-            "4": "NO_SUFFICIENT_INFO",
-            "5": "UNVERIFIABLE",
+            "1": "Supported",
+            "2": "Not Supported",
+            "3": "Mixed",
+            "4": "Unverifiable",
+            "5": "Source link error",
         };
 
         if (e.key in labelMap) {

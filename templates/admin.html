@@ -1010,11 +1010,11 @@ function displayTestSamples() {
                 <td>
                     <select onchange="updateTestLabel(${p.id}, event)" class="px-2 py-1 border rounded text-sm">
                         <option value="">-- Select --</option>
-                        <option value="TRUE">True</option>
-                        <option value="FALSE">False</option>
-                        <option value="MIXED">Mixed</option>
-                        <option value="NO_SUFFICIENT_INFO">No Sufficient Info</option>
-                        <option value="UNVERIFIABLE">Unverifiable</option>
+                        <option value="Supported">Supported</option>
+                        <option value="Not Supported">Not Supported</option>
+                        <option value="Mixed">Mixed</option>
+                        <option value="Unverifiable">Unverifiable</option>
+                        <option value="Source link error">Source Link Error</option>
                     </select>
                 </td>
                 <td>
@@ -1505,11 +1505,11 @@ async function loadLabelDistribution() {
         const labels = Object.keys(data);
         const values = labels.map((label) => data[label].percentage);
         const colors = {
-            TRUE: "#10b981",
-            FALSE: "#ef4444",
-            MIXED: "#f59e0b",
-            NO_SUFFICIENT_INFO: "#f97316",
-            UNVERIFIABLE: "#999999",
+            Supported: "#10b981",
+            "Not Supported": "#ef4444",
+            Mixed: "#f59e0b",
+            Unverifiable: "#8b5cf6",
+            "Source link error": "#0284c7",
         };
 
         const chartConfig = {

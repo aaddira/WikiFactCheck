@@ -138,5 +138,51 @@ def send_weekly_digest_email(user, app_url):
     send_email_async(user.email, "Your WikiFactCheck Weekly Progress Report", html_content)
 
 
+def send_test_submission_notification(user, score, total, app_url):
+    """Notify admins when a user submits qualification test."""
+    from models import User
+
+    # Get all admin emails
+    admins = User.query.filter_by(is_admin=True).all()
+    admin_emails = [admin.email for admin in admins if admin.email]
+
+    if not admin_emails:
+        logger.warning("No admin emails found for test submission notification")
+        return
+
+    percentage = (score / total * 100) if total > 0 else 0
+    status = "✓ PASS" if percentage >= 80 else "✗ FAIL"
+    review_link = f"{app_url}/admin#submissions"
+
+    html_content = f"""
+    <h2>📝 New Qualification Test Submission</h2>
+    <p>A user has submitted their qualification test for review.</p>
+
+    <div style="background: #f3f4f6; padding: 16px; border-radius: 6px; margin: 16px 0;">
+        <p><strong>User:</strong> {user.wiki_username or user.email}</p>
+        <p><strong>Email:</strong> {user.email}</p>
+        <p><strong>Score:</strong> {score}/{total} ({percentage:.1f}%)</p>
+        <p><strong>Status:</strong> <span style="font-weight: bold; color: {'#059669' if percentage >= 80 else '#dc2626'};">{status}</span></p>
+        <p><strong>Submitted:</strong> {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC</p>
+    </div>
+
+    <p><a href="{review_link}" style="background: #059669; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; display: inline-block; font-weight: bold;">Review in Admin Panel</a></p>
+
+    <p style="color: #666; font-size: 14px;">
+        {'⚠ This submission scored below 80%. Please review carefully.' if percentage < 80 else '✓ This submission passed the threshold. Consider approving to grant annotation access.'}
+    </p>
+    """
+
+    # Send to all admins
+    for admin_email in admin_emails:
+        send_email_async(
+            admin_email,
+            f"New Qualification Test Submission - {user.wiki_username or user.email}",
+            html_content
+        )
+
+    logger.info(f"Test submission notification sent to {len(admin_emails)} admins for user {user.email}")
+
+
 # Import db for queries (avoid circular imports)
 from models import db

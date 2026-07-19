@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request, current_app
 from models import db, User, Pair, Annotation, Config, TestSubmission, Skip
 from auth import login_required, get_current_user, admin_required
 from assignment import get_next_pair, release_claim, get_annotators_per_sample
+from email_utils import send_test_submission_notification
 from datetime import datetime
 import uuid
 
@@ -450,6 +451,13 @@ def api_test_submit():
         user.qualification_score = correct  # Store score for display
 
         db.session.commit()
+
+        # Send notification to admins about the submission
+        try:
+            app_url = current_app.config.get("APP_URL", "https://wikifactcheck.up.railway.app")
+            send_test_submission_notification(user, correct, total, app_url)
+        except Exception as e:
+            current_app.logger.warning(f"Failed to send test submission notification: {str(e)}")
 
         return jsonify({
             "status": "submitted",

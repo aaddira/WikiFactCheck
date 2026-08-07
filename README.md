@@ -17,13 +17,38 @@ The platform is **lightweight and self-hosted** — no cloud lock-in, no email s
 
 ### Setup
 
+**1. Create a virtual environment** (recommended)
+
+**On macOS/Linux:**
 ```bash
-cd "C:\Users\aaddi\Downloads\Wiki RAG\annotation-platform"
+cd annotation-platform
+python3 -m venv venv
+source venv/bin/activate
+```
 
-# Install dependencies (first time only)
+**On Windows (PowerShell):**
+```powershell
+cd annotation-platform
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+```
+
+**On Windows (Command Prompt):**
+```bash
+cd annotation-platform
+python -m venv venv
+venv\Scripts\activate.bat
+```
+
+**2. Install dependencies**
+
+```bash
 pip install -r requirements.txt
+```
 
-# Initialize database (first time only)
+**3. Initialize database** (first time only)
+
+```bash
 python -c "
 from dotenv import load_dotenv
 load_dotenv()
@@ -33,12 +58,17 @@ with app.app_context():
     from data_loader import seed_default_config
     seed_default_config()
 "
+```
 
-# Start the server
+**4. Start the server**
+
+```bash
 python main.py
 ```
 
 Visit **http://localhost:5000** in your browser.
+
+> **Note**: Always activate your virtual environment (`source venv/bin/activate` on macOS/Linux or `venv\Scripts\activate` on Windows) before running the server in future sessions.
 
 ### Uploading Data
 

@@ -707,8 +707,26 @@ function switchTab(tabName) {
         btn.classList.add("border-gray-300");
         btn.classList.add("text-gray-600");
     });
-    event.target.classList.remove("border-gray-300", "text-gray-600");
-    event.target.classList.add("border-emerald-600", "font-semibold");
+
+    // Find and update the active button
+    const tabBtn = Array.from(document.querySelectorAll('button')).find(btn =>
+        btn.textContent.toLowerCase().includes(
+            tabName === 'upload' ? 'upload' :
+            tabName === 'datasets' ? 'datasets' :
+            tabName === 'config' ? 'configuration' :
+            tabName === 'test' ? 'test samples' :
+            tabName === 'results' ? 'test results' :
+            tabName === 'submissions' ? 'review' :
+            tabName === 'dashboard' ? 'dashboard' :
+            tabName === 'export' ? 'export' :
+            tabName === 'audit' ? 'audit' : ''
+        )
+    );
+
+    if (tabBtn) {
+        tabBtn.classList.remove("border-gray-300", "text-gray-600");
+        tabBtn.classList.add("border-emerald-600", "font-semibold");
+    }
 
     // Load data for specific tabs
     if (tabName === "datasets") loadDatasets();

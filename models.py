@@ -217,6 +217,44 @@ class Config(db.Model):
         db.session.commit()
 
 
+class TestSampleSet(db.Model):
+    """Versioned collection of qualification test samples."""
+    __tablename__ = "test_sample_sets"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), nullable=False, unique=True)
+    description = db.Column(db.Text)
+    is_active = db.Column(db.Boolean, default=False)  # only one can be active at a time
+    sample_count = db.Column(db.Integer, default=0)
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    pairs = db.relationship("Pair", secondary="test_sample_set_memberships", backref="test_sets", lazy=True)
+
+    def activate(self):
+        """Make this set the active one (deactivate others)."""
+        # Deactivate all other sets
+        TestSampleSet.query.filter(TestSampleSet.id != self.id).update({"is_active": False})
+        self.is_active = True
+        db.session.commit()
+
+
+class TestSampleSetMembership(db.Model):
+    """Maps pairs to test sample sets."""
+    __tablename__ = "test_sample_set_memberships"
+
+    id = db.Column(db.Integer, primary_key=True)
+    test_set_id = db.Column(db.Integer, db.ForeignKey("test_sample_sets.id"), nullable=False, index=True)
+    pair_id = db.Column(db.Integer, db.ForeignKey("pairs.id"), nullable=False, index=True)
+    correct_label = db.Column(db.String(50), nullable=False)  # correct answer for this pair in this set
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Constraint: unique pair per test set (pair can only appear once in a set)
+    __table_args__ = (db.UniqueConstraint("test_set_id", "pair_id", name="uq_test_set_pair"),)
+
+
 class AuditLog(db.Model):
     __tablename__ = "audit_logs"
 

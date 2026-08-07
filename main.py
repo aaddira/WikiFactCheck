@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 import logging
 import sys
 
-from models import db, User, Dataset, Pair, Annotation, Claim, Skip, Config, TestSubmission, AuditLog
+from models import db, User, Dataset, Pair, Annotation, Claim, Skip, Config, TestSubmission, AuditLog, TestSampleSet, TestSampleSetMembership
 from auth import do_login, do_logout, login_required, admin_required, get_current_user, is_admin_email
 from data_loader import parse_jsonl_file, seed_default_config
 from email_utils import send_confirmation_email
@@ -415,8 +415,16 @@ def admin_preview():
 @app.route("/admin/preview-test")
 @admin_required
 def admin_preview_test():
-    """Admin preview of qualification test."""
-    test_pairs = Pair.query.filter_by(is_test_sample=True).all()
+    """Admin preview of active qualification test."""
+    active_set = TestSampleSet.query.filter_by(is_active=True).first()
+    if not active_set:
+        # Fallback to old system for backwards compatibility
+        test_pairs = Pair.query.filter_by(is_test_sample=True).all()
+    else:
+        # Get pairs from active set
+        memberships = TestSampleSetMembership.query.filter_by(test_set_id=active_set.id).all()
+        test_pairs = [m.pair for m in memberships]
+
     return render_template("test.html", test_pairs=test_pairs, preview_mode=True)
 
 
@@ -435,8 +443,16 @@ def test_page():
     if user.qualification_passed:
         return redirect(url_for("annotate_page"))
 
-    # Get test samples
-    test_pairs = Pair.query.filter_by(is_test_sample=True).all()
+    # Get active test sample set
+    active_set = TestSampleSet.query.filter_by(is_active=True).first()
+    if not active_set:
+        # Fallback to old system for backwards compatibility
+        test_pairs = Pair.query.filter_by(is_test_sample=True).all()
+    else:
+        # Get pairs from active set
+        memberships = TestSampleSetMembership.query.filter_by(test_set_id=active_set.id).all()
+        test_pairs = [m.pair for m in memberships]
+
     return render_template("test.html", test_pairs=test_pairs)
 
 

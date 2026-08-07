@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request, send_file, g, current_app
-from models import db, Dataset, Pair, Annotation, User, Config, TestSubmission, AuditLog, Claim, Skip
+from models import db, Dataset, Pair, Annotation, User, Config, TestSubmission, AuditLog, Claim, Skip, TestSampleSet, TestSampleSetMembership
 from auth import admin_required, get_current_user
 from data_loader import parse_jsonl_file
 from io import StringIO, BytesIO
@@ -819,6 +819,204 @@ def send_rejection_email(user, reason):
     # Start email send in background thread (non-blocking)
     thread = threading.Thread(target=_send_in_background, daemon=True)
     thread.start()
+
+
+# ============================================================================
+# Test Sample Set Management (Versioning)
+# ============================================================================
+
+from models import TestSampleSet, TestSampleSetMembership
+
+@admin_bp.route("/test-sets/list", methods=["GET"])
+@admin_required
+def api_test_sets_list():
+    """List all test sample sets."""
+    sets = TestSampleSet.query.order_by(TestSampleSet.updated_at.desc()).all()
+    return jsonify([
+        {
+            "id": s.id,
+            "name": s.name,
+            "description": s.description,
+            "is_active": s.is_active,
+            "sample_count": s.sample_count,
+            "created_at": s.created_at.isoformat() if s.created_at else None,
+            "updated_at": s.updated_at.isoformat() if s.updated_at else None,
+        }
+        for s in sets
+    ])
+
+
+@admin_bp.route("/test-sets/create", methods=["POST"])
+@admin_required
+def api_test_set_create():
+    """Create a new test sample set from selected pairs."""
+    admin = g.user
+    data = request.get_json() or {}
+    name = data.get("name", "").strip()
+    description = data.get("description", "").strip()
+    pair_labels = data.get("samples", [])  # [{pair_id: int, correct_label: str}, ...]
+
+    if not name:
+        return jsonify({"error": "Test set name is required"}), 400
+
+    # Check if name already exists
+    if TestSampleSet.query.filter_by(name=name).first():
+        return jsonify({"error": f"Test set '{name}' already exists"}), 400
+
+    if not pair_labels or len(pair_labels) != 5:
+        return jsonify({"error": "Must provide exactly 5 samples"}), 400
+
+    try:
+        # Create new test set
+        test_set = TestSampleSet(
+            name=name,
+            description=description,
+            sample_count=len(pair_labels),
+            created_by_user_id=admin.id
+        )
+        db.session.add(test_set)
+        db.session.flush()  # Get the ID
+
+        # Add memberships
+        for sample in pair_labels:
+            pair_id = sample.get("pair_id")
+            correct_label = sample.get("correct_label")
+
+            pair = Pair.query.get(pair_id)
+            if not pair:
+                db.session.rollback()
+                return jsonify({"error": f"Pair {pair_id} not found"}), 404
+
+            membership = TestSampleSetMembership(
+                test_set_id=test_set.id,
+                pair_id=pair_id,
+                correct_label=correct_label
+            )
+            db.session.add(membership)
+
+        db.session.commit()
+
+        # Log audit
+        AuditLog.record(
+            action="test_set_create",
+            actor_user_id=admin.id,
+            actor_email=admin.email,
+            target_type="TestSampleSet",
+            target_id=str(test_set.id),
+            details=json.dumps({"name": name, "count": len(pair_labels)})
+        )
+        db.session.commit()
+
+        return jsonify({
+            "status": "created",
+            "test_set_id": test_set.id,
+            "name": name,
+            "sample_count": len(pair_labels)
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.exception("Error creating test set")
+        return jsonify({"error": str(e)}), 500
+
+
+@admin_bp.route("/test-sets/<int:set_id>/activate", methods=["POST"])
+@admin_required
+def api_test_set_activate(set_id):
+    """Activate a test sample set (deactivates all others)."""
+    admin = g.user
+    test_set = TestSampleSet.query.get(set_id)
+
+    if not test_set:
+        return jsonify({"error": "Test set not found"}), 404
+
+    try:
+        test_set.activate()
+
+        # Log audit
+        AuditLog.record(
+            action="test_set_activate",
+            actor_user_id=admin.id,
+            actor_email=admin.email,
+            target_type="TestSampleSet",
+            target_id=str(set_id),
+            details=json.dumps({"name": test_set.name})
+        )
+        db.session.commit()
+
+        return jsonify({
+            "status": "activated",
+            "test_set_id": set_id,
+            "name": test_set.name
+        })
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.exception("Error activating test set")
+        return jsonify({"error": str(e)}), 500
+
+
+@admin_bp.route("/test-sets/<int:set_id>/delete", methods=["DELETE"])
+@admin_required
+def api_test_set_delete(set_id):
+    """Delete a test sample set (cannot delete active set)."""
+    admin = g.user
+    test_set = TestSampleSet.query.get(set_id)
+
+    if not test_set:
+        return jsonify({"error": "Test set not found"}), 404
+
+    if test_set.is_active:
+        return jsonify({"error": "Cannot delete active test set. Activate another set first."}), 400
+
+    try:
+        set_name = test_set.name
+        TestSampleSetMembership.query.filter_by(test_set_id=set_id).delete()
+        db.session.delete(test_set)
+
+        # Log audit
+        AuditLog.record(
+            action="test_set_delete",
+            actor_user_id=admin.id,
+            actor_email=admin.email,
+            target_type="TestSampleSet",
+            target_id=str(set_id),
+            details=json.dumps({"name": set_name})
+        )
+        db.session.commit()
+
+        return jsonify({"status": "deleted", "test_set_id": set_id})
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.exception("Error deleting test set")
+        return jsonify({"error": str(e)}), 500
+
+
+@admin_bp.route("/test-sets/<int:set_id>/samples", methods=["GET"])
+@admin_required
+def api_test_set_samples(set_id):
+    """Get samples in a test set."""
+    test_set = TestSampleSet.query.get(set_id)
+
+    if not test_set:
+        return jsonify({"error": "Test set not found"}), 404
+
+    memberships = TestSampleSetMembership.query.filter_by(test_set_id=set_id).all()
+
+    return jsonify({
+        "test_set_id": set_id,
+        "name": test_set.name,
+        "is_active": test_set.is_active,
+        "samples": [
+            {
+                "pair_id": m.pair_id,
+                "pair_id_str": m.pair.pair_id,
+                "article_title": m.pair.article_title,
+                "correct_label": m.correct_label,
+                "passage_text": m.pair.passage_text
+            }
+            for m in memberships
+        ]
+    })
 
 
 # ============================================================================

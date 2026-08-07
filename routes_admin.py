@@ -852,18 +852,25 @@ def api_test_set_create():
     """Create a new test sample set from selected pairs."""
     admin = g.user
     data = request.get_json() or {}
+    current_app.logger.info(f"test-sets/create request: {data}")
+
     name = data.get("name", "").strip()
     description = data.get("description", "").strip()
     pair_labels = data.get("samples", [])  # [{pair_id: int, correct_label: str}, ...]
 
+    current_app.logger.info(f"  name='{name}', samples count={len(pair_labels)}")
+
     if not name:
+        current_app.logger.warning("Test set name is required")
         return jsonify({"error": "Test set name is required"}), 400
 
     # Check if name already exists
     if TestSampleSet.query.filter_by(name=name).first():
+        current_app.logger.warning(f"Test set '{name}' already exists")
         return jsonify({"error": f"Test set '{name}' already exists"}), 400
 
     if not pair_labels or len(pair_labels) != 5:
+        current_app.logger.warning(f"Invalid sample count: {len(pair_labels)}, expected 5")
         return jsonify({"error": "Must provide exactly 5 samples"}), 400
 
     try:

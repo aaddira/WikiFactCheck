@@ -1304,6 +1304,8 @@ async function saveTestSamples() {
             correct_label: p.correct_label,
         }));
 
+        console.log("Sending test set data:", { name: setName, samples: payload });
+
         const response = await fetch("/admin/test-sets/create", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -1314,7 +1316,16 @@ async function saveTestSamples() {
             }),
         });
 
-        const data = await response.json();
+        console.log("Response status:", response.status);
+
+        let data;
+        try {
+            data = await response.json();
+            console.log("Response data:", data);
+        } catch (e) {
+            console.log("Could not parse response as JSON, raw status:", response.status, response.statusText);
+            data = { error: `Server error: ${response.status} ${response.statusText}` };
+        }
 
         if (!response.ok) {
             showStatus("error", data.error || "Failed to save test set");
@@ -1331,6 +1342,7 @@ async function saveTestSamples() {
         await loadTestSets();
 
     } catch (error) {
+        console.error("Exception in saveTestSamples:", error);
         showStatus("error", `Error: ${error.message}`);
     }
 }

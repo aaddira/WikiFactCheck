@@ -399,15 +399,18 @@
                 </div>
             </div>
 
-            <!-- Current Saved Configuration -->
-            <div id="currentTestConfigSection" class="bg-blue-50 border border-blue-300 rounded-lg p-6">
+            <!-- Saved Test Sample Sets Management -->
+            <div class="bg-blue-50 border border-blue-300 rounded-lg p-6">
                 <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-lg font-semibold">✓ Current Saved Configuration</h3>
-                    <span id="savedTestCount" class="text-sm text-gray-600">Loading...</span>
+                    <h3 class="text-lg font-semibold">📦 Saved Test Sample Sets</h3>
+                    <button type="button" onclick="loadTestSets()" class="px-3 py-1 text-sm bg-emerald-600 text-white rounded hover:bg-emerald-700">
+                        ↻ Refresh
+                    </button>
                 </div>
+                <p class="text-gray-600 text-sm mb-4">Manage different versions of qualification tests. Only ONE set is active at a time.</p>
 
-                <div id="currentTestConfigCards" class="space-y-4">
-                    <div class="text-center py-8 text-gray-500">Loading current configuration...</div>
+                <div id="testSetsContainer" class="space-y-3">
+                    <div class="text-center py-8 text-gray-500">Loading saved test sets...</div>
                 </div>
             </div>
         </div>
@@ -715,7 +718,7 @@ function switchTab(tabName) {
     else if (tabName === "annotators") loadAnnotatorsDashboard();
     else if (tabName === "test") {
         loadDatasetsForTestSamples();
-        loadCurrentTestConfig();  // Load global qualification test regardless of dataset selection
+        loadTestSets();  // Load all saved test sample sets
     }
     else if (tabName === "dashboard") loadDashboard();
     else if (tabName === "audit") loadAuditLog(1);
@@ -1261,13 +1264,6 @@ function getLabelBgClass(label) {
 }
 
 async function saveTestSamples() {
-    const datasetId = document.getElementById("testDatasetSelect").value;
-
-    if (!datasetId) {
-        showStatus("error", "Please select a dataset first");
-        return;
-    }
-
     if (currentTestSamples.length === 0) {
         showStatus("error", "Please add test samples first");
         return;
@@ -1280,37 +1276,158 @@ async function saveTestSamples() {
         return;
     }
 
+    // Prompt for test set name
+    const setName = prompt("Enter a name for this test set (e.g., 'Version 1', 'Test A'):");
+    if (!setName) return;
+
     try {
         const payload = currentTestSamples.map(p => ({
             pair_id: p.id,
             correct_label: p.correct_label,
         }));
 
-        const response = await fetch("/admin/test/mark-samples", {
+        const response = await fetch("/admin/test-sets/create", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                samples: payload,
-                dataset_id: datasetId,
-                test_name: `qualification_test_${new Date().getTime()}`
+                name: setName,
+                description: `Created ${new Date().toLocaleString()}`,
+                samples: payload
             }),
         });
 
         const data = await response.json();
 
         if (!response.ok) {
-            showStatus("error", data.error || "Failed to save test samples");
+            showStatus("error", data.error || "Failed to save test set");
             return;
         }
 
-        showStatus("success", `✓ Saved ${currentTestSamples.length} test samples (backed up automatically)`);
+        showStatus("success", `✓ Saved "${setName}" with ${currentTestSamples.length} samples`);
 
-        // Clear editing section and reload current config
+        // Clear editing section
         currentTestSamples = [];
         document.getElementById("testEditingSection").style.display = "none";
 
-        // Reload to show saved state
-        await loadCurrentTestConfig();
+        // Reload test sets list
+        await loadTestSets();
+
+    } catch (error) {
+        showStatus("error", `Error: ${error.message}`);
+    }
+}
+
+async function loadTestSets() {
+    try {
+        const response = await fetch("/admin/test-sets/list");
+        const sets = await response.json();
+
+        const container = document.getElementById("testSetsContainer");
+
+        if (!sets || sets.length === 0) {
+            container.innerHTML = '<div class="text-center py-8 text-gray-500">No saved test sets yet. Create one by selecting samples and clicking "💾 Save Test Samples".</div>';
+            return;
+        }
+
+        container.innerHTML = sets.map(set => `
+            <div class="bg-white border rounded-lg p-4 ${set.is_active ? 'border-emerald-500 border-2 bg-emerald-50' : ''}">
+                <div class="flex justify-between items-start mb-3">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2">
+                            <h4 class="font-semibold text-lg">${set.name}</h4>
+                            ${set.is_active ? '<span class="px-2 py-1 bg-emerald-600 text-white text-xs rounded font-semibold">ACTIVE</span>' : ''}
+                        </div>
+                        <p class="text-sm text-gray-600">${set.sample_count} samples • Created ${new Date(set.created_at).toLocaleDateString()}</p>
+                        ${set.description ? `<p class="text-sm text-gray-500 mt-1">${set.description}</p>` : ''}
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="viewTestSetSamples(${set.id})" class="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">
+                            👁️ View
+                        </button>
+                        ${!set.is_active ? `<button onclick="activateTestSet(${set.id})" class="px-3 py-1 text-sm bg-emerald-600 text-white rounded hover:bg-emerald-700">
+                            ✓ Activate
+                        </button>` : ''}
+                        ${!set.is_active ? `<button onclick="deleteTestSet(${set.id})" class="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700">
+                            🗑️ Delete
+                        </button>` : ''}
+                    </div>
+                </div>
+            </div>
+        `).join("");
+
+    } catch (error) {
+        showStatus("error", `Failed to load test sets: ${error.message}`);
+    }
+}
+
+async function viewTestSetSamples(setId) {
+    try {
+        const response = await fetch(`/admin/test-sets/${setId}/samples`);
+        const data = await response.json();
+
+        const samples = data.samples;
+        let html = `<div class="bg-white border rounded-lg p-6"><h3 class="text-xl font-semibold mb-4">${data.name}</h3>`;
+        html += `<div class="space-y-3">`;
+        samples.forEach((s, idx) => {
+            html += `
+                <div class="border rounded p-3 bg-gray-50">
+                    <div class="font-semibold">${idx + 1}. ${s.article_title}</div>
+                    <div class="text-sm text-gray-600">ID: ${s.pair_id_str}</div>
+                    <div class="text-sm mt-2">Correct label: <span class="px-2 py-1 bg-emerald-100 text-emerald-800 rounded text-xs font-semibold">${s.correct_label}</span></div>
+                </div>
+            `;
+        });
+        html += `</div></div>`;
+
+        const popup = window.open('', 'testSetPopup', 'width=600,height=700');
+        popup.document.write(html);
+    } catch (error) {
+        showStatus("error", `Failed to load samples: ${error.message}`);
+    }
+}
+
+async function activateTestSet(setId) {
+    if (!confirm("Activate this test set? All annotators will see these samples.")) return;
+
+    try {
+        const response = await fetch(`/admin/test-sets/${setId}/activate`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" }
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            showStatus("error", data.error || "Failed to activate");
+            return;
+        }
+
+        showStatus("success", `✓ Activated "${data.name}"`);
+        await loadTestSets();
+
+    } catch (error) {
+        showStatus("error", `Error: ${error.message}`);
+    }
+}
+
+async function deleteTestSet(setId) {
+    if (!confirm("Delete this test set? This cannot be undone.")) return;
+
+    try {
+        const response = await fetch(`/admin/test-sets/${setId}/delete`, {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" }
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            showStatus("error", data.error || "Failed to delete");
+            return;
+        }
+
+        showStatus("success", "✓ Test set deleted");
+        await loadTestSets();
 
     } catch (error) {
         showStatus("error", `Error: ${error.message}`);

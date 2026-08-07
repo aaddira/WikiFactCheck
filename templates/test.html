@@ -53,7 +53,7 @@
                 <!-- Passage -->
                 <div>
                     <h4 class="font-semibold text-sm mb-2 text-gray-700">Passage</h4>
-                    <div class="bg-emerald-50 border-l-4 border-emerald-500 p-4 rounded text-sm">
+                    <div class="bg-emerald-50 border-l-4 border-emerald-500 p-4 rounded text-sm passage-text-box" data-passage-id="{{ pair.id }}">
                         {{ pair.passage_text }}
                     </div>
                 </div>
@@ -133,7 +133,18 @@
     </div>
 </div>
 
+<script src="{{ url_for('static', filename='js/annotate.js') }}"></script>
 <script>
+// Format passages to highlight <fact> tags (matches annotate.html)
+document.addEventListener('DOMContentLoaded', function() {
+    // Find all passage divs and highlight facts
+    document.querySelectorAll('[data-passage-id]').forEach(function(el) {
+        if (el.textContent.includes('<fact>')) {
+            el.innerHTML = highlightFacts(el.textContent);
+        }
+    });
+});
+
 async function submitTest() {
     const form = document.getElementById("testForm");
     const answers = {};

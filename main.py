@@ -412,6 +412,14 @@ def admin_preview():
     return render_template("annotate.html", preview_mode=True)
 
 
+@app.route("/admin/preview-test")
+@admin_required
+def admin_preview_test():
+    """Admin preview of qualification test."""
+    test_pairs = Pair.query.filter_by(is_test_sample=True).all()
+    return render_template("test.html", test_pairs=test_pairs, preview_mode=True)
+
+
 @app.route("/logout")
 def logout():
     """Logout."""

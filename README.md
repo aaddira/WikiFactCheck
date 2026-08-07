@@ -1,6 +1,27 @@
 # WikiFactCheck Citation-Support Annotation Platform
 
-**[🚀 Live Platform](https://wikifactcheck.up.railway.app)** — Test the platform and start annotating
+## Getting Started
+
+### ⭐ Use the Public Platform (Recommended)
+
+**No setup needed.** Visit the live platform and start annotating immediately:
+
+**👉 [WikiFactCheck Platform](https://wikifactcheck.up.railway.app)**
+
+- Create account with your email (no password)
+- Take qualification test (5 questions)
+- Start fact-checking Wikipedia citations
+- Your annotations contribute to open-source research
+
+This is the easiest way to participate. All you need is a web browser.
+
+---
+
+### 🔧 Self-Host Your Own Instance (For Researchers & Developers)
+
+Want to run your own annotation platform? Deploy locally or on your own server with custom data, labels, and configuration. See **[Self-Hosting Guide](#self-hosting-guide)** below.
+
+---
 
 ## What is this?
 
@@ -13,9 +34,28 @@ This matters because:
 
 The platform is **lightweight and self-hosted** — no cloud lock-in, no email services, no OAuth. Spin up an instance locally or on Railway in minutes, upload your data, and start collecting high-quality human annotations.
 
-## Quick Start
+## Self-Hosting Guide
 
-### Setup
+### Requirements
+
+**For Developers:**
+- Python 3.10 or higher
+- pip or conda (package manager)
+- SQLite (comes with Python)
+- Git (optional, for version control)
+
+**For Deployment:**
+- Docker & Docker Compose (for containerized deployment)
+- Railway account (for free hosting) or your own server
+
+**System Requirements:**
+- 512 MB RAM minimum (1 GB recommended)
+- 100 MB disk space for base installation
+- Supported OS: Linux, macOS, Windows
+
+### Quick Start
+
+#### Setup
 
 **1. Create a virtual environment** (recommended)
 
@@ -239,6 +279,119 @@ git push -u origin main
 7. Deploy
 
 Your app will be live at `https://<project-name>.up.railway.app`
+
+## For Developers
+
+### Setting Up a Development Environment
+
+If you want to contribute to WikiFactCheck or customize it for your research:
+
+**1. Clone the repository**
+```bash
+git clone https://github.com/aaddira/WikiFactCheck.git
+cd annotation-platform
+```
+
+**2. Create a virtual environment** (required)
+```bash
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+
+**3. Install development dependencies**
+```bash
+pip install -r requirements.txt
+```
+
+**4. Set up your `.env` file**
+```bash
+cp .env.example .env  # Create from example (if available)
+# Or manually create .env with:
+FLASK_ENV=development
+SECRET_KEY=your-secret-key-here
+ADMIN_EMAILS=your-email@example.com
+```
+
+**5. Run in development mode**
+```bash
+python main.py
+```
+
+The server runs at `http://localhost:5000` with auto-reload on code changes.
+
+### Project Structure
+
+```
+annotation-platform/
+├── main.py                 # Flask app entry point
+├── models.py              # Database models (User, Pair, Annotation, etc.)
+├── routes_annotate.py     # Annotation workflow endpoints
+├── routes_admin.py        # Admin panel endpoints
+├── routes_dashboard.py    # Dashboard endpoints
+├── email_utils.py         # Email notification functions
+├── templates/             # HTML templates (Jinja2)
+│   ├── annotate.html      # Main annotation interface
+│   ├── admin.html         # Admin control panel
+│   └── ...
+├── static/
+│   ├── css/style.css      # All styling (Tailwind + custom)
+│   └── js/                # Client-side JavaScript
+├── requirements.txt       # Python dependencies
+└── Dockerfile            # Container configuration
+```
+
+### Making Changes
+
+**To modify the annotation interface:**
+- Edit `templates/annotate.html` (HTML structure)
+- Update `static/js/annotate.js` (client-side logic)
+- Modify `static/css/style.css` (styling)
+
+**To add new admin features:**
+- Add routes to `routes_admin.py`
+- Create HTML templates in `templates/`
+- Update admin panel navigation in `templates/admin.html`
+
+**To change labels or data format:**
+- Update label lists in `routes_annotate.py`
+- Modify `models.py` if changing database schema
+- Update `data_loader.py` for import/export formats
+
+**To send emails (notifications, digests):**
+- Add functions to `email_utils.py`
+- SendGrid API key required in `.env` (optional for local dev)
+
+### Running Tests
+
+Currently no automated test suite. To manually test:
+
+1. **Create test data:**
+   - Use admin panel to upload a small JSONL file
+   - Mark 5 pairs as qualification test samples
+
+2. **Test qualification flow:**
+   - Log in as test user
+   - Take qualification test
+   - Verify scoring works
+
+3. **Test annotation workflow:**
+   - Submit annotations
+   - Verify they save to database
+   - Check export in admin panel
+
+### Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/your-feature`
+3. Make changes and test locally
+4. Commit with clear messages: `git commit -m "Add feature X"`
+5. Push to your fork and open a pull request
+
+Contributions are welcome! This includes:
+- Bug fixes
+- New features
+- Documentation improvements
+- Deployment examples
 
 ## Customization
 

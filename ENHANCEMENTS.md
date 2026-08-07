@@ -170,7 +170,7 @@ All six requested enhancements have been successfully built, tested, and integra
 
 ### Quick Setup
 ```bash
-cd "C:\Users\aaddi\Downloads\Wiki RAG\annotation-platform"
+cd annotation-platform
 python main.py
 ```
 

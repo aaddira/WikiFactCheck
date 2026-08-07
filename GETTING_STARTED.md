@@ -7,16 +7,16 @@ Your annotation platform is **ready to use**. Here's how to get started in the n
 First, load your annotation dataset:
 
 ```bash
-cd "C:\Users\aaddi\Downloads\Wiki RAG\annotation-platform"
+cd annotation-platform
 python main.py
 ```
 
 Visit: **http://localhost:5000**
 
-- **Log in** with your email (no password needed) — e.g., `aaddira@gmail.com`
+- **Log in** with your email (no password needed) — e.g., `admin@example.com`
 - You'll be redirected to **/admin** since you're in `ADMIN_EMAILS`
 - Click **"Upload Dataset"** tab
-- Select the JSONL file (e.g., `C:\Users\aaddi\Downloads\Wiki RAG\WikiFactCheck\output\journal_book_pairs.jsonl`)
+- Select the JSONL file (e.g., `./data/journal_book_pairs.jsonl` or any JSONL file)
 - Give it a name like **"Journal Citations - June 2026"**
 - Click **Upload**
 

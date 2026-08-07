@@ -112,7 +112,7 @@ Visit **http://localhost:5000** in your browser.
 
 ### Uploading Data
 
-1. Log in with any email (e.g., aaddira@gmail.com)
+1. Log in with any email (e.g., your-email@example.com)
 2. Go to **/admin** (you'll be redirected there as admin)
 3. Click **Upload Dataset**
 4. Select your JSONL file (e.g., `journal_book_pairs.jsonl`) and give it a name
@@ -226,7 +226,7 @@ Annotated records include:
   "label": "TRUE",
   "quote": "Neurosyphilis is an infection of the central nervous system...",
   "explanation": "The citation clearly states that neurosyphilis affects the CNS, supporting the passage.",
-  "annotator": "aaddira@gmail.com",
+  "annotator": "your-email@example.com",
   "timestamp": "2026-06-20T14:32:10Z"
 }
 ```
@@ -274,7 +274,7 @@ git push -u origin main
 5. Set environment variables:
    - `FLASK_ENV=production`
    - `SECRET_KEY=<generate random string>`
-   - `ADMIN_EMAILS=aaddira@gmail.com`
+   - `ADMIN_EMAILS=your-email@example.com`
 6. Add a **volume** mounted at `/app/data` for persistent SQLite
 7. Deploy
 
@@ -433,7 +433,7 @@ DATABASE_URL=sqlite:////path/to/data/app.db
 ### Admin login not working
 Verify `ADMIN_EMAILS` in `.env` includes your email:
 ```
-ADMIN_EMAILS=aaddira@gmail.com,other@example.com
+ADMIN_EMAILS=your-email@example.com,other@example.com
 ```
 
 ## Future Enhancements (v2+)

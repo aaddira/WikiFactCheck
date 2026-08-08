@@ -363,9 +363,12 @@ def test_post_login_page():
         current_app.logger.info(f"  Found {len(memberships)} memberships")
 
         test_pairs = []
-        for m in memberships:
+        for i, m in enumerate(memberships):
             if m.pair:
                 test_pairs.append(m.pair)
+                # Log first sample's fields for debugging
+                if i == 0:
+                    current_app.logger.info(f"    Sample 1 fields: pair_id={m.pair.pair_id}, has_url={bool(m.pair.citation_source_url)}, url={m.pair.citation_source_url[:50] if m.pair.citation_source_url else 'NULL'}")
             else:
                 current_app.logger.warning(f"  Membership {m.id}: pair_id={m.pair_id} but pair is NULL")
 

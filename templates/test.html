@@ -158,16 +158,24 @@ async function submitTest() {
     const form = document.getElementById("testForm");
     const answers = {};
 
-    // Collect all answers
+    // Collect all answers with full structure
     const pairs = document.querySelectorAll("input[type='radio']:checked");
     pairs.forEach((input) => {
         const answerName = input.name; // answer_<pair_id>
         const pairId = answerName.replace("answer_", "");
+        // Send label as the answer (no quote/explanation for qualification test)
         answers[pairId] = input.value;
     });
 
-    if (Object.keys(answers).length === 0) {
-        showStatus("error", "Please answer all questions before submitting");
+    // Count expected number of questions
+    const radioGroups = new Set(
+        Array.from(document.querySelectorAll("input[type='radio']"))
+            .map(r => r.name)
+    );
+    const expectedCount = radioGroups.size;
+
+    if (Object.keys(answers).length !== expectedCount) {
+        showStatus("error", `Please answer all ${expectedCount} questions before submitting`);
         return;
     }
 

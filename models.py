@@ -235,11 +235,11 @@ class TestSampleSet(db.Model):
     memberships = db.relationship("TestSampleSetMembership", backref="test_set", lazy=True, cascade="all, delete-orphan")
 
     def activate(self):
-        """Make this set the active one (deactivate others)."""
-        # Deactivate all other sets
+        """Make this set the active one (deactivate others). Caller must commit."""
+        # Deactivate all other sets atomically
         TestSampleSet.query.filter(TestSampleSet.id != self.id).update({"is_active": False})
         self.is_active = True
-        db.session.commit()
+        # NOTE: Do not commit here - caller will commit atomically with audit log
 
 
 class TestSampleSetMembership(db.Model):

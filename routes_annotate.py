@@ -388,81 +388,93 @@ def api_test_save_progress():
 @annotate_bp.route("/test/submit", methods=["POST"])
 @login_required
 def api_test_submit():
-    """Submit qualification test answers for admin review."""
+    """Submit qualification test answers for grading."""
     user = get_current_user()
     data = request.get_json() or {}
-    answers = data.get("answers", {})  # {pair_id_str: {label, quote, explanation}, ...}
+    answers = data.get("answers", {})  # {pair_id_str: label, ...}
 
     if not answers:
         return jsonify({"error": "No answers provided"}), 400
 
-    # Create a batch ID for this submission
-    batch_id = str(uuid.uuid4())
-
-    # Get test pairs for scoring - use active test set (new versioning system)
+    # Get active test set - required
     active_set = TestSampleSet.query.filter_by(is_active=True).first()
-    if active_set:
-        # Use active test set memberships
-        memberships = TestSampleSetMembership.query.filter_by(test_set_id=active_set.id).all()
-        test_pair_ids = {m.pair_id: m for m in memberships}
-        current_app.logger.info(f"Grading test against active set '{active_set.name}' with {len(memberships)} samples")
-    else:
-        # Fallback to old system if no active test set exists
-        test_pairs = Pair.query.filter_by(is_test_sample=True).all()
-        test_pair_ids = {p.id: p for p in test_pairs}
-        current_app.logger.info(f"Grading test against legacy is_test_sample=True system with {len(test_pairs)} samples")
+    if not active_set:
+        return jsonify({"error": "No active qualification test. Please contact the administrator."}), 503
 
+    # Load test pairs and required labels
+    memberships = TestSampleSetMembership.query.filter_by(test_set_id=active_set.id).all()
+    if not memberships:
+        return jsonify({"error": "Qualification test is empty. Please contact the administrator."}), 503
+
+    # Build lookup: pair_id -> membership (has correct_label)
+    test_pairs_dict = {m.pair_id: m for m in memberships}
+    total = len(test_pairs_dict)
+
+    # Validate that all questions were answered
+    answered_pair_ids = set(int(pid) for pid in answers.keys())
+    expected_pair_ids = set(test_pairs_dict.keys())
+
+    if answered_pair_ids != expected_pair_ids:
+        missing = expected_pair_ids - answered_pair_ids
+        extra = answered_pair_ids - expected_pair_ids
+        error_msg = f"Invalid submission: "
+        if missing:
+            error_msg += f"Missing answers for questions {sorted(missing)}. "
+        if extra:
+            error_msg += f"Unexpected questions {sorted(extra)}. "
+        current_app.logger.warning(f"Test validation failed for user {user.id}: {error_msg}")
+        return jsonify({"error": error_msg.strip()}), 400
+
+    # Grade the test
+    batch_id = str(uuid.uuid4())
     correct = 0
-    total = len(test_pair_ids)
 
     try:
-        for pair_id_str, answer_data in answers.items():
+        for pair_id_str, answer_label in answers.items():
             pair_id = int(pair_id_str)
-            test_item = test_pair_ids.get(pair_id)
-            if not test_item:
+            membership = test_pairs_dict.get(pair_id)
+
+            if not membership:
+                current_app.logger.error(f"Pair {pair_id} not in active test set {active_set.id}")
                 continue
 
-            label = answer_data.get("label")
-            quote = answer_data.get("quote", "").strip()
-            explanation = answer_data.get("explanation", "").strip()
+            # Handle answer - can be string directly or nested in object
+            if isinstance(answer_label, dict):
+                label = answer_label.get("label", "")
+            else:
+                label = str(answer_label) if answer_label else ""
 
-            # Check if they got it correct
-            correct_label = test_item.correct_label if active_set else test_item.correct_label
-            if correct_label == label:
+            # Grade this question
+            if membership.correct_label == label:
                 correct += 1
 
-            # Save to TestSubmission
-            existing = TestSubmission.query.filter_by(
+            # Save submission record
+            submission = TestSubmission(
                 user_id=user.id,
                 pair_id=pair_id,
-                submission_batch_id=batch_id
-            ).first()
+                label=label,
+                quote="",
+                explanation="",
+                submission_batch_id=batch_id,
+                is_submitted=True,
+            )
+            db.session.add(submission)
 
-            if existing:
-                existing.label = label
-                existing.quote = quote
-                existing.explanation = explanation
-                existing.is_submitted = True
-            else:
-                submission = TestSubmission(
-                    user_id=user.id,
-                    pair_id=pair_id,
-                    label=label,
-                    quote=quote,
-                    explanation=explanation,
-                    submission_batch_id=batch_id,
-                    is_submitted=True,
-                )
-                db.session.add(submission)
-
-        # Mark user test as submitted (but NOT qualified yet - waiting for admin)
+        # Mark user test as submitted for admin review
         user.test_submitted = True
         user.test_submission_date = datetime.utcnow()
-        user.qualification_score = correct  # Store score for display
+        user.qualification_score = correct
 
         db.session.commit()
 
-        # Send notification to admins about the submission
+        # Calculate results
+        threshold_pct = 80  # Passing threshold
+        score_pct = int((correct / total * 100)) if total > 0 else 0
+        passed = score_pct >= threshold_pct
+
+        current_app.logger.info(f"Test submission for user {user.id}: {correct}/{total} ({score_pct}%) - {'PASS' if passed else 'FAIL'}")
+
+        # Send notification to admins
         try:
             app_url = current_app.config.get("APP_URL", "https://wikifactcheck.up.railway.app")
             send_test_submission_notification(user, correct, total, app_url)
@@ -473,10 +485,16 @@ def api_test_submit():
             "status": "submitted",
             "score": correct,
             "total": total,
+            "score_pct": score_pct,
+            "threshold_pct": threshold_pct,
+            "passed": passed,
             "message": "Your test has been submitted for review. The research team will notify you within 1-2 business days."
         })
+
     except Exception as e:
         db.session.rollback()
+        current_app.logger.error(f"Error during test submission for user {user.id}: {str(e)}", exc_info=True)
+        return jsonify({"error": "Error processing submission. Please try again."}), 500
         current_app.logger.exception("Error submitting test")
         error_msg = str(e) if current_app.debug else "An unexpected error occurred. Please try again."
         return jsonify({"error": error_msg}), 500

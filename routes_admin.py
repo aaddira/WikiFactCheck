@@ -6,7 +6,7 @@ from io import StringIO, BytesIO
 import json
 import csv
 from datetime import datetime, timedelta
-from sqlalchemy import func
+from sqlalchemy import func, select
 import os
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -930,70 +930,89 @@ def api_test_set_create():
 @admin_bp.route("/test-sets/<int:set_id>/activate", methods=["POST"])
 @admin_required
 def api_test_set_activate(set_id):
-    """Activate a test sample set (deactivates all others)."""
+    """Activate a test sample set (deactivates all others). Uses database locking to prevent races."""
     admin = g.user
-    test_set = TestSampleSet.query.get(set_id)
-
-    if not test_set:
-        return jsonify({"error": "Test set not found"}), 404
 
     try:
+        # Atomic operation: lock the set before checking/activating
+        test_set = db.session.execute(
+            select(TestSampleSet).where(TestSampleSet.id == set_id).with_for_update()
+        ).scalar_one_or_none()
+
+        if not test_set:
+            return jsonify({"error": "Test set not found"}), 404
+
         test_set.activate()
 
-        # Log audit
+        # Log audit - atomically committed with activation
         AuditLog.record(
             action="test_set_activate",
             actor_user_id=admin.id,
             actor_email=admin.email,
             target_type="TestSampleSet",
             target_id=str(set_id),
-            details=json.dumps({"name": test_set.name})
+            details=json.dumps({"name": test_set.name, "sample_count": test_set.sample_count})
         )
         db.session.commit()
+
+        current_app.logger.info(f"Test set '{test_set.name}' (id={set_id}) activated by {admin.email}")
 
         return jsonify({
             "status": "activated",
             "test_set_id": set_id,
-            "name": test_set.name
+            "name": test_set.name,
+            "sample_count": test_set.sample_count
         })
     except Exception as e:
         db.session.rollback()
-        current_app.logger.exception("Error activating test set")
+        current_app.logger.exception(f"Error activating test set {set_id}: {str(e)}")
+        return jsonify({"error": "Failed to activate test set"}), 500
         return jsonify({"error": str(e)}), 500
 
 
 @admin_bp.route("/test-sets/<int:set_id>/delete", methods=["DELETE"])
 @admin_required
 def api_test_set_delete(set_id):
-    """Delete a test sample set (cannot delete active set)."""
+    """Delete a test sample set (cannot delete active set). Uses locking to prevent race conditions."""
     admin = g.user
-    test_set = TestSampleSet.query.get(set_id)
-
-    if not test_set:
-        return jsonify({"error": "Test set not found"}), 404
-
-    if test_set.is_active:
-        return jsonify({"error": "Cannot delete active test set. Activate another set first."}), 400
 
     try:
+        # Lock the row before checking/deleting to prevent another admin from activating it
+        test_set = db.session.execute(
+            select(TestSampleSet).where(TestSampleSet.id == set_id).with_for_update()
+        ).scalar_one_or_none()
+
+        if not test_set:
+            return jsonify({"error": "Test set not found"}), 404
+
+        if test_set.is_active:
+            return jsonify({"error": "Cannot delete the active test set. Activate another set first."}), 400
+
         set_name = test_set.name
+        sample_count = test_set.sample_count
+
+        # Delete memberships first (due to foreign key constraint)
         TestSampleSetMembership.query.filter_by(test_set_id=set_id).delete()
         db.session.delete(test_set)
 
-        # Log audit
+        # Log audit atomically
         AuditLog.record(
             action="test_set_delete",
             actor_user_id=admin.id,
             actor_email=admin.email,
             target_type="TestSampleSet",
             target_id=str(set_id),
-            details=json.dumps({"name": set_name})
+            details=json.dumps({"name": set_name, "sample_count": sample_count})
         )
         db.session.commit()
 
-        return jsonify({"status": "deleted", "test_set_id": set_id})
+        current_app.logger.info(f"Test set '{set_name}' (id={set_id}) deleted by {admin.email}")
+
+        return jsonify({"status": "deleted", "test_set_id": set_id, "name": set_name})
     except Exception as e:
         db.session.rollback()
+        current_app.logger.exception(f"Error deleting test set {set_id}: {str(e)}")
+        return jsonify({"error": "Failed to delete test set"}), 500
         current_app.logger.exception("Error deleting test set")
         return jsonify({"error": str(e)}), 500
 

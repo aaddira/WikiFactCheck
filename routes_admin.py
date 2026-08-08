@@ -869,9 +869,9 @@ def api_test_set_create():
         current_app.logger.warning(f"Test set '{name}' already exists")
         return jsonify({"error": f"Test set '{name}' already exists"}), 400
 
-    if not pair_labels or len(pair_labels) != 5:
-        current_app.logger.warning(f"Invalid sample count: {len(pair_labels)}, expected 5")
-        return jsonify({"error": "Must provide exactly 5 samples"}), 400
+    if not pair_labels:
+        current_app.logger.warning("No samples provided")
+        return jsonify({"error": "Must provide at least 1 sample"}), 400
 
     try:
         # Create new test set

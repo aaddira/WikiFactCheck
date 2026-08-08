@@ -230,9 +230,23 @@ class TestSampleSet(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # Relationships
-    pairs = db.relationship("Pair", secondary="test_sample_set_memberships", backref=db.backref("test_sets", overlaps="test_set_memberships"), lazy=True)
-    memberships = db.relationship("TestSampleSetMembership", backref="test_set", lazy=True, cascade="all, delete-orphan")
+    # Relationships (association object pattern)
+    # Access pairs directly: test_set.pairs
+    # Access with labels: test_set.memberships -> membership.pair, membership.correct_label
+    pairs = db.relationship(
+        "Pair",
+        secondary="test_sample_set_memberships",
+        backref=db.backref("test_sets", overlaps="memberships,test_set_memberships"),
+        lazy=True,
+        overlaps="memberships"
+    )
+    memberships = db.relationship(
+        "TestSampleSetMembership",
+        back_populates="test_set",
+        lazy=True,
+        cascade="all, delete-orphan",
+        overlaps="pairs"
+    )
 
     def activate(self):
         """Make this set the active one (deactivate others). Caller must commit."""
@@ -243,7 +257,7 @@ class TestSampleSet(db.Model):
 
 
 class TestSampleSetMembership(db.Model):
-    """Maps pairs to test sample sets."""
+    """Association object: maps pairs to test sample sets with correct labels."""
     __tablename__ = "test_sample_set_memberships"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -252,8 +266,19 @@ class TestSampleSetMembership(db.Model):
     correct_label = db.Column(db.String(50), nullable=False)  # correct answer for this pair in this set
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    # Relationships
-    pair = db.relationship("Pair", backref=db.backref("test_set_memberships", overlaps="test_sets"), lazy=True)
+    # Relationships (association object pattern)
+    test_set = db.relationship(
+        "TestSampleSet",
+        back_populates="memberships",
+        lazy=True,
+        overlaps="pairs"
+    )
+    pair = db.relationship(
+        "Pair",
+        backref=db.backref("test_set_memberships", overlaps="test_sets,memberships"),
+        lazy=True,
+        overlaps="test_sets"
+    )
 
     # Constraint: unique pair per test set (pair can only appear once in a set)
     __table_args__ = (db.UniqueConstraint("test_set_id", "pair_id", name="uq_test_set_pair"),)

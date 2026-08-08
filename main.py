@@ -417,13 +417,15 @@ def admin_preview():
 def admin_preview_test():
     """Admin preview of active qualification test."""
     active_set = TestSampleSet.query.filter_by(is_active=True).first()
-    if not active_set:
-        # Fallback to old system for backwards compatibility
-        test_pairs = Pair.query.filter_by(is_test_sample=True).all()
-    else:
-        # Get pairs from active set
+    if active_set:
+        # Use the active test set exclusively (ignore old is_test_sample=True pairs)
         memberships = TestSampleSetMembership.query.filter_by(test_set_id=active_set.id).all()
         test_pairs = [m.pair for m in memberships]
+        current_app.logger.info(f"Admin preview: loading active test set '{active_set.name}' with {len(test_pairs)} samples")
+    else:
+        # Fallback to old system only if no active test set exists
+        test_pairs = Pair.query.filter_by(is_test_sample=True).all()
+        current_app.logger.info(f"Admin preview: no active test set; using legacy is_test_sample=True system with {len(test_pairs)} samples")
 
     return render_template("test.html", test_pairs=test_pairs, preview_mode=True)
 
@@ -443,15 +445,17 @@ def test_page():
     if user.qualification_passed:
         return redirect(url_for("annotate_page"))
 
-    # Get active test sample set
+    # Get active test sample set (new versioning system)
     active_set = TestSampleSet.query.filter_by(is_active=True).first()
-    if not active_set:
-        # Fallback to old system for backwards compatibility
-        test_pairs = Pair.query.filter_by(is_test_sample=True).all()
-    else:
-        # Get pairs from active set
+    if active_set:
+        # Use the active test set exclusively (ignore old is_test_sample=True pairs)
         memberships = TestSampleSetMembership.query.filter_by(test_set_id=active_set.id).all()
         test_pairs = [m.pair for m in memberships]
+        current_app.logger.info(f"Loading active test set '{active_set.name}' with {len(test_pairs)} samples")
+    else:
+        # Fallback to old system only if no active test set exists
+        test_pairs = Pair.query.filter_by(is_test_sample=True).all()
+        current_app.logger.info(f"No active test set; using legacy is_test_sample=True system with {len(test_pairs)} samples")
 
     return render_template("test.html", test_pairs=test_pairs)
 

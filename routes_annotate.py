@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request, current_app
-from models import db, User, Pair, Annotation, Config, TestSubmission, Skip
+from models import db, User, Pair, Annotation, Config, TestSubmission, Skip, TestSampleSet, TestSampleSetMembership
 from auth import login_required, get_current_user, admin_required
 from assignment import get_next_pair, release_claim, get_annotators_per_sample
 from email_utils import send_test_submission_notification
@@ -399,18 +399,27 @@ def api_test_submit():
     # Create a batch ID for this submission
     batch_id = str(uuid.uuid4())
 
-    # Get test pairs for scoring
-    test_pairs = Pair.query.filter_by(is_test_sample=True).all()
-    test_pair_ids = {p.id: p for p in test_pairs}
+    # Get test pairs for scoring - use active test set (new versioning system)
+    active_set = TestSampleSet.query.filter_by(is_active=True).first()
+    if active_set:
+        # Use active test set memberships
+        memberships = TestSampleSetMembership.query.filter_by(test_set_id=active_set.id).all()
+        test_pair_ids = {m.pair_id: m for m in memberships}
+        current_app.logger.info(f"Grading test against active set '{active_set.name}' with {len(memberships)} samples")
+    else:
+        # Fallback to old system if no active test set exists
+        test_pairs = Pair.query.filter_by(is_test_sample=True).all()
+        test_pair_ids = {p.id: p for p in test_pairs}
+        current_app.logger.info(f"Grading test against legacy is_test_sample=True system with {len(test_pairs)} samples")
 
     correct = 0
-    total = len(test_pairs)
+    total = len(test_pair_ids)
 
     try:
         for pair_id_str, answer_data in answers.items():
             pair_id = int(pair_id_str)
-            pair = test_pair_ids.get(pair_id)
-            if not pair:
+            test_item = test_pair_ids.get(pair_id)
+            if not test_item:
                 continue
 
             label = answer_data.get("label")
@@ -418,7 +427,8 @@ def api_test_submit():
             explanation = answer_data.get("explanation", "").strip()
 
             # Check if they got it correct
-            if pair.correct_label == label:
+            correct_label = test_item.correct_label if active_set else test_item.correct_label
+            if correct_label == label:
                 correct += 1
 
             # Save to TestSubmission

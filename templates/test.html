@@ -53,16 +53,25 @@
                 <!-- Passage -->
                 <div>
                     <h4 class="font-semibold text-sm mb-2 text-gray-700">Passage</h4>
-                    <div class="bg-emerald-50 border-l-4 border-emerald-500 p-4 rounded text-sm passage-text-box" data-passage-id="{{ pair.id }}">
+                    <div class="bg-emerald-50 border-l-4 border-emerald-500 p-4 rounded text-sm passage-text-box overflow-y-auto" data-passage-id="{{ pair.id }}" style="max-height: 400px;">
                         {{ pair.passage_text }}
                     </div>
                 </div>
 
-                <!-- Citation snippet -->
-                <div>
+                <!-- Citation text and URL -->
+                <div class="flex flex-col">
                     <h4 class="font-semibold text-sm mb-2 text-gray-700">Citation</h4>
-                    <div class="bg-green-50 border-l-4 border-green-500 p-4 rounded text-sm max-h-40 overflow-y-auto">
-                        {{ pair.citation_raw_text[:500] if pair.citation_raw_text else "No text" }}...
+                    <div class="bg-green-50 border-l-4 border-green-500 p-4 rounded text-sm flex-grow overflow-y-auto">
+                        <div class="mb-4">
+                            <p class="text-xs font-semibold text-gray-600 mb-1">Citation Text:</p>
+                            <p class="whitespace-pre-wrap text-sm">{{ pair.citation_raw_text if pair.citation_raw_text else "No text available" }}</p>
+                        </div>
+                        {% if pair.citation_source_url %}
+                        <div class="border-t pt-3">
+                            <p class="text-xs font-semibold text-gray-600 mb-1">Source URL:</p>
+                            <a href="{{ pair.citation_source_url }}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline text-xs break-all">{{ pair.citation_source_url }}</a>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>

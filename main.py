@@ -447,15 +447,28 @@ def test_page():
 
     # Get active test sample set (new versioning system)
     active_set = TestSampleSet.query.filter_by(is_active=True).first()
+    current_app.logger.info(f"test_page: checking for active test set...")
+
     if active_set:
+        current_app.logger.info(f"  Found active set: '{active_set.name}' (id={active_set.id})")
         # Use the active test set exclusively (ignore old is_test_sample=True pairs)
         memberships = TestSampleSetMembership.query.filter_by(test_set_id=active_set.id).all()
-        test_pairs = [m.pair for m in memberships]
-        current_app.logger.info(f"Loading active test set '{active_set.name}' with {len(test_pairs)} samples")
+        current_app.logger.info(f"  Found {len(memberships)} memberships")
+
+        test_pairs = []
+        for i, m in enumerate(memberships):
+            if m.pair:
+                test_pairs.append(m.pair)
+                current_app.logger.info(f"    [{i+1}] Membership {m.id}: pair_id={m.pair_id}, pair loaded: {m.pair.pair_id if m.pair else 'NULL'}")
+            else:
+                current_app.logger.warning(f"    [{i+1}] Membership {m.id}: pair_id={m.pair_id} but pair is NULL")
+
+        current_app.logger.info(f"  Final result: {len(test_pairs)} pairs available")
     else:
         # Fallback to old system only if no active test set exists
+        current_app.logger.warning(f"  No active test set found. Falling back to legacy is_test_sample=True system")
         test_pairs = Pair.query.filter_by(is_test_sample=True).all()
-        current_app.logger.info(f"No active test set; using legacy is_test_sample=True system with {len(test_pairs)} samples")
+        current_app.logger.info(f"  Legacy system returned {len(test_pairs)} samples")
 
     return render_template("test.html", test_pairs=test_pairs)
 

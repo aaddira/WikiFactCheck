@@ -251,6 +251,9 @@ class TestSampleSetMembership(db.Model):
     correct_label = db.Column(db.String(50), nullable=False)  # correct answer for this pair in this set
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+    # Relationships
+    pair = db.relationship("Pair", backref="test_set_memberships", lazy=True)
+
     # Constraint: unique pair per test set (pair can only appear once in a set)
     __table_args__ = (db.UniqueConstraint("test_set_id", "pair_id", name="uq_test_set_pair"),)
 

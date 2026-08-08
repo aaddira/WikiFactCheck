@@ -42,63 +42,81 @@
     {% else %}
     <form id="testForm" class="space-y-8">
         {% for pair in test_pairs %}
-        <div class="bg-white rounded-lg shadow p-6">
-            <div class="flex items-center justify-between mb-4">
-                <h3 class="text-lg font-semibold">Question {{ loop.index }} of {{ test_pairs|length }}</h3>
-                <span class="text-sm text-gray-500">ID: {{ pair.pair_id }}</span>
+        <div class="mb-8">
+            <!-- Question header with Wikipedia link -->
+            <div class="mb-6 bg-white rounded-lg shadow p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex-grow">
+                        <div class="text-sm text-gray-600 mb-2">Question {{ loop.index }} of {{ test_pairs|length }}</div>
+                        <a href="https://en.wikipedia.org/wiki/{{ pair.article_title | replace(' ', '_') }}" target="_blank" class="text-3xl font-bold text-emerald-600 hover:underline">
+                            {{ pair.article_title }}
+                        </a>
+                        <img src="{{ url_for('static', filename='images/wikipedia_logo.svg') }}" alt="Wikipedia" class="h-8 mt-2">
+                    </div>
+                    <span class="text-xs text-gray-500">{{ pair.pair_id }}</span>
+                </div>
             </div>
 
             <!-- Pair content (read-only in test mode) -->
-            <div class="grid grid-cols-2 gap-6 mb-6">
-                <!-- Passage -->
-                <div>
-                    <h4 class="font-semibold text-sm mb-2 text-gray-700">Passage</h4>
-                    <div class="bg-emerald-50 border-l-4 border-emerald-500 p-4 rounded text-sm passage-text-box overflow-y-auto" data-passage-id="{{ pair.id }}" style="max-height: 400px;">
-                        {{ pair.passage_text }}
-                    </div>
-                </div>
-
-                <!-- Citation text and URL -->
-                <div class="flex flex-col">
-                    <h4 class="font-semibold text-sm mb-2 text-gray-700">Citation</h4>
-                    <div class="bg-green-50 border-l-4 border-green-500 p-4 rounded text-sm flex-grow overflow-y-auto">
-                        <div class="mb-4">
-                            <p class="text-xs font-semibold text-gray-600 mb-1">Citation Text:</p>
-                            <p class="whitespace-pre-wrap text-sm">{{ pair.citation_raw_text if pair.citation_raw_text else "No text available" }}</p>
+            <div class="bg-white rounded-lg shadow">
+                <div class="grid grid-cols-2 gap-0">
+                    <!-- Left panel: Passage -->
+                    <div class="p-6 border-r border-gray-200">
+                        <div class="font-semibold text-sm mb-3 text-gray-700">Passage to Evaluate</div>
+                        <div class="bg-emerald-50 border-l-4 border-emerald-500 p-4 rounded text-sm passage-text-box overflow-y-auto" data-passage-id="{{ pair.id }}" style="max-height: 400px;">
+                            {{ pair.passage_text }}
                         </div>
+                    </div>
+
+                    <!-- Right panel: Citation -->
+                    <div class="p-6 flex flex-col">
+                        <div class="font-semibold text-sm mb-3 text-gray-700">Citation Text (Reference)</div>
+
+                        <!-- Citation URL (shown first) -->
                         {% if pair.citation_source_url %}
-                        <div class="border-t pt-3">
-                            <p class="text-xs font-semibold text-gray-600 mb-1">Source URL:</p>
-                            <a href="{{ pair.citation_source_url }}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline text-xs break-all">{{ pair.citation_source_url }}</a>
+                        <div class="mb-4">
+                            <div class="text-xs font-semibold text-gray-600 mb-2">Citation Source</div>
+                            <a href="{{ pair.citation_source_url }}" target="_blank" rel="noopener noreferrer" class="text-emerald-600 hover:text-emerald-700 font-semibold text-sm break-all">
+                                View Source
+                            </a>
+                            <div class="text-xs text-gray-500 mt-1 break-all">{{ pair.citation_source_url }}</div>
                         </div>
                         {% endif %}
+
+                        <!-- Citation text -->
+                        <div class="flex-grow">
+                            <div class="text-xs font-semibold text-gray-600 mb-2">Full Citation Text</div>
+                            <div class="bg-green-50 border-l-4 border-green-500 p-4 rounded text-sm overflow-y-auto" style="max-height: 350px;">
+                                <p class="whitespace-pre-wrap">{{ pair.citation_raw_text if pair.citation_raw_text else "No text available" }}</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <!-- Label selection -->
-            <div class="mb-6">
-                <label class="block font-semibold text-sm mb-3 text-gray-700">Your Answer</label>
-                <div class="space-y-2">
+            <div class="bg-white rounded-lg shadow p-6 mt-6">
+                <label class="block font-semibold text-sm mb-4 text-gray-700">Your Fact-Check Decision</label>
+                <div class="space-y-3">
                     <div>
                         <input type="radio" id="q{{ pair.id }}-supported" name="answer_{{ pair.id }}" value="Supported" required>
-                        <label for="q{{ pair.id }}-supported" class="ml-2">✅ Supported - All claims are correctly grounded in the source</label>
+                        <label for="q{{ pair.id }}-supported" class="ml-2 text-sm">✅ <strong>Supported</strong> — All claims are correctly grounded in the source</label>
                     </div>
                     <div>
                         <input type="radio" id="q{{ pair.id }}-not-supported" name="answer_{{ pair.id }}" value="Not Supported">
-                        <label for="q{{ pair.id }}-not-supported" class="ml-2">❌ Not Supported - Claims are missing from or contradicted by the source</label>
+                        <label for="q{{ pair.id }}-not-supported" class="ml-2 text-sm">❌ <strong>Not Supported</strong> — Claims are missing from or contradicted by the source</label>
                     </div>
                     <div>
                         <input type="radio" id="q{{ pair.id }}-mixed" name="answer_{{ pair.id }}" value="Mixed">
-                        <label for="q{{ pair.id }}-mixed" class="ml-2">⚠️ Mixed - Some parts supported, others not</label>
+                        <label for="q{{ pair.id }}-mixed" class="ml-2 text-sm">⚠️ <strong>Mixed</strong> — Some parts supported, others not</label>
                     </div>
                     <div>
                         <input type="radio" id="q{{ pair.id }}-unverifiable" name="answer_{{ pair.id }}" value="Unverifiable">
-                        <label for="q{{ pair.id }}-unverifiable" class="ml-2">🔍 Unverifiable - Claim itself is unverifiable (opinion, subjective)</label>
+                        <label for="q{{ pair.id }}-unverifiable" class="ml-2 text-sm">🔍 <strong>Unverifiable</strong> — Claim itself is unverifiable (opinion, subjective)</label>
                     </div>
                     <div>
                         <input type="radio" id="q{{ pair.id }}-source-link-error" name="answer_{{ pair.id }}" value="Source link error">
-                        <label for="q{{ pair.id }}-source-link-error" class="ml-2">🔗 Source Link Error - URL is broken or leads to unrelated content</label>
+                        <label for="q{{ pair.id }}-source-link-error" class="ml-2 text-sm">🔗 <strong>Source Link Error</strong> — URL is broken or leads to unrelated content</label>
                     </div>
                 </div>
             </div>

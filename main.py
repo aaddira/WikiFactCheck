@@ -346,7 +346,11 @@ def login_page():
 @app.route("/test/post-login")
 @login_required
 def test_post_login_page():
-    """Qualification test page (after login, before test submission)."""
+    """Qualification test page (after login, before test submission).
+
+    This is an alias for /test to provide a consistent experience.
+    Uses the same template and logic as the /test route.
+    """
     user = get_current_user()
     # If already approved, show banner instead of hiding the page
     if user.test_approved_by_admin:
@@ -378,7 +382,8 @@ def test_post_login_page():
         current_app.logger.warning(f"  No active test set found")
         test_pairs = []
 
-    return render_template("test_post_login.html", test_pairs=test_pairs)
+    # Use the same test.html template as /test route for consistency
+    return render_template("test.html", test_pairs=test_pairs)
 
 
 @app.route("/test/results")

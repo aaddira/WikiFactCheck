@@ -231,7 +231,8 @@ class TestSampleSet(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
-    pairs = db.relationship("Pair", secondary="test_sample_set_memberships", backref="test_sets", lazy=True)
+    pairs = db.relationship("Pair", secondary="test_sample_set_memberships", backref=db.backref("test_sets", overlaps="test_set_memberships"), lazy=True)
+    memberships = db.relationship("TestSampleSetMembership", backref="test_set", lazy=True, cascade="all, delete-orphan")
 
     def activate(self):
         """Make this set the active one (deactivate others)."""
@@ -252,7 +253,7 @@ class TestSampleSetMembership(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Relationships
-    pair = db.relationship("Pair", backref="test_set_memberships", lazy=True)
+    pair = db.relationship("Pair", backref=db.backref("test_set_memberships", overlaps="test_sets"), lazy=True)
 
     # Constraint: unique pair per test set (pair can only appear once in a set)
     __table_args__ = (db.UniqueConstraint("test_set_id", "pair_id", name="uq_test_set_pair"),)

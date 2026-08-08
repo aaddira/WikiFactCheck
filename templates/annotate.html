@@ -65,6 +65,12 @@
         <!-- Left panel: Passage to Evaluate (Full Passage Context) -->
         <div class="panel">
             <div class="panel-title">Passage to Evaluate</div>
+
+            <!-- Fact highlighting instruction box -->
+            <div class="fact-check-note">
+                <span>Important passages are highlighted in red.</span> Read carefully and compare with the citation.
+            </div>
+
             <div class="passage-text-box" id="contextContent">
                 <span class="empty-state">Loading passage...</span>
             </div>
@@ -73,20 +79,27 @@
         <!-- Right panel: Citation -->
         <div class="panel">
             <div class="panel-title">Citation Text (Reference)</div>
+
+            <!-- Citation URL shown at top -->
+            <div class="metadata-section" style="margin-bottom: 12px;">
+                <div class="metadata-item">
+                    <div class="metadata-label">Citation Source</div>
+                    <div class="citation-url-box">
+                        <a id="citationUrl" href="#" target="_blank" style="color: #059669; font-weight: 600;">View Source</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Citation text -->
             <div class="citation-text-box" id="citationText">
                 <span class="empty-state">Loading citation...</span>
             </div>
 
-            <div class="metadata-section">
+            <!-- Additional metadata -->
+            <div class="metadata-section" style="margin-top: 12px;">
                 <div class="metadata-item">
-                    <div class="metadata-label">Citation</div>
+                    <div class="metadata-label">Citation Details</div>
                     <div class="metadata-value" id="citationMeta">—</div>
-                </div>
-                <div class="metadata-item">
-                    <div class="metadata-label">Citation URL</div>
-                    <div class="citation-url-box">
-                        <a id="citationUrl" href="#" target="_blank">View Source</a>
-                    </div>
                 </div>
             </div>
         </div>

@@ -63,7 +63,13 @@
                     <!-- Left panel: Passage -->
                     <div class="p-6 border-r border-gray-200">
                         <div class="font-semibold text-sm mb-3 text-gray-700">Passage to Evaluate</div>
-                        <div class="bg-emerald-50 border-l-4 border-emerald-500 p-4 rounded text-sm passage-text-box overflow-y-auto" data-passage-id="{{ pair.id }}" style="max-height: 400px;">
+
+                        <!-- Fact highlighting instruction -->
+                        <div class="fact-check-note" style="margin-bottom: 12px;">
+                            <span>Important passages are highlighted in red.</span> Read carefully and compare with the citation.
+                        </div>
+
+                        <div class="bg-emerald-50 border-l-4 border-emerald-500 p-4 rounded text-sm passage-text-box overflow-y-auto" data-passage-id="{{ pair.id }}" style="max-height: 350px;">
                             {{ pair.passage_text }}
                         </div>
                     </div>

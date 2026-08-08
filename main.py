@@ -351,8 +351,30 @@ def test_post_login_page():
     # If already approved, show banner instead of hiding the page
     if user.test_approved_by_admin:
         return render_template("test_approved.html")
-    # Get test samples
-    test_pairs = Pair.query.filter_by(is_test_sample=True).all()
+
+    # Get active test sample set (new versioning system)
+    active_set = TestSampleSet.query.filter_by(is_active=True).first()
+    current_app.logger.info(f"test_post_login_page: checking for active test set...")
+
+    if active_set:
+        current_app.logger.info(f"  Found active set: '{active_set.name}' (id={active_set.id})")
+        # Use the active test set exclusively
+        memberships = TestSampleSetMembership.query.filter_by(test_set_id=active_set.id).all()
+        current_app.logger.info(f"  Found {len(memberships)} memberships")
+
+        test_pairs = []
+        for m in memberships:
+            if m.pair:
+                test_pairs.append(m.pair)
+            else:
+                current_app.logger.warning(f"  Membership {m.id}: pair_id={m.pair_id} but pair is NULL")
+
+        current_app.logger.info(f"  Final result: {len(test_pairs)} pairs available")
+    else:
+        # No active test set exists
+        current_app.logger.warning(f"  No active test set found")
+        test_pairs = []
+
     return render_template("test_post_login.html", test_pairs=test_pairs)
 
 

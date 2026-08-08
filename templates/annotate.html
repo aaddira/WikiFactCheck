@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_fact_check_components.html" as components %}
 
 {% block title %}Annotate - WikiFactCheck{% endblock %}
 
@@ -66,10 +67,8 @@
         <div class="panel">
             <div class="panel-title">Passage to Evaluate</div>
 
-            <!-- Fact highlighting instruction box -->
-            <div class="fact-check-note">
-                <span>Important passages are highlighted in red.</span> Read carefully and compare with the citation.
-            </div>
+            <!-- Fact highlighting instruction box - shared component -->
+            {{ components.fact_check_note() }}
 
             <div class="passage-text-box" id="contextContent">
                 <span class="empty-state">Loading passage...</span>
@@ -107,17 +106,8 @@
 
     <!-- Annotation form -->
     <div class="annotation-form" id="annotationForm">
-        <!-- Instructions -->
-        <div class="instructions">
-            <h4>📋 How to Fact-Check This Citation</h4>
-            <ol>
-                <li><strong>Carefully read</strong> the quoted Wikipedia passage and compare it to the source content</li>
-                <li><strong>Select a label:</strong> Supported, Not Supported, Mixed, Unverifiable, or Source Link Error</li>
-                <li><strong>Quote exact verbatim</strong> text from the source that supports or contradicts the passage</li>
-                <li><strong>Explain</strong> how the quote relates to the passage, note any uncertainties</li>
-                <li><strong>Skip</strong> any statement you're unsure about or don't wish to evaluate</li>
-            </ol>
-        </div>
+        <!-- Instructions - shared component -->
+        {{ components.annotation_instructions() }}
 
         <!-- Label selection -->
         <div class="form-section">

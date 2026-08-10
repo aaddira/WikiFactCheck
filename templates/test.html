@@ -6,9 +6,9 @@
 {% block content %}
 <div class="max-w-4xl mx-auto px-4 py-6">
     {% if preview_mode %}
-    <div class="bg-blue-50 border-l-4 border-blue-400 p-6 mb-6">
-        <h3 class="text-lg font-semibold text-blue-800 mb-2">👁️ Preview Mode</h3>
-        <p class="text-blue-700 text-sm">You are viewing the qualification test as an admin. Users will see this when they take the test (form will be fully interactive for them).</p>
+    <div class="bg-blue-50 dark:bg-blue-900 border-l-4 border-blue-400 p-6 mb-6">
+        <h3 class="text-lg font-semibold text-blue-800 dark:text-blue-100 mb-2">👁️ Preview Mode</h3>
+        <p class="text-blue-700 dark:text-blue-200 text-sm">You are viewing the qualification test as an admin. Users will see this when they take the test (form will be fully interactive for them).</p>
     </div>
     {% endif %}
 
@@ -23,20 +23,20 @@
     <div id="status-container"></div>
 
     {% if not test_pairs %}
-    <div class="bg-yellow-50 border-l-4 border-yellow-400 p-6 max-w-4xl mx-auto">
-        <h3 class="text-lg font-semibold text-yellow-800 mb-2">⚠️ No Test Samples Set Up Yet</h3>
-        <p class="text-yellow-700 mb-4">
+    <div class="bg-yellow-50 dark:bg-yellow-900 border-l-4 border-yellow-400 p-6 max-w-4xl mx-auto">
+        <h3 class="text-lg font-semibold text-yellow-800 dark:text-yellow-100 mb-2">⚠️ No Test Samples Set Up Yet</h3>
+        <p class="text-yellow-700 dark:text-yellow-200 mb-4">
             The admin hasn't created a qualification test yet. You can't proceed to annotation without passing the test.
         </p>
-        <p class="text-yellow-700 mb-4">
+        <p class="text-yellow-700 dark:text-yellow-200 mb-4">
             Please ask your admin to:
         </p>
-        <ol class="list-decimal list-inside text-yellow-700 space-y-1 mb-6">
+        <ol class="list-decimal list-inside text-yellow-700 dark:text-yellow-200 space-y-1 mb-6">
             <li>Upload a dataset</li>
             <li>Mark 5 sample pairs as test samples</li>
             <li>Set the correct labels for each test sample</li>
         </ol>
-        <p class="text-yellow-600 text-sm">
+        <p class="text-yellow-600 dark:text-yellow-300 text-sm">
             Once the test is set up, reload this page to begin.
         </p>
     </div>
@@ -48,13 +48,13 @@
             <div class="mb-6 bg-white rounded-lg shadow p-6">
                 <div class="flex items-center justify-between mb-4">
                     <div class="flex-grow">
-                        <div class="text-sm text-gray-600 mb-2">Question {{ loop.index }} of {{ test_pairs|length }}</div>
-                        <a href="https://en.wikipedia.org/wiki/{{ pair.article_title | replace(' ', '_') }}" target="_blank" class="text-3xl font-bold text-emerald-600 hover:underline">
+                        <div class="text-sm text-gray-600 dark:text-gray-400 mb-2">Question {{ loop.index }} of {{ test_pairs|length }}</div>
+                        <a href="https://en.wikipedia.org/wiki/{{ pair.article_title | replace(' ', '_') }}" target="_blank" class="text-3xl font-bold text-emerald-600 dark:text-emerald-400 hover:underline">
                             {{ pair.article_title }}
                         </a>
                         <img src="{{ url_for('static', filename='images/wikipedia_logo.svg') }}" alt="Wikipedia" class="h-8 mt-2">
                     </div>
-                    <span class="text-xs text-gray-500">{{ pair.pair_id }}</span>
+                    <span class="text-xs text-gray-500 dark:text-gray-400">{{ pair.pair_id }}</span>
                 </div>
             </div>
 
@@ -62,8 +62,8 @@
             <div class="bg-white rounded-lg shadow">
                 <div class="grid grid-cols-2 gap-0">
                     <!-- Left panel: Passage -->
-                    <div class="p-6 border-r border-gray-200">
-                        <div class="font-semibold text-sm mb-3 text-gray-700">Passage to Evaluate</div>
+                    <div class="p-6 border-r border-gray-200 dark:border-gray-600">
+                        <div class="font-semibold text-sm mb-3 text-gray-700 dark:text-gray-300">Passage to Evaluate</div>
 
                         <!-- Fact highlighting instruction - shared component -->
                         <div style="margin-bottom: 12px;">{{ components.fact_check_note() }}</div>
@@ -75,12 +75,12 @@
 
                     <!-- Right panel: Citation -->
                     <div class="p-6 flex flex-col">
-                        <div class="font-semibold text-sm mb-3 text-gray-700">Citation Text (Reference)</div>
+                        <div class="font-semibold text-sm mb-3 text-gray-700 dark:text-gray-300">Citation Text (Reference)</div>
 
                         <!-- Citation URL (shown first) -->
                         {% if pair.citation_source_url %}
                         <div class="mb-4">
-                            <div class="text-xs font-semibold text-gray-600 mb-2">Citation Source</div>
+                            <div class="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-2">Citation Source</div>
                             <a href="{{ pair.citation_source_url }}" target="_blank" rel="noopener noreferrer" class="text-emerald-600 hover:text-emerald-700 font-semibold text-sm break-all">
                                 View Source
                             </a>
@@ -90,7 +90,7 @@
 
                         <!-- Citation text -->
                         <div class="flex-grow">
-                            <div class="text-xs font-semibold text-gray-600 mb-2">Full Citation Text</div>
+                            <div class="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-2">Full Citation Text</div>
                             <div class="bg-green-50 border-l-4 border-green-500 p-4 rounded text-sm overflow-y-auto" style="max-height: 350px;">
                                 <p class="whitespace-pre-wrap">{{ pair.citation_raw_text if pair.citation_raw_text else "No text available" }}</p>
                             </div>
@@ -100,8 +100,8 @@
             </div>
 
             <!-- Label selection -->
-            <div class="bg-white rounded-lg shadow p-6 mt-6">
-                <label class="block font-semibold text-sm mb-4 text-gray-700">Your Fact-Check Decision</label>
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mt-6">
+                <label class="block font-semibold text-sm mb-4 text-gray-700 dark:text-gray-300">Your Fact-Check Decision</label>
                 <div class="space-y-3">
                     <div>
                         <input type="radio" id="q{{ pair.id }}-supported" name="answer_{{ pair.id }}" value="Supported" required>
@@ -129,11 +129,11 @@
         {% endfor %}
 
         <!-- Submit button -->
-        <div class="bg-white rounded-lg shadow p-6">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
             <button
                 type="button"
                 onclick="{% if not preview_mode %}submitTest(){% else %}alert('This is preview mode. Users will submit the test here.'){% endif %}"
-                class="w-full bg-emerald-600 text-white py-3 rounded-lg font-semibold hover:bg-emerald-700 transition"
+                class="w-full bg-emerald-600 dark:bg-emerald-600 text-white py-3 rounded-lg font-semibold hover:bg-emerald-700 dark:hover:bg-emerald-500 transition"
                 {% if preview_mode %}disabled style="opacity: 0.6; cursor: not-allowed;"{% endif %}
             >
                 {% if preview_mode %}Submit Test (Preview - Disabled){% else %}Submit Test{% endif %}
@@ -144,19 +144,19 @@
 
     <!-- Results (shown after submission) -->
     <div id="resultsContainer" class="hidden">
-        <div class="bg-white rounded-lg shadow p-8">
-            <h2 class="text-2xl font-bold mb-4">Test Results</h2>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-8">
+            <h2 class="text-2xl font-bold mb-4 dark:text-white">Test Results</h2>
 
             <div id="scoreSection" class="mb-6 p-6 rounded-lg" style="">
-                <div class="text-5xl font-bold mb-2" id="scoreDisplay">—</div>
-                <div class="text-xl mb-4" id="scoreMessage">—</div>
-                <p class="text-gray-600" id="scoreDetails">—</p>
+                <div class="text-5xl font-bold mb-2 dark:text-white" id="scoreDisplay">—</div>
+                <div class="text-xl mb-4 dark:text-white" id="scoreMessage">—</div>
+                <p class="text-gray-600 dark:text-gray-300" id="scoreDetails">—</p>
             </div>
 
             <div id="resultActions" class="flex gap-4">
                 <button
                     onclick="location.reload()"
-                    class="flex-1 bg-emerald-600 text-white py-2 rounded-lg font-semibold hover:bg-emerald-700 transition"
+                    class="flex-1 bg-emerald-600 dark:bg-emerald-600 text-white py-2 rounded-lg font-semibold hover:bg-emerald-700 dark:hover:bg-emerald-500 transition"
                 >
                     Retake Test
                 </button>

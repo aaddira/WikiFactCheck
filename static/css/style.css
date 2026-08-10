@@ -75,6 +75,13 @@ body {
     overflow: hidden;
 }
 
+/* Dark mode for panels */
+[data-theme="dark"] .panel,
+html.dark .panel {
+    background: #1f2937;
+    color: var(--text-primary);
+}
+
 .panel-title {
     font-size: 12px;
     font-weight: 700;
@@ -433,6 +440,12 @@ html.dark .fact-highlight {
     letter-spacing: 0.3px;
 }
 
+/* Dark mode for form field labels */
+[data-theme="dark"] .form-field label,
+html.dark .form-field label {
+    color: #d1d5db;
+}
+
 .form-field textarea,
 .form-field input {
     width: 100%;
@@ -786,28 +799,7 @@ html.dark .empty-state {
     color: #9ca3af;
 }
 
-/* Instructions box dark mode */
-[data-theme="dark"] .instructions,
-html.dark .instructions {
-    background: #4b5563;
-    color: #f3f4f6;
-    border-color: #6b7280;
-}
-
-[data-theme="dark"] .instructions h4,
-html.dark .instructions h4 {
-    color: #f3f4f6;
-}
-
-[data-theme="dark"] .instructions ol,
-html.dark .instructions ol {
-    color: #f3f4f6;
-}
-
-[data-theme="dark"] .instructions li,
-html.dark .instructions li {
-    color: #f3f4f6;
-}
+/* Instructions box dark mode - REMOVED (duplicate with conflicting values below) */
 
 /* Label options dark mode */
 [data-theme="dark"] .label-options,
@@ -892,6 +884,23 @@ html.dark .instructions {
     background: #374151;
     color: var(--text-primary);
     border-color: #4b5563;
+}
+
+[data-theme="dark"] .instructions h4,
+html.dark .instructions h4 {
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .instructions ol,
+[data-theme="dark"] .instructions ul,
+html.dark .instructions ol,
+html.dark .instructions ul {
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .instructions li,
+html.dark .instructions li {
+    color: var(--text-primary);
 }
 
 /* Buttons dark mode */

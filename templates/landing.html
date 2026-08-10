@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_fact_check_components.html" as components %}
 
 {% block title %}WikiFactCheck - Fact-Checking Platform{% endblock %}
 
@@ -38,38 +39,39 @@
             <!-- Left panel: Passage -->
             <div class="panel">
                 <div class="panel-title">Passage to Evaluate</div>
+
+                <!-- Fact highlighting instruction - shared component -->
+                <div style="margin-bottom: 12px;">{{ components.fact_check_note() }}</div>
+
                 <div class="passage-text-box" id="passageText" style="color: #999;">
                     <span class="empty-state">Loading example...</span>
-                </div>
-
-                <div class="collapsible-section">
-                    <div class="collapsible-header" onclick="return false">
-                        <span>Full Passage Context</span>
-                        <span class="toggle-icon">▼</span>
-                    </div>
-                    <div class="collapsible-content" id="contextContent" style="color: #999;">
-                        <span class="empty-state">No context available</span>
-                    </div>
                 </div>
             </div>
 
             <!-- Right panel: Citation -->
             <div class="panel">
                 <div class="panel-title">Citation Text (Reference)</div>
+
+                <!-- Citation URL shown at top -->
+                <div class="metadata-section" style="margin-bottom: 12px;">
+                    <div class="metadata-item">
+                        <div class="metadata-label">Citation Source</div>
+                        <div class="citation-url-box">
+                            <a href="#" onclick="return false" style="color: #999; cursor: not-allowed;">View Source</a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Citation text -->
                 <div class="citation-text-box" id="citationText" style="color: #999;">
                     <span class="empty-state">Loading example...</span>
                 </div>
 
-                <div class="metadata-section">
+                <!-- Additional metadata -->
+                <div class="metadata-section" style="margin-top: 12px;">
                     <div class="metadata-item">
-                        <div class="metadata-label">Citation</div>
+                        <div class="metadata-label">Citation Details</div>
                         <div class="metadata-value" id="citationMeta">—</div>
-                    </div>
-                    <div class="metadata-item">
-                        <div class="metadata-label">Citation URL</div>
-                        <div class="citation-url-box">
-                            <a href="#" onclick="return false" style="color: #999; cursor: not-allowed;">View Source</a>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -77,17 +79,8 @@
 
         <!-- Annotation form (disabled) -->
         <div class="annotation-form" id="annotationForm">
-            <!-- Instructions -->
-            <div class="instructions">
-                <h4>📋 How to Fact-Check This Citation</h4>
-                <ol>
-                    <li><strong>Carefully read</strong> the quoted Wikipedia passage and compare it to the source content</li>
-                    <li><strong>Select a label:</strong> True, False, Mixed, No sufficient information, or Unverifiable</li>
-                    <li><strong>Quote exact verbatim</strong> text from the source that supports or contradicts the passage</li>
-                    <li><strong>Explain</strong> how the quote relates to the passage, note any uncertainties</li>
-                    <li><strong>Skip</strong> any statement you're unsure about or don't wish to evaluate</li>
-                </ol>
-            </div>
+            <!-- Instructions - shared component -->
+            {{ components.annotation_instructions() }}
 
             <!-- Label selection -->
             <div class="form-section">
@@ -96,35 +89,35 @@
                     <div class="label-radio">
                         <input type="radio" id="label-supported" name="label" value="Supported" disabled>
                         <label for="label-supported" style="opacity: 0.5; cursor: not-allowed;">
-                            <span>✅ Supported</span>
+                            <span>✅ <strong>Supported</strong></span>
                             <span class="label-shortcut">Press 1</span>
                         </label>
                     </div>
                     <div class="label-radio">
                         <input type="radio" id="label-not-supported" name="label" value="Not Supported" disabled>
                         <label for="label-not-supported" style="opacity: 0.5; cursor: not-allowed;">
-                            <span>❌ Not Supported</span>
+                            <span>❌ <strong>Not Supported</strong></span>
                             <span class="label-shortcut">Press 2</span>
                         </label>
                     </div>
                     <div class="label-radio">
                         <input type="radio" id="label-mixed" name="label" value="Mixed" disabled>
                         <label for="label-mixed" style="opacity: 0.5; cursor: not-allowed;">
-                            <span>⚠️ Mixed</span>
+                            <span>⚠️ <strong>Mixed</strong></span>
                             <span class="label-shortcut">Press 3</span>
                         </label>
                     </div>
                     <div class="label-radio">
                         <input type="radio" id="label-unverifiable" name="label" value="Unverifiable" disabled>
                         <label for="label-unverifiable" style="opacity: 0.5; cursor: not-allowed;">
-                            <span>🔍 Unverifiable</span>
+                            <span>🔍 <strong>Unverifiable</strong></span>
                             <span class="label-shortcut">Press 4</span>
                         </label>
                     </div>
                     <div class="label-radio">
                         <input type="radio" id="label-source-link-error" name="label" value="Source link error" disabled>
                         <label for="label-source-link-error" style="opacity: 0.5; cursor: not-allowed;">
-                            <span>🔗 Source Link Error</span>
+                            <span>🔗 <strong>Source Link Error</strong></span>
                             <span class="label-shortcut">Press 5</span>
                         </label>
                     </div>

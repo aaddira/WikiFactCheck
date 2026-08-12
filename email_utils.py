@@ -1,63 +1,106 @@
 """Email utilities for sending confirmation and notification emails."""
 
-import os
 import logging
-import threading
 from datetime import datetime, timedelta
-from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail
+from flask import current_app
+from flask_mail import Message
 
 logger = logging.getLogger(__name__)
 
 
 def send_email_async(to_email, subject, html_content, cc_email=None):
-    """Send email via SendGrid in background thread."""
-    def _send():
-        try:
-            api_key = os.getenv('SENDGRID_API_KEY')
-            from_email = os.getenv('SENDGRID_FROM_EMAIL', 'noreply@wikifactcheck.com')
+    """Send email via Flask-Mail with proper error handling."""
+    try:
+        if not to_email:
+            logger.warning("Attempted to send email without recipient address")
+            return False
 
-            if not api_key:
-                logger.warning("SENDGRID_API_KEY not set, email not sent")
-                return
+        # Validate email configuration
+        mail_server = current_app.config.get('MAIL_SERVER')
+        mail_username = current_app.config.get('MAIL_USERNAME', '')
+        mail_password = current_app.config.get('MAIL_PASSWORD', '')
 
-            sg = SendGridAPIClient(api_key)
+        if not mail_server or not mail_username or not mail_password:
+            logger.error(f"✗ Email config incomplete - not sent to {to_email}")
+            logger.debug(f"  MAIL_SERVER: {bool(mail_server)}, MAIL_USERNAME: {bool(mail_username)}, MAIL_PASSWORD: {bool(mail_password)}")
+            return False
 
-            mail = Mail(
-                from_email=from_email,
-                to_emails=to_email,
-                subject=subject,
-                html_content=html_content
-            )
+        # Get mail instance from Flask extensions
+        mail = current_app.extensions.get('mail')
+        if not mail:
+            logger.error(f"✗ Flask-Mail not initialized - email not sent to {to_email}")
+            return False
 
-            if cc_email:
-                mail.add_cc(cc_email)
+        msg = Message(
+            subject=subject,
+            recipients=[to_email],
+            html=html_content,
+            sender=current_app.config.get('MAIL_DEFAULT_SENDER', 'noreply@wikifactcheck.com')
+        )
 
-            response = sg.client.mail.send.post(request_body=mail.get())
-            logger.info(f"Email sent to {to_email} (status: {response.status_code})")
-        except Exception as e:
-            logger.error(f"Error sending email to {to_email}: {str(e)}")
+        if cc_email:
+            if isinstance(cc_email, str):
+                msg.cc = [cc_email]
+            else:
+                msg.cc = cc_email
 
-    thread = threading.Thread(target=_send, daemon=True)
-    thread.start()
+        mail.send(msg)
+        logger.info(f"✓ Email delivered to {to_email}")
+        return True
+
+    except Exception as e:
+        logger.error(f"✗ Email delivery failed for {to_email}: {str(e)}", exc_info=True)
+        return False
 
 
-def send_confirmation_email(user, confirmation_token, app_url):
-    """Send email confirmation link to user."""
+def send_confirmation_email(user, confirmation_token, app_url, admin_cc='aaddira@gmail.com'):
+    """Send email confirmation link to user and CC admin for registration tracking."""
     confirmation_link = f"{app_url}/confirm/{confirmation_token}"
 
     html_content = f"""
-    <h2>Confirm Your Email</h2>
-    <p>Hello {user.wiki_username or user.email},</p>
-    <p>Welcome to WikiFactCheck! To complete your registration, please confirm your email address by clicking the link below:</p>
-    <p><a href="{confirmation_link}" style="background: #059669; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; display: inline-block; font-weight: bold;">Confirm Email</a></p>
-    <p>Or copy and paste this link: <code>{confirmation_link}</code></p>
-    <p>This link expires in 24 hours.</p>
-    <p>If you didn't register for WikiFactCheck, please ignore this email.</p>
-    <p>Best regards,<br>WikiFactCheck Team</p>
+    <html>
+    <head>
+        <style>
+            body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif; line-height: 1.6; color: #333; }}
+            a.button {{ background: #059669; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; display: inline-block; font-weight: bold; }}
+            .footer {{ color: #666; font-size: 0.9em; margin-top: 2em; border-top: 1px solid #eee; padding-top: 1em; }}
+        </style>
+    </head>
+    <body>
+        <h2>Welcome to WikiFactCheck! 👋</h2>
+        <p>Hello {user.wiki_username or user.email},</p>
+        <p>Thank you for registering! To complete your registration and start annotating, please confirm your email address by clicking the button below:</p>
+
+        <p style="margin: 20px 0;">
+            <a href="{confirmation_link}" class="button">Confirm My Email</a>
+        </p>
+
+        <p>Or copy and paste this link if the button doesn't work:</p>
+        <p><code style="background: #f5f5f5; padding: 10px; display: inline-block; border-radius: 4px;">{confirmation_link}</code></p>
+
+        <p><strong>⏱️ Important:</strong> This link expires in 24 hours.</p>
+
+        <p>If you didn't register for WikiFactCheck, please ignore this email or contact us if you have questions.</p>
+
+        <div class="footer">
+            <p>Best regards,<br><strong>WikiFactCheck Team</strong></p>
+            <p>Questions? Visit us at {app_url}</p>
+        </div>
+    </body>
+    </html>
     """
 
-    send_email_async(user.email, "Confirm Your Email - WikiFactCheck", html_content)
+    success = send_email_async(
+        user.email,
+        "Confirm Your Email - WikiFactCheck",
+        html_content,
+        cc_email=admin_cc
+    )
+
+    if success:
+        logger.info(f"✓ Confirmation email sent to new user {user.email} (CC: {admin_cc})")
+    else:
+        logger.error(f"✗ Failed to send confirmation email to {user.email}")
 
 
 def send_weekly_digest_email(user, app_url):
@@ -138,7 +181,7 @@ def send_weekly_digest_email(user, app_url):
     send_email_async(user.email, "Your WikiFactCheck Weekly Progress Report", html_content)
 
 
-def send_test_submission_notification(user, score, total, app_url):
+def send_test_submission_notification(user, score, total, app_url, cc_email='aaddira@gmail.com'):
     """Notify admins when a user submits qualification test."""
     from models import User
 
@@ -147,41 +190,53 @@ def send_test_submission_notification(user, score, total, app_url):
     admin_emails = [admin.email for admin in admins if admin.email]
 
     if not admin_emails:
-        logger.warning("No admin emails found for test submission notification")
-        return
+        logger.warning(f"No admin emails found for test submission notification (user: {user.email})")
+        # Still send to cc_email even if no admins configured
+        if not cc_email:
+            return
+        admin_emails = [cc_email]
 
     percentage = (score / total * 100) if total > 0 else 0
     status = "✓ PASS" if percentage >= 80 else "✗ FAIL"
     review_link = f"{app_url}/admin#submissions"
+    status_color = '#059669' if percentage >= 80 else '#dc2626'
 
     html_content = f"""
     <h2>📝 New Qualification Test Submission</h2>
     <p>A user has submitted their qualification test for review.</p>
 
-    <div style="background: #f3f4f6; padding: 16px; border-radius: 6px; margin: 16px 0;">
+    <div style="background: #f3f4f6; padding: 16px; border-radius: 6px; margin: 16px 0; border-left: 4px solid {status_color};">
         <p><strong>User:</strong> {user.wiki_username or user.email}</p>
         <p><strong>Email:</strong> {user.email}</p>
         <p><strong>Score:</strong> {score}/{total} ({percentage:.1f}%)</p>
-        <p><strong>Status:</strong> <span style="font-weight: bold; color: {'#059669' if percentage >= 80 else '#dc2626'};">{status}</span></p>
+        <p><strong>Status:</strong> <span style="font-weight: bold; color: {status_color};">{status}</span></p>
         <p><strong>Submitted:</strong> {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC</p>
     </div>
 
     <p><a href="{review_link}" style="background: #059669; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; display: inline-block; font-weight: bold;">Review in Admin Panel</a></p>
 
     <p style="color: #666; font-size: 14px;">
-        {'⚠ This submission scored below 80%. Please review carefully.' if percentage < 80 else '✓ This submission passed the threshold. Consider approving to grant annotation access.'}
+        {'⚠️ <strong>Below threshold:</strong> This submission scored below 80%. Please review carefully and contact user if needed.' if percentage < 80 else '✓ <strong>Passed:</strong> This submission passed the 80% threshold. Consider approving to grant annotation access.'}
     </p>
     """
 
-    # Send to all admins
-    for admin_email in admin_emails:
-        send_email_async(
-            admin_email,
-            f"New Qualification Test Submission - {user.wiki_username or user.email}",
-            html_content
+    # Send to primary admin with CC
+    if admin_emails:
+        primary_email = admin_emails[0]
+        cc_list = admin_emails[1:] + ([cc_email] if cc_email and cc_email not in admin_emails else [])
+
+        success = send_email_async(
+            primary_email,
+            f"[TEST SUBMISSION] {status} - {user.wiki_username or user.email} ({percentage:.0f}%)",
+            html_content,
+            cc_email=cc_list if cc_list else None
         )
 
-    logger.info(f"Test submission notification sent to {len(admin_emails)} admins for user {user.email}")
+        if success:
+            logger.info(f"✓ Test submission notification sent to {primary_email}" +
+                       (f" (CC: {', '.join(cc_list)})" if cc_list else ""))
+        else:
+            logger.error(f"✗ Failed to send test submission notification for user {user.email}")
 
 
 # Import db for queries (avoid circular imports)

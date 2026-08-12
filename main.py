@@ -134,6 +134,47 @@ def send_test_digest():
         print(f"[ERROR] Failed to send digest: {str(e)}")
 
 
+@app.cli.command()
+def test_email():
+    """Test email configuration and send a test email to admin."""
+    print("\n📧 Testing Email Configuration...")
+    print(f"  MAIL_SERVER: {app.config.get('MAIL_SERVER')}")
+    print(f"  MAIL_PORT: {app.config.get('MAIL_PORT')}")
+    print(f"  MAIL_USE_TLS: {app.config.get('MAIL_USE_TLS')}")
+    print(f"  MAIL_USERNAME: {'✓ Set' if app.config.get('MAIL_USERNAME') else '✗ Not set'}")
+    print(f"  MAIL_PASSWORD: {'✓ Set' if app.config.get('MAIL_PASSWORD') else '✗ Not set'}")
+    print(f"  MAIL_DEFAULT_SENDER: {app.config.get('MAIL_DEFAULT_SENDER')}")
+    print(f"  APP_URL: {app.config.get('APP_URL')}")
+
+    if not app.config.get('MAIL_USERNAME') or not app.config.get('MAIL_PASSWORD'):
+        print("\n❌ Email configuration incomplete. Set MAIL_USERNAME and MAIL_PASSWORD environment variables.")
+        return
+
+    print("\n✓ Configuration looks valid. Sending test email...")
+
+    try:
+        from email_utils import send_email_async
+        recipient = app.config.get('MAIL_DEFAULT_SENDER', 'noreply@wikifactcheck.com')
+        test_html = """
+        <h2>✓ WikiFactCheck Email Test</h2>
+        <p>If you received this email, the email system is working correctly!</p>
+        <p><strong>Sent:</strong> """ + datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S') + """ UTC</p>
+        <p style="color: #666; font-size: 0.9em; margin-top: 2em;">
+            You can safely delete this test email.
+        </p>
+        """
+
+        success = send_email_async(recipient, "✓ WikiFactCheck Email System Test", test_html)
+
+        if success:
+            print(f"\n✓ Test email sent successfully to {recipient}")
+        else:
+            print(f"\n❌ Failed to send test email. Check logs for details.")
+    except Exception as e:
+        print(f"\n❌ Error: {str(e)}")
+        app.logger.error(f"Email test failed: {str(e)}", exc_info=True)
+
+
 # ============================================================================
 # HTML Routes
 # ============================================================================
@@ -287,23 +328,19 @@ def forgot_username_page():
                 message="If this email is registered, your Wikipedia username will be sent shortly.")
 
         # Send username reminder email
-        try:
-            from flask_mail import Message
-            msg = Message(
-                subject="Your WikiFactCheck Username",
-                recipients=[user.email],
-                html=f"""
-                <h2>Your WikiFactCheck Username</h2>
-                <p>Hi {user.email},</p>
-                <p>Your Wikipedia username associated with this account is:</p>
-                <p><strong style="font-size: 1.2em; font-family: monospace;">{user.wiki_username or 'Not set'}</strong></p>
-                <p>You can now <a href="{app.config['APP_URL']}/login">log in</a> using this username and your email.</p>
-                <p>If you didn't request this, you can ignore this email.</p>
-                """
-            )
-            mail.send(msg)
-        except Exception as e:
-            app.logger.error(f"Error sending username reminder to {user.email}: {str(e)}")
+        from email_utils import send_email_async
+        html_content = f"""
+        <h2>Your WikiFactCheck Username</h2>
+        <p>Hello {user.wiki_username or user.email},</p>
+        <p>Your Wikipedia username associated with your WikiFactCheck account is:</p>
+        <p><strong style="font-size: 1.2em; font-family: monospace; background: #f5f5f5; padding: 10px; border-radius: 4px; display: inline-block;">{user.wiki_username or 'Not set'}</strong></p>
+        <p>You can now <a href="{app.config['APP_URL']}/login">log in</a> using this username and your email.</p>
+        <p>If you didn't request this, you can safely ignore this email.</p>
+        <p style="color: #666; font-size: 0.9em; margin-top: 2em; border-top: 1px solid #eee; padding-top: 1em;">
+            Best regards,<br><strong>WikiFactCheck Team</strong>
+        </p>
+        """
+        send_email_async(user.email, "Your WikiFactCheck Username", html_content)
 
         return render_template("forgot_username.html",
             message="Your Wikipedia username has been sent to your email.",

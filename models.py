@@ -313,3 +313,29 @@ class AuditLog(db.Model):
             details=details if isinstance(details, str) else (json.dumps(details) if details else None)
         )
         db.session.add(log_entry)
+
+
+class JobRun(db.Model):
+    """Cross-process claim record so a scheduled job runs once per time slot.
+
+    Gunicorn runs 2 workers and each builds its own APScheduler, so every cron
+    fires once per worker. The unique (job_name, run_key) constraint turns the
+    INSERT into a leader election: exactly one worker's insert succeeds and the
+    others get an IntegrityError and stand down.
+
+    run_key identifies the slot -- "2026-W36" for weekly, "2026-09-07" for
+    daily -- so re-firing within the same slot is a no-op.
+    """
+    __tablename__ = "job_runs"
+
+    id = db.Column(db.Integer, primary_key=True)
+    job_name = db.Column(db.String(100), nullable=False, index=True)
+    run_key = db.Column(db.String(50), nullable=False)
+    claimed_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    completed_at = db.Column(db.DateTime)
+    status = db.Column(db.String(20), default="running", nullable=False)  # running|success|failed
+    detail = db.Column(db.Text)
+
+    __table_args__ = (
+        db.UniqueConstraint("job_name", "run_key", name="uq_job_run_name_key"),
+    )

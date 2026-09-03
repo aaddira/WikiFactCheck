@@ -5,7 +5,8 @@ from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from flask import Flask
-from models import db, User, Annotation, Pair
+from sqlalchemy.exc import IntegrityError
+from models import db, User, Annotation, Pair, JobRun
 from email_utils import send_weekly_digest_email
 from backup_manager import create_backup, cleanup_old_backups
 from qualification_test_manager import save_qualification_config
@@ -13,69 +14,117 @@ from qualification_test_manager import save_qualification_config
 logger = logging.getLogger(__name__)
 
 
-def send_weekly_digests_job(app):
-    """Send weekly digest emails to all annotators."""
+def _week_key():
+    """ISO year+week, e.g. '2026-W36'. One slot per calendar week."""
+    return datetime.utcnow().strftime("%G-W%V")
+
+
+def _day_key():
+    """UTC date, e.g. '2026-09-07'. One slot per day."""
+    return datetime.utcnow().strftime("%Y-%m-%d")
+
+
+def run_once_across_workers(app, job_name, run_key, work):
+    """Run `work()` in exactly one process per (job_name, run_key) slot.
+
+    Gunicorn runs 2 workers and each has its own APScheduler, so both fire
+    every cron. Inserting the claim row is the leader election: the unique
+    constraint means only one worker's INSERT commits, and the loser skips.
+
+    This is deliberately at-most-once, not at-least-once. If the winning
+    worker dies mid-run the slot stays claimed and the job is skipped until
+    the next slot -- for outbound email, silence beats duplicates.
+    """
     with app.app_context():
+        claim = JobRun(job_name=job_name, run_key=run_key)
+        db.session.add(claim)
         try:
-            users = User.query.filter(User.is_admin == False, User.email_confirmed == True).all()
-            sent_count = 0
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            logger.info(f"[{job_name}] slot {run_key} already claimed by another worker - skipping")
+            return False
 
-            for user in users:
-                try:
-                    app_url = app.config.get("APP_URL", "http://localhost:5000")
-                    # Already on a background thread: send inline so failures
-                    # are attributable to this user and counted correctly.
-                    send_weekly_digest_email(user, app_url, app=app, background=False)
-                    sent_count += 1
-                except Exception as e:
-                    logger.error(f"Error sending digest to {user.email}: {str(e)}")
-
-            logger.info(f"Weekly digests sent to {sent_count}/{len(users)} annotators")
+        logger.info(f"[{job_name}] claimed slot {run_key} - running")
+        try:
+            detail = work()
+            claim.status = "success"
+            claim.detail = detail if isinstance(detail, str) else None
+            logger.info(f"[{job_name}] slot {run_key} completed: {detail}")
         except Exception as e:
-            logger.error(f"Error in send_weekly_digests_job: {str(e)}")
+            claim.status = "failed"
+            claim.detail = str(e)[:2000]
+            logger.error(f"[{job_name}] slot {run_key} failed: {e}", exc_info=True)
+        finally:
+            claim.completed_at = datetime.utcnow()
+            db.session.commit()
+        return True
+
+
+def send_weekly_digests_job(app):
+    """Send weekly digest emails to all annotators (once per week, one worker)."""
+    def work():
+        users = User.query.filter(User.is_admin == False, User.email_confirmed == True).all()
+        sent_count = 0
+
+        for user in users:
+            try:
+                app_url = app.config.get("APP_URL", "http://localhost:5000")
+                # Already on a background thread: send inline so failures are
+                # attributable to this user and counted correctly.
+                send_weekly_digest_email(user, app_url, app=app, background=False)
+                sent_count += 1
+            except Exception as e:
+                logger.error(f"Error sending digest to {user.email}: {str(e)}")
+
+        return f"digests sent to {sent_count}/{len(users)} annotators"
+
+    run_once_across_workers(app, "weekly_digest", _week_key(), work)
 
 
 def backup_annotations_job(app):
-    """Backup all annotation data every 24 hours."""
-    with app.app_context():
-        try:
-            backup_file = create_backup()
-            if backup_file:
-                logger.info(f"Annotation backup completed: {backup_file}")
-                # Cleanup backups older than 30 days
-                cleanup_old_backups(days=30)
-            else:
-                logger.error("Annotation backup failed")
-        except Exception as e:
-            logger.error(f"Error in backup_annotations_job: {str(e)}")
+    """Backup all annotation data every 24 hours (once per day, one worker)."""
+    def work():
+        backup_file = create_backup()
+        if not backup_file:
+            raise RuntimeError("create_backup() returned no file")
+        cleanup_old_backups(days=30)
+        _prune_job_runs(days=90)
+        return f"backup written to {backup_file}"
+
+    run_once_across_workers(app, "backup_annotations", _day_key(), work)
 
 
 def backup_qualification_configs_job(app):
-    """Backup all qualification test configurations every 24 hours."""
-    with app.app_context():
-        try:
-            from models import Dataset
-            datasets = Dataset.query.all()
-            backed_up = 0
+    """Backup qualification test configs every 24 hours (once per day, one worker)."""
+    def work():
+        from models import Dataset
+        datasets = Dataset.query.all()
+        backed_up = 0
 
-            for dataset in datasets:
-                # Check if dataset has test samples
-                test_count = db.session.query(db.func.count(Pair.id)).filter_by(
-                    dataset_id=dataset.id,
-                    is_test_sample=True
-                ).scalar()
+        for dataset in datasets:
+            # Only datasets that actually have test samples
+            test_count = db.session.query(db.func.count(Pair.id)).filter_by(
+                dataset_id=dataset.id,
+                is_test_sample=True
+            ).scalar()
 
-                if test_count > 0:
-                    save_qualification_config(dataset.id, f"{dataset.name}_auto")
-                    backed_up += 1
+            if test_count > 0:
+                save_qualification_config(dataset.id, f"{dataset.name}_auto")
+                backed_up += 1
 
-            if backed_up > 0:
-                logger.info(f"Qualification config backups completed: {backed_up} datasets")
-            else:
-                logger.info("No qualification configs to backup")
+        return f"{backed_up} qualification configs backed up"
 
-        except Exception as e:
-            logger.error(f"Error in backup_qualification_configs_job: {str(e)}")
+    run_once_across_workers(app, "backup_qualification_configs", _day_key(), work)
+
+
+def _prune_job_runs(days=90):
+    """Drop old claim rows so job_runs doesn't grow without bound."""
+    cutoff = datetime.utcnow() - timedelta(days=days)
+    deleted = JobRun.query.filter(JobRun.claimed_at < cutoff).delete(synchronize_session=False)
+    db.session.commit()
+    if deleted:
+        logger.info(f"Pruned {deleted} job_runs rows older than {days} days")
 
 
 def init_scheduler(app):

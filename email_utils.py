@@ -14,12 +14,21 @@ dereferences it.
 """
 
 import logging
+import smtplib
 import threading
+import time
 from datetime import datetime, timedelta
 from flask import current_app
-from flask_mail import Message
+from flask_mail import Message, sanitize_address, sanitize_addresses
 
 logger = logging.getLogger(__name__)
+
+# Flask-Mail builds the MIME correctly but calls smtplib.SMTP(server, port)
+# with NO timeout, so smtplib inherits socket's default of None and blocks
+# forever if the SMTP port is filtered (common on PaaS egress). That hung the
+# sender thread silently -- no delivery, no error, one leaked thread per send.
+# We therefore keep Message for MIME and own the transport ourselves.
+DEFAULT_SMTP_TIMEOUT = 20
 
 
 def _resolve_app(app=None):
@@ -32,6 +41,53 @@ def _resolve_app(app=None):
         app = current_app
     unwrap = getattr(app, "_get_current_object", None)
     return unwrap() if unwrap is not None else app
+
+
+def smtp_transport(app, msg, timeout=None):
+    """Send a built Message over SMTP, logging each phase.
+
+    Mirrors flask_mail.Connection.send but with an explicit socket timeout, so
+    a filtered port fails in `timeout` seconds instead of hanging forever. Each
+    phase is logged separately: when this fails, the last line tells you whether
+    it was DNS/connect, STARTTLS, auth, or the send itself.
+    """
+    server = app.config['MAIL_SERVER']
+    port = int(app.config['MAIL_PORT'])
+    use_tls = app.config.get('MAIL_USE_TLS', False)
+    use_ssl = app.config.get('MAIL_USE_SSL', False)
+    username = app.config.get('MAIL_USERNAME')
+    password = app.config.get('MAIL_PASSWORD')
+    timeout = timeout or app.config.get('MAIL_TIMEOUT', DEFAULT_SMTP_TIMEOUT)
+
+    if msg.date is None:
+        msg.date = time.time()
+    if msg.has_bad_headers():
+        raise ValueError("Message has bad headers (newline in sender or recipients)")
+
+    started = time.monotonic()
+    cls = smtplib.SMTP_SSL if use_ssl else smtplib.SMTP
+
+    logger.info(f"SMTP connecting to {server}:{port} (timeout={timeout}s, ssl={use_ssl})")
+    smtp = cls(server, port, timeout=timeout)
+    try:
+        logger.info(f"SMTP connected in {time.monotonic() - started:.1f}s")
+        if use_tls:
+            smtp.starttls()
+            logger.info("SMTP STARTTLS negotiated")
+        if username and password:
+            smtp.login(username, password)
+            logger.info(f"SMTP authenticated as {username}")
+        smtp.sendmail(
+            sanitize_address(msg.sender),
+            list(sanitize_addresses(msg.send_to)),
+            msg.as_bytes(),
+        )
+        logger.info(f"SMTP handed off message in {time.monotonic() - started:.1f}s total")
+    finally:
+        try:
+            smtp.quit()
+        except Exception:
+            pass
 
 
 def _deliver(app, to_email, subject, html_content, cc_email=None):
@@ -55,11 +111,6 @@ def _deliver(app, to_email, subject, html_content, cc_email=None):
                 )
                 return False
 
-            mail = app.extensions.get('mail')
-            if not mail:
-                logger.error(f"✗ Flask-Mail not initialized - email not sent to {to_email}")
-                return False
-
             msg = Message(
                 subject=subject,
                 recipients=[to_email],
@@ -70,10 +121,23 @@ def _deliver(app, to_email, subject, html_content, cc_email=None):
             if cc_email:
                 msg.cc = [cc_email] if isinstance(cc_email, str) else list(cc_email)
 
-            mail.send(msg)
+            smtp_transport(app, msg)
             logger.info(f"✓ Email DELIVERED to {to_email} via {mail_server} (subject: {subject!r})")
             return True
 
+    except smtplib.SMTPAuthenticationError as e:
+        logger.error(
+            f"✗ Email FAILED for {to_email} - SMTP rejected the credentials ({e.smtp_code}). "
+            f"Gmail requires a 16-character App Password here, not the account password.",
+        )
+        return False
+    except (OSError, smtplib.SMTPServerDisconnected) as e:
+        logger.error(
+            f"✗ Email FAILED for {to_email} - could not reach "
+            f"{app.config.get('MAIL_SERVER')}:{app.config.get('MAIL_PORT')} ({e}). "
+            f"Outbound SMTP is likely blocked from this host.",
+        )
+        return False
     except Exception as e:
         logger.error(f"✗ Email delivery FAILED for {to_email}: {e}", exc_info=True)
         return False

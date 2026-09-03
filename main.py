@@ -54,6 +54,9 @@ app.config["MAIL_USE_TLS"] = os.getenv("MAIL_USE_TLS", "True").lower() == "true"
 app.config["MAIL_USERNAME"] = os.getenv("MAIL_USERNAME", "")
 app.config["MAIL_PASSWORD"] = os.getenv("MAIL_PASSWORD", "")
 app.config["MAIL_DEFAULT_SENDER"] = os.getenv("MAIL_DEFAULT_SENDER", "noreply@wikifactcheck.com")
+# Socket timeout for SMTP. Without this smtplib blocks forever on a filtered
+# port and the sender thread hangs silently.
+app.config["MAIL_TIMEOUT"] = int(os.getenv("MAIL_TIMEOUT", 20))
 app.config["APP_URL"] = os.getenv("APP_URL", "http://localhost:5000")
 
 mail = Mail(app)
@@ -696,6 +699,75 @@ def api_resend_confirmation():
     send_confirmation_email(user, user.confirmation_token, app.config["APP_URL"], app=app)
     
     return jsonify({"success": True, "message": "Confirmation email sent"}), 200
+
+
+@app.route("/api/admin/smtp-diagnostic", methods=["GET"])
+@admin_required
+def api_smtp_diagnostic():
+    """Probe SMTP synchronously and report which phase fails.
+
+    Background sends can only report into the logs, which makes a hung or
+    rejected connection hard to see. This runs inline and returns the result,
+    so the failing phase is visible from the browser. Add ?send=1 to also
+    deliver a real test email to MAIL_DEFAULT_SENDER.
+    """
+    import smtplib, time as _time
+    from email_utils import smtp_transport
+    from flask_mail import Message
+
+    phases = []
+
+    def record(name, fn):
+        started = _time.monotonic()
+        try:
+            fn()
+            phases.append({"phase": name, "ok": True,
+                           "seconds": round(_time.monotonic() - started, 2)})
+            return True
+        except Exception as e:
+            phases.append({"phase": name, "ok": False,
+                           "seconds": round(_time.monotonic() - started, 2),
+                           "error": f"{type(e).__name__}: {e}"})
+            return False
+
+    server = app.config["MAIL_SERVER"]
+    port = int(app.config["MAIL_PORT"])
+    timeout = app.config.get("MAIL_TIMEOUT", 20)
+    state = {}
+
+    ok = record("connect", lambda: state.update(
+        smtp=smtplib.SMTP(server, port, timeout=timeout)))
+
+    if ok and app.config.get("MAIL_USE_TLS"):
+        ok = record("starttls", lambda: state["smtp"].starttls())
+
+    if ok and app.config.get("MAIL_USERNAME"):
+        ok = record("login", lambda: state["smtp"].login(
+            app.config["MAIL_USERNAME"], app.config["MAIL_PASSWORD"]))
+
+    if state.get("smtp"):
+        try:
+            state["smtp"].quit()
+        except Exception:
+            pass
+
+    sent = None
+    if ok and request.args.get("send") == "1":
+        recipient = app.config.get("MAIL_DEFAULT_SENDER")
+        msg = Message(subject="✓ WikiFactCheck SMTP diagnostic",
+                      recipients=[recipient],
+                      html="<p>SMTP is working. You can delete this.</p>",
+                      sender=recipient)
+        sent = record("send", lambda: smtp_transport(app, msg))
+
+    return jsonify({
+        "target": f"{server}:{port}",
+        "timeout_seconds": timeout,
+        "use_tls": app.config.get("MAIL_USE_TLS"),
+        "username": app.config.get("MAIL_USERNAME"),
+        "all_ok": ok and (sent is not False),
+        "phases": phases,
+    }), 200
 
 
 # Import blueprint routes

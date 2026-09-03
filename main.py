@@ -21,6 +21,11 @@ load_dotenv()
 
 app = Flask(__name__)
 
+# Configure Whitenoise for static file serving in production (gunicorn)
+from whitenoise import WhiteNoise
+app.wsgi_app = WhiteNoise(app.wsgi_app, root=os.path.join(os.path.dirname(__file__), 'static'))
+
+
 # Database configuration
 # Priority: DATABASE_URL env var > DB_PATH env var > local dev default
 database_url = os.getenv("DATABASE_URL")

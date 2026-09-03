@@ -75,6 +75,7 @@ app.config["SCHEDULER_ENABLED"] = os.getenv("SCHEDULER_ENABLED", "true").lower()
 app.config["DIGEST_SCHEDULE_DAY"] = int(os.getenv("DIGEST_SCHEDULE_DAY", "0"))  # 0 = Monday
 app.config["DIGEST_SCHEDULE_HOUR"] = int(os.getenv("DIGEST_SCHEDULE_HOUR", "9"))  # 9 AM UTC
 scheduler = init_scheduler(app)
+app.extensions["scheduler"] = scheduler
 
 
 # CLI Commands
@@ -153,7 +154,7 @@ def test_email():
     print("\n✓ Configuration looks valid. Sending test email...")
 
     try:
-        from email_utils import send_email_async
+        from email_utils import send_email_sync, send_email_queued
         recipient = app.config.get('MAIL_DEFAULT_SENDER', 'noreply@wikifactcheck.com')
         test_html = """
         <h2>✓ WikiFactCheck Email Test</h2>
@@ -164,7 +165,7 @@ def test_email():
         </p>
         """
 
-        success = send_email_async(recipient, "✓ WikiFactCheck Email System Test", test_html)
+        success = send_email_sync(recipient, "✓ WikiFactCheck Email System Test", test_html)
 
         if success:
             print(f"\n✓ Test email sent successfully to {recipient}")
@@ -240,7 +241,7 @@ def register_page():
         db.session.commit()
 
         # Send confirmation email
-        send_confirmation_email(user, confirmation_token, app.config["APP_URL"])
+        send_confirmation_email(user, confirmation_token, app.config["APP_URL"], scheduler=scheduler)
 
         return render_template("register.html", success=True, email=email)
 
@@ -302,7 +303,7 @@ def resend_confirmation_page():
         db.session.commit()
 
         # Send confirmation email
-        send_confirmation_email(user, confirmation_token, app.config["APP_URL"])
+        send_confirmation_email(user, confirmation_token, app.config["APP_URL"], scheduler=scheduler)
 
         return render_template("resend_confirmation.html",
             message="Confirmation email sent! Check your inbox for the verification link.",
@@ -328,7 +329,7 @@ def forgot_username_page():
                 message="If this email is registered, your Wikipedia username will be sent shortly.")
 
         # Send username reminder email
-        from email_utils import send_email_async
+        from email_utils import send_email_sync, send_email_queued
         html_content = f"""
         <h2>Your WikiFactCheck Username</h2>
         <p>Hello {user.wiki_username or user.email},</p>
@@ -340,7 +341,7 @@ def forgot_username_page():
             Best regards,<br><strong>WikiFactCheck Team</strong>
         </p>
         """
-        send_email_async(user.email, "Your WikiFactCheck Username", html_content)
+        send_email_queued(scheduler, user.email, "Your WikiFactCheck Username", html_content) if scheduler else send_email_sync(user.email, "Your WikiFactCheck Username", html_content)
 
         return render_template("forgot_username.html",
             message="Your Wikipedia username has been sent to your email.",

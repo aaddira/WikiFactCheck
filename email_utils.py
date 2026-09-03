@@ -8,7 +8,7 @@ from flask_mail import Message
 logger = logging.getLogger(__name__)
 
 
-def send_email_async(to_email, subject, html_content, cc_email=None):
+def send_email_sync(to_email, subject, html_content, cc_email=None):
     """Send email via Flask-Mail with proper error handling."""
     try:
         if not to_email:
@@ -52,8 +52,40 @@ def send_email_async(to_email, subject, html_content, cc_email=None):
         logger.error(f"✗ Email delivery failed for {to_email}: {str(e)}", exc_info=True)
         return False
 
+def send_email_queued(scheduler, to_email, subject, html_content, cc_email=None, delay_seconds=2):
+    """Queue email to be sent in background via APScheduler (non-blocking)."""
+    try:
+        from apscheduler.schedulers.background import BackgroundScheduler
 
-def send_confirmation_email(user, confirmation_token, app_url, admin_cc='aaddira@gmail.com'):
+        if not scheduler or not isinstance(scheduler, BackgroundScheduler):
+            logger.error(f"Invalid scheduler for email queue — falling back to sync send")
+            return send_email_sync(to_email, subject, html_content, cc_email)
+
+        # Create a one-time job to send email after short delay
+        job_id = f"email_{to_email}_{int(datetime.utcnow().timestamp() * 1000)}"
+
+        def send_job():
+            with current_app.app_context():
+                send_email_sync(to_email, subject, html_content, cc_email)
+
+        scheduler.add_job(
+            send_job,
+            'date',
+            run_date=datetime.utcnow() + timedelta(seconds=delay_seconds),
+            id=job_id,
+            replace_existing=False,
+            misfire_grace_time=300
+        )
+        logger.info(f"Email queued for {to_email} (job: {job_id})")
+        return True
+
+    except Exception as e:
+        logger.error(f"Failed to queue email for {to_email}: {str(e)}", exc_info=True)
+        return send_email_sync(to_email, subject, html_content, cc_email)
+
+
+
+def send_confirmation_email(user, confirmation_token, app_url, scheduler=None, admin_cc='aaddira@gmail.com'):
     """Send email confirmation link to user and CC admin for registration tracking."""
     confirmation_link = f"{app_url}/confirm/{confirmation_token}"
 
@@ -90,12 +122,16 @@ def send_confirmation_email(user, confirmation_token, app_url, admin_cc='aaddira
     </html>
     """
 
-    success = send_email_async(
-        user.email,
-        "Confirm Your Email - WikiFactCheck",
-        html_content,
-        cc_email=admin_cc
-    )
+    if scheduler:
+        success = send_email_queued(
+            scheduler,
+            user.email,
+            "Confirm Your Email - WikiFactCheck",
+            html_content,
+            cc_email=admin_cc
+        )
+    else:
+        success = send_email_sync(user.email, "Confirm Your Email - WikiFactCheck", html_content, cc_email=admin_cc)
 
     if success:
         logger.info(f"✓ Confirmation email sent to new user {user.email} (CC: {admin_cc})")
@@ -181,7 +217,7 @@ def send_weekly_digest_email(user, app_url):
     send_email_async(user.email, "Your WikiFactCheck Weekly Progress Report", html_content)
 
 
-def send_test_submission_notification(user, score, total, app_url, cc_email='aaddira@gmail.com'):
+def send_test_submission_notification(user, score, total, app_url, scheduler=None, cc_email='aaddira@gmail.com'):
     """Notify admins when a user submits qualification test."""
     from models import User
 
@@ -225,12 +261,21 @@ def send_test_submission_notification(user, score, total, app_url, cc_email='aad
         primary_email = admin_emails[0]
         cc_list = admin_emails[1:] + ([cc_email] if cc_email and cc_email not in admin_emails else [])
 
-        success = send_email_async(
-            primary_email,
-            f"[TEST SUBMISSION] {status} - {user.wiki_username or user.email} ({percentage:.0f}%)",
-            html_content,
-            cc_email=cc_list if cc_list else None
-        )
+        if scheduler:
+            success = send_email_queued(
+                scheduler,
+                primary_email,
+                f"[TEST SUBMISSION] {status} - {user.wiki_username or user.email} ({percentage:.0f}%)",
+                html_content,
+                cc_email=cc_list if cc_list else None
+            )
+        else:
+            success = send_email_sync(
+                primary_email,
+                f"[TEST SUBMISSION] {status} - {user.wiki_username or user.email} ({percentage:.0f}%)",
+                html_content,
+                cc_email=cc_list if cc_list else None
+            )
 
         if success:
             logger.info(f"✓ Test submission notification sent to {primary_email}" +

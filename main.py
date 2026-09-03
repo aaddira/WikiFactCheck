@@ -79,6 +79,40 @@ app.extensions["scheduler"] = scheduler
 
 
 # CLI Commands
+
+# Verify static files are accessible
+@app.before_request
+def verify_static_files():
+    """Check static files exist and log their status on first request."""
+    import os
+    if not hasattr(app, '_static_files_checked'):
+        static_dir = os.path.join(app.root_path, 'static')
+        if not os.path.exists(static_dir):
+            app.logger.error(f"CRITICAL: Static directory not found at {static_dir}")
+        else:
+            css_file = os.path.join(static_dir, 'css', 'style.css')
+            js_file = os.path.join(static_dir, 'js', 'annotate.js')
+            
+            if os.path.exists(css_file):
+                size = os.path.getsize(css_file)
+                if size == 0:
+                    app.logger.error(f"CRITICAL: CSS file is EMPTY at {css_file}")
+                else:
+                    app.logger.info(f"Static files OK: style.css is {size} bytes")
+            else:
+                app.logger.error(f"CRITICAL: CSS file not found at {css_file}")
+            
+            if os.path.exists(js_file):
+                size = os.path.getsize(js_file)
+                if size == 0:
+                    app.logger.error(f"CRITICAL: JS file is EMPTY at {js_file}")
+                else:
+                    app.logger.info(f"Static files OK: annotate.js is {size} bytes")
+            else:
+                app.logger.error(f"CRITICAL: JS file not found at {js_file}")
+        
+        app._static_files_checked = True
+
 @app.cli.command()
 def init_db():
     """Initialize the database."""

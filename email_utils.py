@@ -142,7 +142,7 @@ def send_confirmation_email(user, confirmation_token, app_url, scheduler=None, a
 def send_weekly_digest_email(user, app_url):
     """Send weekly progress digest email to user."""
     from models import Annotation, User
-    from sqlalchemy import func
+    from sqlalchemy import select, func
 
     week_start = datetime.utcnow() - timedelta(days=7)
 
@@ -161,7 +161,7 @@ def send_weekly_digest_email(user, app_url):
     rank_result = db.session.query(func.count(User.id)).filter(
         User.is_admin == False,
         User.id != user.id,
-        (func.select(func.count(Annotation.id)).where(
+        (select(func.count(Annotation.id)).where(
             Annotation.user_id == User.id
         ).correlate(User)).as_scalar() > total_annotations
     ).scalar()

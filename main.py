@@ -275,7 +275,8 @@ def register_page():
         db.session.commit()
 
         # Send confirmation email
-        send_confirmation_email(user, confirmation_token, app.config["APP_URL"], scheduler=scheduler)
+        sched = app.extensions.get('scheduler')
+        send_confirmation_email(user, confirmation_token, app.config["APP_URL"], scheduler=sched)
 
         return render_template("register.html", success=True, email=email)
 
@@ -337,7 +338,8 @@ def resend_confirmation_page():
         db.session.commit()
 
         # Send confirmation email
-        send_confirmation_email(user, confirmation_token, app.config["APP_URL"], scheduler=scheduler)
+        sched = app.extensions.get('scheduler')
+        send_confirmation_email(user, confirmation_token, app.config["APP_URL"], scheduler=sched)
 
         return render_template("resend_confirmation.html",
             message="Confirmation email sent! Check your inbox for the verification link.",

@@ -21,6 +21,11 @@ load_dotenv()
 
 app = Flask(__name__)
 
+# Configure Whitenoise for static file serving in production (gunicorn)
+from whitenoise import WhiteNoise
+app.wsgi_app = WhiteNoise(app.wsgi_app, root=os.path.join(os.path.dirname(__file__), 'static'))
+
+
 # Database configuration
 # Priority: DATABASE_URL env var > DB_PATH env var > local dev default
 database_url = os.getenv("DATABASE_URL")
@@ -75,9 +80,44 @@ app.config["SCHEDULER_ENABLED"] = os.getenv("SCHEDULER_ENABLED", "true").lower()
 app.config["DIGEST_SCHEDULE_DAY"] = int(os.getenv("DIGEST_SCHEDULE_DAY", "0"))  # 0 = Monday
 app.config["DIGEST_SCHEDULE_HOUR"] = int(os.getenv("DIGEST_SCHEDULE_HOUR", "9"))  # 9 AM UTC
 scheduler = init_scheduler(app)
+app.extensions["scheduler"] = scheduler
 
 
 # CLI Commands
+
+# Verify static files are accessible
+@app.before_request
+def verify_static_files():
+    """Check static files exist and log their status on first request."""
+    import os
+    if not hasattr(app, '_static_files_checked'):
+        static_dir = os.path.join(app.root_path, 'static')
+        if not os.path.exists(static_dir):
+            app.logger.error(f"CRITICAL: Static directory not found at {static_dir}")
+        else:
+            css_file = os.path.join(static_dir, 'css', 'style.css')
+            js_file = os.path.join(static_dir, 'js', 'annotate.js')
+            
+            if os.path.exists(css_file):
+                size = os.path.getsize(css_file)
+                if size == 0:
+                    app.logger.error(f"CRITICAL: CSS file is EMPTY at {css_file}")
+                else:
+                    app.logger.info(f"Static files OK: style.css is {size} bytes")
+            else:
+                app.logger.error(f"CRITICAL: CSS file not found at {css_file}")
+            
+            if os.path.exists(js_file):
+                size = os.path.getsize(js_file)
+                if size == 0:
+                    app.logger.error(f"CRITICAL: JS file is EMPTY at {js_file}")
+                else:
+                    app.logger.info(f"Static files OK: annotate.js is {size} bytes")
+            else:
+                app.logger.error(f"CRITICAL: JS file not found at {js_file}")
+        
+        app._static_files_checked = True
+
 @app.cli.command()
 def init_db():
     """Initialize the database."""
@@ -153,7 +193,7 @@ def test_email():
     print("\n✓ Configuration looks valid. Sending test email...")
 
     try:
-        from email_utils import send_email_async
+        from email_utils import send_email_sync, send_email_queued
         recipient = app.config.get('MAIL_DEFAULT_SENDER', 'noreply@wikifactcheck.com')
         test_html = """
         <h2>✓ WikiFactCheck Email Test</h2>
@@ -164,7 +204,7 @@ def test_email():
         </p>
         """
 
-        success = send_email_async(recipient, "✓ WikiFactCheck Email System Test", test_html)
+        success = send_email_sync(recipient, "✓ WikiFactCheck Email System Test", test_html)
 
         if success:
             print(f"\n✓ Test email sent successfully to {recipient}")
@@ -240,7 +280,8 @@ def register_page():
         db.session.commit()
 
         # Send confirmation email
-        send_confirmation_email(user, confirmation_token, app.config["APP_URL"])
+        sched = app.extensions.get('scheduler')
+        send_confirmation_email(user, confirmation_token, app.config["APP_URL"], scheduler=sched)
 
         return render_template("register.html", success=True, email=email)
 
@@ -302,7 +343,8 @@ def resend_confirmation_page():
         db.session.commit()
 
         # Send confirmation email
-        send_confirmation_email(user, confirmation_token, app.config["APP_URL"])
+        sched = app.extensions.get('scheduler')
+        send_confirmation_email(user, confirmation_token, app.config["APP_URL"], scheduler=sched)
 
         return render_template("resend_confirmation.html",
             message="Confirmation email sent! Check your inbox for the verification link.",
@@ -328,7 +370,7 @@ def forgot_username_page():
                 message="If this email is registered, your Wikipedia username will be sent shortly.")
 
         # Send username reminder email
-        from email_utils import send_email_async
+        from email_utils import send_email_sync, send_email_queued
         html_content = f"""
         <h2>Your WikiFactCheck Username</h2>
         <p>Hello {user.wiki_username or user.email},</p>
@@ -340,7 +382,7 @@ def forgot_username_page():
             Best regards,<br><strong>WikiFactCheck Team</strong>
         </p>
         """
-        send_email_async(user.email, "Your WikiFactCheck Username", html_content)
+        send_email_queued(scheduler, user.email, "Your WikiFactCheck Username", html_content, app=app) if scheduler else send_email_sync(user.email, "Your WikiFactCheck Username", html_content)
 
         return render_template("forgot_username.html",
             message="Your Wikipedia username has been sent to your email.",
@@ -599,6 +641,47 @@ def api_auth_me():
         "is_admin": user.is_admin,
         "qualification_passed": user.qualification_passed,
     })
+
+
+
+@app.route("/api/resend-confirmation", methods=["POST"])
+def api_resend_confirmation():
+    """Resend confirmation email with 60-second rate limiting."""
+    from datetime import datetime, timedelta
+    import secrets
+    
+    data = request.get_json() or {}
+    email = data.get('email', '').strip().lower()
+    
+    if not email:
+        return jsonify({"success": False, "error": "Email required"}), 400
+    
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return jsonify({"success": False, "error": "User not found"}), 404
+    
+    if user.email_confirmed:
+        return jsonify({"success": False, "error": "Email already confirmed"}), 400
+    
+    # Rate limit: check if resend was requested in last 60 seconds
+    now = datetime.utcnow()
+    if user.last_confirmation_resend_at:
+        seconds_since_last = (now - user.last_confirmation_resend_at).total_seconds()
+        if seconds_since_last < 60:
+            return jsonify({"success": False, "error": f"Please wait {int(60 - seconds_since_last)}s before resending"}), 429
+    
+    # Generate new token
+    user.confirmation_token = secrets.token_urlsafe(32)
+    user.confirmation_token_expires_at = datetime.utcnow() + timedelta(hours=24)
+    user.last_confirmation_resend_at = now
+    db.session.commit()
+    
+    # Queue confirmation email
+    scheduler = app.extensions.get('scheduler')
+    from email_utils import send_confirmation_email
+    send_confirmation_email(user, user.confirmation_token, app.config["APP_URL"], scheduler=scheduler)
+    
+    return jsonify({"success": True, "message": "Confirmation email sent"}), 200
 
 
 # Import blueprint routes

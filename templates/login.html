@@ -43,11 +43,18 @@
         <div class="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 text-red-700 dark:text-red-200 px-4 py-3 rounded-lg mb-6 text-sm">
             <p class="font-semibold mb-2">{{ error }}</p>
             {% if unconfirmed_email %}
-            <p class="text-xs mt-2">
-                <a href="{{ url_for('resend_confirmation_page') }}" class="underline hover:text-red-600 font-semibold">
-                    👉 Resend confirmation email
-                </a>
-            </p>
+            <div class="mt-3 pt-3 border-t border-red-300 dark:border-red-700">
+                <p class="text-xs mb-2">Need to resend the confirmation email?</p>
+                <button
+                    type="button"
+                    id="resendBtn"
+                    onclick="resendConfirmationEmail('{{ unconfirmed_email }}')"
+                    class="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-3 rounded transition text-xs"
+                >
+                    Resend Confirmation Email
+                </button>
+                <p id="resendMessage" class="text-xs mt-2" style="display:none;"></p>
+            </div>
             {% endif %}
         </div>
         {% endif %}
@@ -126,6 +133,54 @@
         }
         updateThemeIcon();
         document.addEventListener('themechange', updateThemeIcon);
+
+        // Resend confirmation email
+        function resendConfirmationEmail(email) {
+            const btn = document.getElementById('resendBtn');
+            const msg = document.getElementById('resendMessage');
+            
+            btn.disabled = true;
+            btn.style.opacity = '0.5';
+            msg.textContent = 'Sending...';
+            msg.style.display = 'block';
+            
+            fetch('/api/resend-confirmation', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({email: email})
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    msg.textContent = '✓ Confirmation email sent! Check your inbox.';
+                    msg.className = 'text-xs text-green-700 dark:text-green-300 mt-2';
+                    // Disable for 60 seconds
+                    let countdown = 60;
+                    const timer = setInterval(() => {
+                        btn.textContent = `Resend in ${countdown}s`;
+                        countdown--;
+                        if (countdown < 0) {
+                            clearInterval(timer);
+                            btn.textContent = 'Resend Confirmation Email';
+                            btn.disabled = false;
+                            btn.style.opacity = '1';
+                            msg.style.display = 'none';
+                        }
+                    }, 1000);
+                } else {
+                    msg.textContent = '✗ ' + (data.error || 'Failed to resend email');
+                    msg.className = 'text-xs text-red-600 dark:text-red-400 mt-2';
+                    btn.disabled = false;
+                    btn.style.opacity = '1';
+                }
+            })
+            .catch(err => {
+                msg.textContent = '✗ Error: ' + err.message;
+                msg.className = 'text-xs text-red-600 dark:text-red-400 mt-2';
+                btn.disabled = false;
+                btn.style.opacity = '1';
+            });
+        }
     </script>
 </body>
 </html>

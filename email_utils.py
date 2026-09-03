@@ -52,7 +52,7 @@ def send_email_sync(to_email, subject, html_content, cc_email=None):
         logger.error(f"✗ Email delivery failed for {to_email}: {str(e)}", exc_info=True)
         return False
 
-def send_email_queued(scheduler, to_email, subject, html_content, cc_email=None, delay_seconds=2):
+def send_email_queued(scheduler, to_email, subject, html_content, cc_email=None, delay_seconds=2, app=None):
     """Queue email to be sent in background via APScheduler (non-blocking)."""
     try:
         from apscheduler.schedulers.background import BackgroundScheduler
@@ -65,7 +65,7 @@ def send_email_queued(scheduler, to_email, subject, html_content, cc_email=None,
         job_id = f"email_{to_email}_{int(datetime.utcnow().timestamp() * 1000)}"
 
         def send_job():
-            with current_app.app_context():
+            with (app or current_app).app_context():
                 send_email_sync(to_email, subject, html_content, cc_email)
 
         scheduler.add_job(

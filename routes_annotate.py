@@ -477,8 +477,7 @@ def api_test_submit():
         # Send notification to admins
         try:
             app_url = current_app.config.get("APP_URL", "https://wikifactcheck.up.railway.app")
-            scheduler = current_app.extensions.get("scheduler")
-            send_test_submission_notification(user, correct, total, app_url, scheduler=scheduler)
+            send_test_submission_notification(user, correct, total, app_url)
         except Exception as e:
             current_app.logger.warning(f"Failed to send test submission notification: {str(e)}")
 

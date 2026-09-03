@@ -75,6 +75,21 @@ logging.basicConfig(
 )
 app.config["DEBUG"] = os.getenv("FLASK_DEBUG", "false").lower() == "true"
 
+# Report SMTP config at boot. Without this, a missing MAIL_USERNAME/MAIL_PASSWORD
+# looks identical to a working system until someone checks an inbox.
+if app.config["MAIL_USERNAME"] and app.config["MAIL_PASSWORD"]:
+    app.logger.info(
+        f"SMTP configured: {app.config['MAIL_SERVER']}:{app.config['MAIL_PORT']} "
+        f"user={app.config['MAIL_USERNAME']} sender={app.config['MAIL_DEFAULT_SENDER']} "
+        f"tls={app.config['MAIL_USE_TLS']}"
+    )
+else:
+    app.logger.error(
+        "SMTP NOT CONFIGURED - no email will be delivered. "
+        f"MAIL_USERNAME={'set' if app.config['MAIL_USERNAME'] else 'MISSING'}, "
+        f"MAIL_PASSWORD={'set' if app.config['MAIL_PASSWORD'] else 'MISSING'}"
+    )
+
 # Scheduler configuration (P4: Progress Notifications)
 app.config["SCHEDULER_ENABLED"] = os.getenv("SCHEDULER_ENABLED", "true").lower() == "true"
 app.config["DIGEST_SCHEDULE_DAY"] = int(os.getenv("DIGEST_SCHEDULE_DAY", "0"))  # 0 = Monday
@@ -168,7 +183,8 @@ def send_test_digest():
 
     try:
         from email_utils import send_weekly_digest_email
-        send_weekly_digest_email(user, app.config["APP_URL"])
+        # background=False: a daemon thread would be killed when the CLI exits.
+        send_weekly_digest_email(user, app.config["APP_URL"], app=app, background=False)
         print(f"[OK] Test digest sent to {user.email}")
     except Exception as e:
         print(f"[ERROR] Failed to send digest: {str(e)}")
@@ -193,7 +209,7 @@ def test_email():
     print("\n✓ Configuration looks valid. Sending test email...")
 
     try:
-        from email_utils import send_email_sync, send_email_queued
+        from email_utils import send_email
         recipient = app.config.get('MAIL_DEFAULT_SENDER', 'noreply@wikifactcheck.com')
         test_html = """
         <h2>✓ WikiFactCheck Email Test</h2>
@@ -204,7 +220,8 @@ def test_email():
         </p>
         """
 
-        success = send_email_sync(recipient, "✓ WikiFactCheck Email System Test", test_html)
+        success = send_email(recipient, "✓ WikiFactCheck Email System Test", test_html,
+                             app=app, background=False)
 
         if success:
             print(f"\n✓ Test email sent successfully to {recipient}")
@@ -280,8 +297,7 @@ def register_page():
         db.session.commit()
 
         # Send confirmation email
-        sched = app.extensions.get('scheduler')
-        send_confirmation_email(user, confirmation_token, app.config["APP_URL"], scheduler=sched)
+        send_confirmation_email(user, confirmation_token, app.config["APP_URL"], app=app)
 
         return render_template("register.html", success=True, email=email)
 
@@ -343,8 +359,7 @@ def resend_confirmation_page():
         db.session.commit()
 
         # Send confirmation email
-        sched = app.extensions.get('scheduler')
-        send_confirmation_email(user, confirmation_token, app.config["APP_URL"], scheduler=sched)
+        send_confirmation_email(user, confirmation_token, app.config["APP_URL"], app=app)
 
         return render_template("resend_confirmation.html",
             message="Confirmation email sent! Check your inbox for the verification link.",
@@ -370,7 +385,7 @@ def forgot_username_page():
                 message="If this email is registered, your Wikipedia username will be sent shortly.")
 
         # Send username reminder email
-        from email_utils import send_email_sync, send_email_queued
+        from email_utils import send_email
         html_content = f"""
         <h2>Your WikiFactCheck Username</h2>
         <p>Hello {user.wiki_username or user.email},</p>
@@ -382,7 +397,7 @@ def forgot_username_page():
             Best regards,<br><strong>WikiFactCheck Team</strong>
         </p>
         """
-        send_email_queued(scheduler, user.email, "Your WikiFactCheck Username", html_content, app=app) if scheduler else send_email_sync(user.email, "Your WikiFactCheck Username", html_content)
+        send_email(user.email, "Your WikiFactCheck Username", html_content, app=app)
 
         return render_template("forgot_username.html",
             message="Your Wikipedia username has been sent to your email.",
@@ -677,9 +692,8 @@ def api_resend_confirmation():
     db.session.commit()
     
     # Queue confirmation email
-    scheduler = app.extensions.get('scheduler')
     from email_utils import send_confirmation_email
-    send_confirmation_email(user, user.confirmation_token, app.config["APP_URL"], scheduler=scheduler)
+    send_confirmation_email(user, user.confirmation_token, app.config["APP_URL"], app=app)
     
     return jsonify({"success": True, "message": "Confirmation email sent"}), 200
 

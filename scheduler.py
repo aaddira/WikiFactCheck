@@ -23,7 +23,9 @@ def send_weekly_digests_job(app):
             for user in users:
                 try:
                     app_url = app.config.get("APP_URL", "http://localhost:5000")
-                    send_weekly_digest_email(user, app_url)
+                    # Already on a background thread: send inline so failures
+                    # are attributable to this user and counted correctly.
+                    send_weekly_digest_email(user, app_url, app=app, background=False)
                     sent_count += 1
                 except Exception as e:
                     logger.error(f"Error sending digest to {user.email}: {str(e)}")

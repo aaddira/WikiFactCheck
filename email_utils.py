@@ -1,7 +1,20 @@
-"""Email utilities for sending confirmation and notification emails."""
+"""Email utilities for sending confirmation and notification emails.
+
+Delivery model: emails are handed to a short-lived daemon thread so the HTTP
+request returns immediately (SMTP handshakes can take 30s+ and were timing out
+gunicorn workers). Threads are used rather than APScheduler because this is a
+plain "run this I/O call now" job with no schedule, no persistence and no
+misfire semantics -- the scheduler added failure modes without adding value.
+
+The one rule that matters here: `current_app` is a LocalProxy bound to the
+request thread. It MUST be unwrapped via `_resolve_app()` while still on that
+thread. Handing the bare proxy to a background thread raises
+"RuntimeError: Working outside of application context" when the thread
+dereferences it.
+"""
 
 import logging
-import uuid
+import threading
 from datetime import datetime, timedelta
 from flask import current_app
 from flask_mail import Message
@@ -9,64 +22,91 @@ from flask_mail import Message
 logger = logging.getLogger(__name__)
 
 
-def send_email_sync(app_context, to_email, subject, html_content, cc_email=None):
-    """Send email synchronously via Flask-Mail (within app context)."""
+def _resolve_app(app=None):
+    """Return the real Flask app object, never a LocalProxy.
+
+    Must be called on the request thread (or inside an app context). Passing a
+    LocalProxy into a background thread is the bug this exists to prevent.
+    """
+    if app is None:
+        app = current_app
+    unwrap = getattr(app, "_get_current_object", None)
+    return unwrap() if unwrap is not None else app
+
+
+def _deliver(app, to_email, subject, html_content, cc_email=None):
+    """Perform the actual SMTP send. `app` must be a real Flask app object."""
     try:
         if not to_email:
             logger.warning("Attempted to send email without recipient address")
             return False
 
-        mail_server = app_context.config.get('MAIL_SERVER')
-        mail_username = app_context.config.get('MAIL_USERNAME', '')
-        mail_password = app_context.config.get('MAIL_PASSWORD', '')
+        with app.app_context():
+            mail_server = app.config.get('MAIL_SERVER')
+            mail_username = app.config.get('MAIL_USERNAME', '')
+            mail_password = app.config.get('MAIL_PASSWORD', '')
 
-        if not mail_server or not mail_username or not mail_password:
-            logger.error(f"✗ Email config incomplete - not sent to {to_email}")
-            return False
+            if not mail_server or not mail_username or not mail_password:
+                logger.error(
+                    f"✗ Email NOT sent to {to_email} - SMTP config incomplete "
+                    f"(MAIL_SERVER={'set' if mail_server else 'MISSING'}, "
+                    f"MAIL_USERNAME={'set' if mail_username else 'MISSING'}, "
+                    f"MAIL_PASSWORD={'set' if mail_password else 'MISSING'})"
+                )
+                return False
 
-        mail = app_context.extensions.get('mail')
-        if not mail:
-            logger.error(f"✗ Flask-Mail not initialized - email not sent to {to_email}")
-            return False
+            mail = app.extensions.get('mail')
+            if not mail:
+                logger.error(f"✗ Flask-Mail not initialized - email not sent to {to_email}")
+                return False
 
-        msg = Message(
-            subject=subject,
-            recipients=[to_email],
-            html=html_content,
-            sender=app_context.config.get('MAIL_DEFAULT_SENDER', 'noreply@wikifactcheck.com')
-        )
+            msg = Message(
+                subject=subject,
+                recipients=[to_email],
+                html=html_content,
+                sender=app.config.get('MAIL_DEFAULT_SENDER', 'noreply@wikifactcheck.com')
+            )
 
-        if cc_email:
-            if isinstance(cc_email, str):
-                msg.cc = [cc_email]
-            else:
-                msg.cc = cc_email
+            if cc_email:
+                msg.cc = [cc_email] if isinstance(cc_email, str) else list(cc_email)
 
-        mail.send(msg)
-        logger.info(f"✓ Email delivered to {to_email}")
-        return True
+            mail.send(msg)
+            logger.info(f"✓ Email DELIVERED to {to_email} via {mail_server} (subject: {subject!r})")
+            return True
 
     except Exception as e:
-        logger.error(f"✗ Email delivery failed for {to_email}: {str(e)}", exc_info=True)
+        logger.error(f"✗ Email delivery FAILED for {to_email}: {e}", exc_info=True)
         return False
 
 
-def send_email_queued(scheduler, to_email, subject, html_content, cc_email=None, delay_seconds=2, app=None):
-    """Queue email to be sent via background scheduler job (handles both request & background contexts)."""
-    job_id = f"email_{to_email}_{uuid.time().int % 10000000000000}"
+def send_email(to_email, subject, html_content, cc_email=None, app=None, background=True):
+    """Send an email.
 
-    def send_job():
-        # app is passed in from closure, so we can use it without relying on current_app
-        context_app = app if app is not None else current_app
-        with context_app.app_context():
-            send_email_sync(context_app, to_email, subject, html_content, cc_email)
+    background=True (default): returns immediately after spawning a sender
+    thread. The return value means "handed off", NOT "delivered" -- look for
+    the "✓ Email DELIVERED" log line for actual delivery confirmation.
 
-    scheduler.add_job(send_job, 'date', id=job_id, run_date=datetime.utcnow() + timedelta(seconds=delay_seconds))
-    logger.info(f"Email queued for {to_email} (job: {job_id})")
+    background=False: sends inline and returns the true delivery result. Use
+    from CLI commands and anywhere the caller needs to report real success.
+    """
+    real_app = _resolve_app(app)  # unwrap on THIS thread, before handing off
+
+    if not background:
+        return _deliver(real_app, to_email, subject, html_content, cc_email)
+
+    threading.Thread(
+        target=_deliver,
+        args=(real_app, to_email, subject, html_content, cc_email),
+        name=f"email-{to_email}",
+        daemon=True,
+    ).start()
+    logger.info(f"Email queued for delivery to {to_email} (subject: {subject!r})")
+    return True
 
 
-def send_confirmation_email(user, confirmation_token, app_url, scheduler=None, admin_cc='aaddira@gmail.com'):
-    """Queue confirmation email with scheduler (or send sync if no scheduler)."""
+def send_confirmation_email(user, confirmation_token, app_url, app=None, background=True,
+                            admin_cc='aaddira@gmail.com'):
+    """Send the email-confirmation link to a user, CC'ing the admin."""
     confirmation_link = f"{app_url}/confirm/{confirmation_token}"
 
     html_content = f"""
@@ -102,17 +142,18 @@ def send_confirmation_email(user, confirmation_token, app_url, scheduler=None, a
     </html>
     """
 
-    if scheduler:
-        send_email_queued(scheduler, user.email, "Confirm Your Email - WikiFactCheck", html_content, cc_email=admin_cc, app=current_app)
-        logger.info(f"✓ Confirmation email sent to new user {user.email} (CC: {admin_cc})")
-    else:
-        success = send_email_sync(current_app, user.email, "Confirm Your Email - WikiFactCheck", html_content, cc_email=admin_cc)
-        if not success:
-            logger.error(f"✗ Failed to send confirmation email to {user.email}")
+    return send_email(
+        user.email,
+        "Confirm Your Email - WikiFactCheck",
+        html_content,
+        cc_email=admin_cc,
+        app=app,
+        background=background,
+    )
 
 
-def send_weekly_digest_email(user, app_url, scheduler=None):
-    """Queue weekly progress digest email."""
+def send_weekly_digest_email(user, app_url, app=None, background=True):
+    """Send the weekly progress digest email to one user."""
     from models import Annotation, User
     from sqlalchemy import func, select
 
@@ -180,14 +221,18 @@ def send_weekly_digest_email(user, app_url, scheduler=None):
     <p>Best regards,<br>WikiFactCheck Team</p>
     """
 
-    if scheduler:
-        send_email_queued(scheduler, user.email, "Your WikiFactCheck Weekly Progress Report", html_content, app=current_app)
-    else:
-        send_email_sync(current_app, user.email, "Your WikiFactCheck Weekly Progress Report", html_content)
+    return send_email(
+        user.email,
+        "Your WikiFactCheck Weekly Progress Report",
+        html_content,
+        app=app,
+        background=background,
+    )
 
 
-def send_test_submission_notification(user, score, total, app_url, scheduler=None, cc_email='aaddira@gmail.com'):
-    """Queue test submission notification to admins."""
+def send_test_submission_notification(user, score, total, app_url, app=None, background=True,
+                                      cc_email='aaddira@gmail.com'):
+    """Notify admins that a user submitted their qualification test."""
     from models import User
 
     admins = User.query.filter_by(is_admin=True).all()
@@ -223,31 +268,17 @@ def send_test_submission_notification(user, score, total, app_url, scheduler=Non
     </p>
     """
 
-    if admin_emails:
-        primary_email = admin_emails[0]
-        cc_list = admin_emails[1:] + ([cc_email] if cc_email and cc_email not in admin_emails else [])
+    primary_email = admin_emails[0]
+    cc_list = admin_emails[1:] + ([cc_email] if cc_email and cc_email not in admin_emails else [])
 
-        if scheduler:
-            send_email_queued(
-                scheduler,
-                primary_email,
-                f"[TEST SUBMISSION] {status} - {user.wiki_username or user.email} ({percentage:.0f}%)",
-                html_content,
-                cc_email=cc_list if cc_list else None,
-                app=current_app
-            )
-            logger.info(f"✓ Test submission notification sent to {primary_email}" +
-                       (f" (CC: {', '.join(cc_list)})" if cc_list else ""))
-        else:
-            success = send_email_sync(
-                current_app,
-                primary_email,
-                f"[TEST SUBMISSION] {status} - {user.wiki_username or user.email} ({percentage:.0f}%)",
-                html_content,
-                cc_email=cc_list if cc_list else None
-            )
-            if not success:
-                logger.error(f"✗ Failed to send test submission notification for user {user.email}")
+    return send_email(
+        primary_email,
+        f"[TEST SUBMISSION] {status} - {user.wiki_username or user.email} ({percentage:.0f}%)",
+        html_content,
+        cc_email=cc_list if cc_list else None,
+        app=app,
+        background=background,
+    )
 
 
 # Import db for queries (avoid circular imports)

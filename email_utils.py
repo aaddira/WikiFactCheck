@@ -1,6 +1,7 @@
 """Email utilities for sending confirmation and notification emails."""
 
 import logging
+import uuid
 from datetime import datetime, timedelta
 from flask import current_app
 from flask_mail import Message
@@ -8,25 +9,22 @@ from flask_mail import Message
 logger = logging.getLogger(__name__)
 
 
-def send_email_async(to_email, subject, html_content, cc_email=None):
-    """Send email via Flask-Mail with proper error handling."""
+def send_email_sync(app_context, to_email, subject, html_content, cc_email=None):
+    """Send email synchronously via Flask-Mail (within app context)."""
     try:
         if not to_email:
             logger.warning("Attempted to send email without recipient address")
             return False
 
-        # Validate email configuration
-        mail_server = current_app.config.get('MAIL_SERVER')
-        mail_username = current_app.config.get('MAIL_USERNAME', '')
-        mail_password = current_app.config.get('MAIL_PASSWORD', '')
+        mail_server = app_context.config.get('MAIL_SERVER')
+        mail_username = app_context.config.get('MAIL_USERNAME', '')
+        mail_password = app_context.config.get('MAIL_PASSWORD', '')
 
         if not mail_server or not mail_username or not mail_password:
             logger.error(f"✗ Email config incomplete - not sent to {to_email}")
-            logger.debug(f"  MAIL_SERVER: {bool(mail_server)}, MAIL_USERNAME: {bool(mail_username)}, MAIL_PASSWORD: {bool(mail_password)}")
             return False
 
-        # Get mail instance from Flask extensions
-        mail = current_app.extensions.get('mail')
+        mail = app_context.extensions.get('mail')
         if not mail:
             logger.error(f"✗ Flask-Mail not initialized - email not sent to {to_email}")
             return False
@@ -35,7 +33,7 @@ def send_email_async(to_email, subject, html_content, cc_email=None):
             subject=subject,
             recipients=[to_email],
             html=html_content,
-            sender=current_app.config.get('MAIL_DEFAULT_SENDER', 'noreply@wikifactcheck.com')
+            sender=app_context.config.get('MAIL_DEFAULT_SENDER', 'noreply@wikifactcheck.com')
         )
 
         if cc_email:
@@ -53,8 +51,22 @@ def send_email_async(to_email, subject, html_content, cc_email=None):
         return False
 
 
-def send_confirmation_email(user, confirmation_token, app_url, admin_cc='aaddira@gmail.com'):
-    """Send email confirmation link to user and CC admin for registration tracking."""
+def send_email_queued(scheduler, to_email, subject, html_content, cc_email=None, delay_seconds=2, app=None):
+    """Queue email to be sent via background scheduler job (handles both request & background contexts)."""
+    job_id = f"email_{to_email}_{uuid.time().int % 10000000000000}"
+
+    def send_job():
+        # app is passed in from closure, so we can use it without relying on current_app
+        context_app = app if app is not None else current_app
+        with context_app.app_context():
+            send_email_sync(context_app, to_email, subject, html_content, cc_email)
+
+    scheduler.add_job(send_job, 'date', id=job_id, run_date=datetime.utcnow() + timedelta(seconds=delay_seconds))
+    logger.info(f"Email queued for {to_email} (job: {job_id})")
+
+
+def send_confirmation_email(user, confirmation_token, app_url, scheduler=None, admin_cc='aaddira@gmail.com'):
+    """Queue confirmation email with scheduler (or send sync if no scheduler)."""
     confirmation_link = f"{app_url}/confirm/{confirmation_token}"
 
     html_content = f"""
@@ -90,59 +102,49 @@ def send_confirmation_email(user, confirmation_token, app_url, admin_cc='aaddira
     </html>
     """
 
-    success = send_email_async(
-        user.email,
-        "Confirm Your Email - WikiFactCheck",
-        html_content,
-        cc_email=admin_cc
-    )
-
-    if success:
+    if scheduler:
+        send_email_queued(scheduler, user.email, "Confirm Your Email - WikiFactCheck", html_content, cc_email=admin_cc, app=current_app)
         logger.info(f"✓ Confirmation email sent to new user {user.email} (CC: {admin_cc})")
     else:
-        logger.error(f"✗ Failed to send confirmation email to {user.email}")
+        success = send_email_sync(current_app, user.email, "Confirm Your Email - WikiFactCheck", html_content, cc_email=admin_cc)
+        if not success:
+            logger.error(f"✗ Failed to send confirmation email to {user.email}")
 
 
-def send_weekly_digest_email(user, app_url):
-    """Send weekly progress digest email to user."""
+def send_weekly_digest_email(user, app_url, scheduler=None):
+    """Queue weekly progress digest email."""
     from models import Annotation, User
-    from sqlalchemy import func
+    from sqlalchemy import func, select
 
     week_start = datetime.utcnow() - timedelta(days=7)
 
-    # Calculate this week's stats
     this_week_count = Annotation.query.filter(
         Annotation.user_id == user.id,
         Annotation.created_at >= week_start
     ).count()
 
-    # Calculate total stats
     total_annotations = Annotation.query.filter_by(user_id=user.id).count()
     target = user.annotation_target or 300
     target_pct = (total_annotations / target * 100) if target > 0 else 0
 
-    # Calculate leaderboard rank
     rank_result = db.session.query(func.count(User.id)).filter(
         User.is_admin == False,
         User.id != user.id,
-        (func.select(func.count(Annotation.id)).where(
+        (select(func.count(Annotation.id)).where(
             Annotation.user_id == User.id
         ).correlate(User)).as_scalar() > total_annotations
     ).scalar()
     rank = (rank_result or 0) + 1
 
-    # Get total active annotators
     active_count = User.query.filter(User.is_admin == False).count()
 
-    # Calculate accuracy (agreement rate)
-    # Simplified: count matching annotations with other annotators
     from models import Pair
     from sqlalchemy import and_
     matching = db.session.query(func.count(Annotation.id)).filter(
         Annotation.user_id == user.id,
         and_(
-            Annotation.pair_id == Annotation.pair_id,  # join on pair
-            Annotation.label == Annotation.label  # matching label
+            Annotation.pair_id == Annotation.pair_id,
+            Annotation.label == Annotation.label
         )
     ).scalar() or 0
 
@@ -178,20 +180,21 @@ def send_weekly_digest_email(user, app_url):
     <p>Best regards,<br>WikiFactCheck Team</p>
     """
 
-    send_email_async(user.email, "Your WikiFactCheck Weekly Progress Report", html_content)
+    if scheduler:
+        send_email_queued(scheduler, user.email, "Your WikiFactCheck Weekly Progress Report", html_content, app=current_app)
+    else:
+        send_email_sync(current_app, user.email, "Your WikiFactCheck Weekly Progress Report", html_content)
 
 
-def send_test_submission_notification(user, score, total, app_url, cc_email='aaddira@gmail.com'):
-    """Notify admins when a user submits qualification test."""
+def send_test_submission_notification(user, score, total, app_url, scheduler=None, cc_email='aaddira@gmail.com'):
+    """Queue test submission notification to admins."""
     from models import User
 
-    # Get all admin emails
     admins = User.query.filter_by(is_admin=True).all()
     admin_emails = [admin.email for admin in admins if admin.email]
 
     if not admin_emails:
         logger.warning(f"No admin emails found for test submission notification (user: {user.email})")
-        # Still send to cc_email even if no admins configured
         if not cc_email:
             return
         admin_emails = [cc_email]
@@ -220,23 +223,31 @@ def send_test_submission_notification(user, score, total, app_url, cc_email='aad
     </p>
     """
 
-    # Send to primary admin with CC
     if admin_emails:
         primary_email = admin_emails[0]
         cc_list = admin_emails[1:] + ([cc_email] if cc_email and cc_email not in admin_emails else [])
 
-        success = send_email_async(
-            primary_email,
-            f"[TEST SUBMISSION] {status} - {user.wiki_username or user.email} ({percentage:.0f}%)",
-            html_content,
-            cc_email=cc_list if cc_list else None
-        )
-
-        if success:
+        if scheduler:
+            send_email_queued(
+                scheduler,
+                primary_email,
+                f"[TEST SUBMISSION] {status} - {user.wiki_username or user.email} ({percentage:.0f}%)",
+                html_content,
+                cc_email=cc_list if cc_list else None,
+                app=current_app
+            )
             logger.info(f"✓ Test submission notification sent to {primary_email}" +
                        (f" (CC: {', '.join(cc_list)})" if cc_list else ""))
         else:
-            logger.error(f"✗ Failed to send test submission notification for user {user.email}")
+            success = send_email_sync(
+                current_app,
+                primary_email,
+                f"[TEST SUBMISSION] {status} - {user.wiki_username or user.email} ({percentage:.0f}%)",
+                html_content,
+                cc_email=cc_list if cc_list else None
+            )
+            if not success:
+                logger.error(f"✗ Failed to send test submission notification for user {user.email}")
 
 
 # Import db for queries (avoid circular imports)

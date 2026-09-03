@@ -39,6 +39,7 @@ class User(db.Model):
     email_confirmed = db.Column(db.Boolean, default=False)
     confirmation_token = db.Column(db.String(255), nullable=True, index=True)
     confirmation_token_expires_at = db.Column(db.DateTime, nullable=True)
+    last_confirmation_resend_at = db.Column(db.DateTime, nullable=True)  # Track resend rate limiting
 
     # Relationships
     annotations = db.relationship("Annotation", backref="annotator", lazy=True)

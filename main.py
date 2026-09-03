@@ -636,6 +636,47 @@ def api_auth_me():
     })
 
 
+
+@app.route("/api/resend-confirmation", methods=["POST"])
+def api_resend_confirmation():
+    """Resend confirmation email with 60-second rate limiting."""
+    from datetime import datetime, timedelta
+    import secrets
+    
+    data = request.get_json() or {}
+    email = data.get('email', '').strip().lower()
+    
+    if not email:
+        return jsonify({"success": False, "error": "Email required"}), 400
+    
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return jsonify({"success": False, "error": "User not found"}), 404
+    
+    if user.email_confirmed:
+        return jsonify({"success": False, "error": "Email already confirmed"}), 400
+    
+    # Rate limit: check if resend was requested in last 60 seconds
+    now = datetime.utcnow()
+    if user.last_confirmation_resend_at:
+        seconds_since_last = (now - user.last_confirmation_resend_at).total_seconds()
+        if seconds_since_last < 60:
+            return jsonify({"success": False, "error": f"Please wait {int(60 - seconds_since_last)}s before resending"}), 429
+    
+    # Generate new token
+    user.confirmation_token = secrets.token_urlsafe(32)
+    user.confirmation_token_expires_at = datetime.utcnow() + timedelta(hours=24)
+    user.last_confirmation_resend_at = now
+    db.session.commit()
+    
+    # Queue confirmation email
+    scheduler = app.extensions.get('scheduler')
+    from email_utils import send_confirmation_email
+    send_confirmation_email(user, user.confirmation_token, app.config["APP_URL"], scheduler=scheduler)
+    
+    return jsonify({"success": True, "message": "Confirmation email sent"}), 200
+
+
 # Import blueprint routes
 from routes_annotate import annotate_bp
 from routes_admin import admin_bp

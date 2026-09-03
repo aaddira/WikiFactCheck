@@ -128,7 +128,8 @@ def send_confirmation_email(user, confirmation_token, app_url, scheduler=None, a
             user.email,
             "Confirm Your Email - WikiFactCheck",
             html_content,
-            cc_email=admin_cc
+            cc_email=admin_cc,
+            app=current_app
         )
     else:
         success = send_email_sync(user.email, "Confirm Your Email - WikiFactCheck", html_content, cc_email=admin_cc)
@@ -267,7 +268,8 @@ def send_test_submission_notification(user, score, total, app_url, scheduler=Non
                 primary_email,
                 f"[TEST SUBMISSION] {status} - {user.wiki_username or user.email} ({percentage:.0f}%)",
                 html_content,
-                cc_email=cc_list if cc_list else None
+                cc_email=cc_list if cc_list else None,
+                app=current_app
             )
         else:
             success = send_email_sync(

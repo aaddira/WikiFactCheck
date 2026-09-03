@@ -382,7 +382,7 @@ def forgot_username_page():
             Best regards,<br><strong>WikiFactCheck Team</strong>
         </p>
         """
-        send_email_queued(scheduler, user.email, "Your WikiFactCheck Username", html_content) if scheduler else send_email_sync(user.email, "Your WikiFactCheck Username", html_content)
+        send_email_queued(scheduler, user.email, "Your WikiFactCheck Username", html_content, app=app) if scheduler else send_email_sync(user.email, "Your WikiFactCheck Username", html_content)
 
         return render_template("forgot_username.html",
             message="Your Wikipedia username has been sent to your email.",

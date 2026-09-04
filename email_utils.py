@@ -14,6 +14,7 @@ dereferences it.
 """
 
 import logging
+import secrets
 import smtplib
 import threading
 import time
@@ -169,9 +170,21 @@ def send_email(to_email, subject, html_content, cc_email=None, app=None, backgro
 
 
 def send_confirmation_email(user, confirmation_token, app_url, app=None, background=True,
-                            admin_cc='aaddira@gmail.com'):
-    """Send the email-confirmation link to a user, CC'ing the admin."""
+                            admin_cc='aaddira@gmail.com', subject=None, heading=None,
+                            intro_html=None, expiry_text="This link expires in 24 hours."):
+    """Send the email-confirmation link to a user, CC'ing the admin.
+
+    subject/heading/intro_html/expiry_text override the registration wording so
+    other flows (e.g. the verification-reminder blast) reuse this one template
+    instead of copying the markup.
+    """
     confirmation_link = f"{app_url}/confirm/{confirmation_token}"
+    subject = subject or "Confirm Your Email - WikiFactCheck"
+    heading = heading or "Welcome to WikiFactCheck! 👋"
+    intro_html = intro_html or (
+        "<p>Thank you for registering! To complete your registration and start "
+        "annotating, please confirm your email address by clicking the button below:</p>"
+    )
 
     html_content = f"""
     <html>
@@ -183,9 +196,9 @@ def send_confirmation_email(user, confirmation_token, app_url, app=None, backgro
         </style>
     </head>
     <body>
-        <h2>Welcome to WikiFactCheck! 👋</h2>
+        <h2>{heading}</h2>
         <p>Hello {user.wiki_username or user.email},</p>
-        <p>Thank you for registering! To complete your registration and start annotating, please confirm your email address by clicking the button below:</p>
+        {intro_html}
 
         <p style="margin: 20px 0;">
             <a href="{confirmation_link}" class="button">Confirm My Email</a>
@@ -194,7 +207,7 @@ def send_confirmation_email(user, confirmation_token, app_url, app=None, backgro
         <p>Or copy and paste this link if the button doesn't work:</p>
         <p><code style="background: #f5f5f5; padding: 10px; display: inline-block; border-radius: 4px;">{confirmation_link}</code></p>
 
-        <p><strong>⏱️ Important:</strong> This link expires in 24 hours.</p>
+        <p><strong>⏱️ Important:</strong> {expiry_text}</p>
 
         <p>If you didn't register for WikiFactCheck, please ignore this email or contact us if you have questions.</p>
 
@@ -208,12 +221,70 @@ def send_confirmation_email(user, confirmation_token, app_url, app=None, backgro
 
     return send_email(
         user.email,
-        "Confirm Your Email - WikiFactCheck",
+        subject,
         html_content,
         cc_email=admin_cc,
         app=app,
         background=background,
     )
+
+
+REMINDER_SUBJECT = "Reminder to verify your WikiFactCheck account"
+REMINDER_HEADING = "Please verify your WikiFactCheck account"
+REMINDER_INTRO = (
+    "<p>You registered for WikiFactCheck but your email address was never verified. "
+    "A technical problem on our side stopped those verification emails from being "
+    "delivered &mdash; that issue is now fixed, and we're sorry for the delay.</p>"
+    "<p>To activate your account, please confirm your email address:</p>"
+)
+
+
+def send_verification_reminders(app, days=7, pace=1.0, progress=None):
+    """Mint fresh tokens and send the one-time reminder to every unverified user.
+
+    Existing confirmation tokens expire after 24h, so nearly every unverified
+    account has a dead link -- each user gets a NEW token valid for `days`
+    before their reminder goes out, otherwise the link is dead on arrival.
+
+    Sends inline and paced so Gmail doesn't throttle the burst, and skips the
+    admin CC (one CC per recipient would flood the admin inbox).
+    Returns (sent, failed, considered).
+    """
+    from models import User
+
+    with app.app_context():
+        users = User.query.filter(User.email_confirmed == False).order_by(User.created_at).all()
+        sent = failed = 0
+
+        for user in users:
+            if user.email_confirmed:      # confirmed since the list was built
+                continue
+            try:
+                user.confirmation_token = secrets.token_urlsafe(32)
+                user.confirmation_token_expires_at = datetime.utcnow() + timedelta(days=days)
+                db.session.commit()
+
+                ok = send_confirmation_email(
+                    user, user.confirmation_token, app.config["APP_URL"],
+                    app=app, background=False, admin_cc=None,
+                    subject=REMINDER_SUBJECT, heading=REMINDER_HEADING,
+                    intro_html=REMINDER_INTRO,
+                    expiry_text=f"This link expires in {days} days.",
+                )
+                sent += 1 if ok else 0
+                failed += 0 if ok else 1
+            except Exception as e:
+                failed += 1
+                db.session.rollback()
+                logger.error(f"Reminder failed for {user.email}: {e}", exc_info=True)
+
+            if progress:
+                progress(sent, failed, len(users))
+            if pace:
+                time.sleep(pace)
+
+        logger.info(f"Verification reminders: sent {sent}/{len(users)}, {failed} failed")
+        return sent, failed, len(users)
 
 
 def send_weekly_digest_email(user, app_url, app=None, background=True):

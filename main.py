@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from datetime import datetime, timedelta
 import logging
 import sys
+import time
 
 from models import db, User, Dataset, Pair, Annotation, Claim, Skip, Config, TestSubmission, AuditLog, TestSampleSet, TestSampleSetMembership
 from auth import do_login, do_logout, login_required, admin_required, get_current_user, is_admin_email
@@ -775,6 +776,119 @@ def api_smtp_diagnostic():
         "all_ok": ok and (sent is not False),
         "phases": phases,
     }), 200
+
+
+REMINDER_JOB_NAME = "verification_reminder_blast"
+# Gmail's daily send cap is ~500; refuse a blast that would approach it unless forced.
+REMINDER_MAX_RECIPIENTS = 450
+
+
+def _unverified_users():
+    return User.query.filter(User.email_confirmed == False).order_by(User.created_at).all()
+
+
+@app.route("/api/admin/verification-reminders", methods=["GET"])
+@admin_required
+def api_verification_reminders_preview():
+    """Dry run: who would receive the one-time verification reminder."""
+    from models import JobRun
+
+    users = _unverified_users()
+    prior = JobRun.query.filter_by(job_name=REMINDER_JOB_NAME).order_by(
+        JobRun.claimed_at.desc()).first()
+
+    return jsonify({
+        "dry_run": True,
+        "unverified_count": len(users),
+        "recipients": [
+            {"email": u.email,
+             "wiki_username": u.wiki_username,
+             "is_admin": u.is_admin,
+             "registered": u.created_at.isoformat() if u.created_at else None,
+             "token_expired": u.confirmation_token_expired()}
+            for u in users
+        ],
+        "already_sent": bool(prior),
+        "previous_blast": None if not prior else {
+            "status": prior.status,
+            "claimed_at": prior.claimed_at.isoformat(),
+            "completed_at": prior.completed_at.isoformat() if prior.completed_at else None,
+            "detail": prior.detail,
+        },
+        "to_send": "POST to this URL with ?confirm=SEND",
+    }), 200
+
+
+@app.route("/api/admin/verification-reminders", methods=["POST"])
+@admin_required
+def api_verification_reminders_send():
+    """Send the one-time verification reminder. Requires ?confirm=SEND.
+
+    Guarded by a job_runs claim so it cannot fire twice. Runs on a background
+    thread because a paced bulk send would outlive the gunicorn worker timeout.
+    """
+    import threading
+    from sqlalchemy.exc import IntegrityError
+    from models import JobRun
+    from email_utils import send_verification_reminders
+
+    if request.args.get("confirm") != "SEND":
+        return jsonify({"error": "Refusing to send. Add ?confirm=SEND to confirm.",
+                        "hint": "GET this URL first to preview recipients."}), 400
+
+    days = int(request.args.get("days", 7))
+    pace = float(request.args.get("pace_seconds", 1.0))
+    users = _unverified_users()
+
+    if not users:
+        return jsonify({"error": "No unverified users to email."}), 400
+
+    if len(users) > REMINDER_MAX_RECIPIENTS and request.args.get("force") != "1":
+        return jsonify({
+            "error": f"{len(users)} recipients exceeds the {REMINDER_MAX_RECIPIENTS} safety cap "
+                     f"(Gmail allows ~500/day). Add &force=1 to override.",
+        }), 400
+
+    # One-time claim: a unique (job_name, run_key) makes a second call impossible.
+    claim = JobRun(job_name=REMINDER_JOB_NAME, run_key="one-time")
+    db.session.add(claim)
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({
+            "error": "This one-time reminder has already been sent.",
+            "hint": "Delete the job_runs row (job_name='verification_reminder_blast') to re-run.",
+        }), 409
+
+    claim_id = claim.id
+    total = len(users)
+    real_app = app  # module-level Flask app; never hand a LocalProxy to a thread
+
+    def blast():
+        sent = failed = considered = 0
+        try:
+            sent, failed, considered = send_verification_reminders(
+                real_app, days=days, pace=pace)
+        except Exception as e:
+            real_app.logger.error(f"[{REMINDER_JOB_NAME}] aborted: {e}", exc_info=True)
+        with real_app.app_context():
+            row = db.session.get(JobRun, claim_id)
+            row.status = "success" if failed == 0 and sent else "failed"
+            row.detail = f"reminders sent {sent}/{considered}, {failed} failed"
+            row.completed_at = datetime.utcnow()
+            db.session.commit()
+            real_app.logger.info(f"[{REMINDER_JOB_NAME}] {row.detail}")
+
+    threading.Thread(target=blast, name="verification-reminder-blast", daemon=True).start()
+
+    return jsonify({
+        "started": True,
+        "recipients": total,
+        "token_validity_days": days,
+        "estimated_seconds": int(total * (pace + 2)),
+        "check": "GET this URL to see the result once complete.",
+    }), 202
 
 
 # Import blueprint routes

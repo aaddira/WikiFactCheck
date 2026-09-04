@@ -234,7 +234,7 @@ REMINDER_HEADING = "Please verify your WikiFactCheck account"
 REMINDER_INTRO = (
     "<p>You registered for WikiFactCheck but your email address was never verified. "
     "A technical problem on our side stopped those verification emails from being "
-    "delivered &mdash; that issue is now fixed, and we're sorry for the delay.</p>"
+    "delivered. That issue is now fixed, and we're sorry for the delay.</p>"
     "<p>To activate your account, please confirm your email address:</p>"
 )
 

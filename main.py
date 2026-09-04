@@ -867,18 +867,31 @@ def api_verification_reminders_send():
 
     def blast():
         sent = failed = considered = 0
+        aborted = False
         try:
             sent, failed, considered = send_verification_reminders(
                 real_app, days=days, pace=pace)
         except Exception as e:
+            aborted = True
             real_app.logger.error(f"[{REMINDER_JOB_NAME}] aborted: {e}", exc_info=True)
         with real_app.app_context():
             row = db.session.get(JobRun, claim_id)
-            row.status = "success" if failed == 0 and sent else "failed"
-            row.detail = f"reminders sent {sent}/{considered}, {failed} failed"
+            # Status describes the RUN, not individual recipients. Undeliverable
+            # addresses (dead domains, typos) are expected and must not make a
+            # completed blast look like it never happened -- reading "failed"
+            # later would invite a re-run that re-mails everyone who did get it.
+            if aborted:
+                row.status = "failed"
+            elif failed and not sent:
+                row.status = "failed"
+            elif failed:
+                row.status = "partial"
+            else:
+                row.status = "success"
+            row.detail = f"reminders sent {sent}/{considered}, {failed} undeliverable"
             row.completed_at = datetime.utcnow()
             db.session.commit()
-            real_app.logger.info(f"[{REMINDER_JOB_NAME}] {row.detail}")
+            real_app.logger.info(f"[{REMINDER_JOB_NAME}] {row.status}: {row.detail}")
 
     threading.Thread(target=blast, name="verification-reminder-blast", daemon=True).start()
 

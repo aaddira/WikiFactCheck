@@ -124,7 +124,9 @@ def parse_jsonl_file(file_path, dataset, citation_type="JOURNAL"):
                     citation_year=citation_year,
                     citation_authors=citation_authors,
                     citation_raw_text=record.get("citation_raw_text", ""),
-                    citation_source_url=record.get("citation_source_url", ""),
+                    # Handle both schema variants: qualification datasets use
+                    # "citation_source_url", pipeline outputs use "citation_url"
+                    citation_source_url=record.get("citation_source_url") or record.get("citation_url", ""),
                     citation_raw_word_count=record.get("citation_raw_word_count"),
                     is_test_sample=False,
                     correct_label=None,

@@ -5,13 +5,59 @@ Protects against accidental deletion of datasets with annotations.
 """
 
 import json
+import logging
 import os
 from datetime import datetime
 from pathlib import Path
 from models import db, Annotation, Pair, User, TestSubmission, Dataset
 
-BACKUP_DIR = Path(__file__).parent / "backups"
-BACKUP_DIR.mkdir(exist_ok=True)
+logger = logging.getLogger(__name__)
+
+
+def backup_root():
+    """Return a backup directory that survives a redeploy.
+
+    On Railway the app runs from /app, which is part of the container image and
+    is recreated on every deploy -- backups written there are silently destroyed
+    (and the qualification-config restore feature is left with nothing to
+    restore). Prefer an explicit BACKUP_DIR, then the mounted volume, and only
+    fall back to the project directory for local development.
+
+    Never raises: a backup system that cannot create its directory must not take
+    the whole app down at import time.
+    """
+    candidates = []
+    if os.getenv("BACKUP_DIR"):
+        candidates.append((Path(os.getenv("BACKUP_DIR")), True, "BACKUP_DIR"))
+    if os.getenv("RAILWAY_VOLUME_MOUNT_PATH"):
+        candidates.append((Path(os.getenv("RAILWAY_VOLUME_MOUNT_PATH")) / "backups",
+                           True, "Railway volume"))
+    candidates.append((Path(__file__).parent / "backups", False, "project directory"))
+
+    for root, durable, label in candidates:
+        try:
+            root.mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            logger.error(f"Backup location unusable ({label} at {root}): {e}")
+            continue
+
+        if durable:
+            logger.info(f"Backups -> {root} (durable, via {label})")
+        elif os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("RAILWAY_VOLUME_MOUNT_PATH"):
+            # Running on Railway but writing to the container filesystem.
+            logger.error(
+                f"Backups -> {root} on the EPHEMERAL container filesystem. These "
+                f"will be destroyed on the next deploy. Attach a volume, or set "
+                f"BACKUP_DIR to a path on one."
+            )
+        else:
+            logger.info(f"Backups -> {root} (local development)")
+        return root
+
+    raise RuntimeError("No writable backup directory available")
+
+
+BACKUP_DIR = backup_root()
 
 def create_backup():
     """

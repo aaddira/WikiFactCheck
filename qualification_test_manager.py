@@ -8,7 +8,11 @@ from datetime import datetime
 from pathlib import Path
 from models import db, Pair, User, TestSubmission
 
-QUAL_BACKUP_DIR = Path(__file__).parent / "backups" / "qualification_tests"
+# Shares backup_manager's root so both land on the durable volume rather than
+# the container filesystem, which is wiped on every deploy.
+from backup_manager import backup_root
+
+QUAL_BACKUP_DIR = backup_root() / "qualification_tests"
 QUAL_BACKUP_DIR.mkdir(parents=True, exist_ok=True)
 
 def save_qualification_config(dataset_id, test_name):

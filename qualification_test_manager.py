@@ -9,11 +9,12 @@ from pathlib import Path
 from models import db, Pair, User, TestSubmission
 
 # Shares backup_manager's root so both land on the durable volume rather than
-# the container filesystem, which is wiped on every deploy.
+# the container filesystem, which is wiped on every deploy. backup_root()
+# creates the subdirectory itself, with the same fallback chain, so there is no
+# unguarded mkdir here to crash the app at import.
 from backup_manager import backup_root
 
-QUAL_BACKUP_DIR = backup_root() / "qualification_tests"
-QUAL_BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+QUAL_BACKUP_DIR = backup_root("qualification_tests")
 
 def save_qualification_config(dataset_id, test_name):
     """

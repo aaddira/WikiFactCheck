@@ -14,7 +14,7 @@ from models import db, Annotation, Pair, User, TestSubmission, Dataset
 logger = logging.getLogger(__name__)
 
 
-def backup_root():
+def backup_root(subdir=None):
     """Return a backup directory that survives a redeploy.
 
     On Railway the app runs from /app, which is part of the container image and
@@ -23,9 +23,15 @@ def backup_root():
     restore). Prefer an explicit BACKUP_DIR, then the mounted volume, and only
     fall back to the project directory for local development.
 
-    Never raises: a backup system that cannot create its directory must not take
-    the whole app down at import time.
+    `subdir` is created under the chosen root and shares the same fallback
+    chain, so a volume we cannot write into is skipped rather than fatal.
+
+    Never raises for a location problem. This runs at import time, reached from
+    main -> scheduler -> here, so an exception would stop the whole app from
+    booting rather than merely disabling backups.
     """
+    on_railway = any(k.startswith("RAILWAY_") for k in os.environ)
+
     candidates = []
     if os.getenv("BACKUP_DIR"):
         candidates.append((Path(os.getenv("BACKUP_DIR")), True, "BACKUP_DIR"))
@@ -35,26 +41,31 @@ def backup_root():
     candidates.append((Path(__file__).parent / "backups", False, "project directory"))
 
     for root, durable, label in candidates:
+        target = root / subdir if subdir else root
         try:
-            root.mkdir(parents=True, exist_ok=True)
+            target.mkdir(parents=True, exist_ok=True)
         except OSError as e:
-            logger.error(f"Backup location unusable ({label} at {root}): {e}")
+            logger.error(f"Backup location unusable ({label} at {target}): {e}")
             continue
 
         if durable:
-            logger.info(f"Backups -> {root} (durable, via {label})")
-        elif os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("RAILWAY_VOLUME_MOUNT_PATH"):
-            # Running on Railway but writing to the container filesystem.
+            logger.info(f"Backups -> {target} (durable, via {label})")
+        elif on_railway:
+            # On Railway but writing to the container filesystem.
             logger.error(
-                f"Backups -> {root} on the EPHEMERAL container filesystem. These "
+                f"Backups -> {target} on the EPHEMERAL container filesystem. These "
                 f"will be destroyed on the next deploy. Attach a volume, or set "
                 f"BACKUP_DIR to a path on one."
             )
         else:
-            logger.info(f"Backups -> {root} (local development)")
-        return root
+            logger.info(f"Backups -> {target} (local development)")
+        return target
 
-    raise RuntimeError("No writable backup directory available")
+    # Every candidate failed, including the project directory. Return the local
+    # path unmade: backups will fail loudly at write time, the app still boots.
+    fallback = Path(__file__).parent / "backups"
+    logger.error(f"No writable backup directory; backups disabled (tried {len(candidates)})")
+    return fallback
 
 
 BACKUP_DIR = backup_root()

@@ -369,14 +369,23 @@ def send_test_submission_notification(user, score, total, app_url, app=None, bac
                                       cc_email='aaddira@gmail.com'):
     """Notify admins that a user submitted their qualification test."""
     from models import User
+    from auth import get_admin_emails
 
-    admins = User.query.filter_by(is_admin=True).all()
-    admin_emails = [admin.email for admin in admins if admin.email]
+    # Union of DB admins (only exist once an admin has registered) and the
+    # ADMIN_EMAILS env var (the source of truth), deduped case-insensitively.
+    candidates = [a.email for a in User.query.filter_by(is_admin=True).all() if a.email]
+    candidates += get_admin_emails()
+    seen = set()
+    admin_emails = []
+    for addr in candidates:
+        if addr.lower() not in seen:
+            seen.add(addr.lower())
+            admin_emails.append(addr)
 
     if not admin_emails:
         logger.warning(f"No admin emails found for test submission notification (user: {user.email})")
         if not cc_email:
-            return
+            return False
         admin_emails = [cc_email]
 
     percentage = (score / total * 100) if total > 0 else 0
@@ -404,7 +413,7 @@ def send_test_submission_notification(user, score, total, app_url, app=None, bac
     """
 
     primary_email = admin_emails[0]
-    cc_list = admin_emails[1:] + ([cc_email] if cc_email and cc_email not in admin_emails else [])
+    cc_list = admin_emails[1:] + ([cc_email] if cc_email and cc_email.lower() not in {a.lower() for a in admin_emails} else [])
 
     return send_email(
         primary_email,

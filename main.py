@@ -103,6 +103,7 @@ else:
 
 # Scheduler configuration (P4: Progress Notifications)
 app.config["SCHEDULER_ENABLED"] = os.getenv("SCHEDULER_ENABLED", "true").lower() == "true"
+app.config["DIGEST_ENABLED"] = os.getenv("DIGEST_ENABLED", "false").lower() == "true"  # weekly newsletter off by default
 app.config["DIGEST_SCHEDULE_DAY"] = int(os.getenv("DIGEST_SCHEDULE_DAY", "0"))  # 0 = Monday
 app.config["DIGEST_SCHEDULE_HOUR"] = int(os.getenv("DIGEST_SCHEDULE_HOUR", "9"))  # 9 AM UTC
 scheduler = init_scheduler(app)

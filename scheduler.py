@@ -137,20 +137,23 @@ def init_scheduler(app):
 
     scheduler = BackgroundScheduler()
 
-    # Schedule weekly digest: Monday at 9 AM UTC (0 = Monday)
-    digest_day = int(app.config.get("DIGEST_SCHEDULE_DAY", 0))
-    digest_hour = int(app.config.get("DIGEST_SCHEDULE_HOUR", 9))
+    # Schedule weekly digest: Monday at 9 AM UTC (0 = Monday). Disabled unless DIGEST_ENABLED=true.
+    if app.config.get("DIGEST_ENABLED", False):
+        digest_day = int(app.config.get("DIGEST_SCHEDULE_DAY", 0))
+        digest_hour = int(app.config.get("DIGEST_SCHEDULE_HOUR", 9))
 
-    scheduler.add_job(
-        send_weekly_digests_job,
-        CronTrigger(day_of_week=digest_day, hour=digest_hour, minute=0),
-        args=[app],
-        id='weekly_digest_job',
-        name='Send weekly progress digests to annotators',
-        replace_existing=True,
-        coalesce=True,  # Coalesca multiple missed runs into one
-        max_instances=1  # Ensure only one instance runs
-    )
+        scheduler.add_job(
+            send_weekly_digests_job,
+            CronTrigger(day_of_week=digest_day, hour=digest_hour, minute=0),
+            args=[app],
+            id='weekly_digest_job',
+            name='Send weekly progress digests to annotators',
+            replace_existing=True,
+            coalesce=True,  # Coalesca multiple missed runs into one
+            max_instances=1  # Ensure only one instance runs
+        )
+    else:
+        logger.info("Weekly digest disabled (set DIGEST_ENABLED=true to enable)")
 
     # Schedule automatic backups every 24 hours at 2 AM UTC
     backup_hour = int(app.config.get("BACKUP_SCHEDULE_HOUR", 2))

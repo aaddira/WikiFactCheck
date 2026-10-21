@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}" dir="{{ text_dir }}">
+<head>
+    <title>{% block title %}{% endblock %}</title>
+    {% include "_head_common.html" %}
+</head>
+<body class="bg-gradient-to-br from-emerald-50 to-teal-100 dark:from-gray-900 dark:to-gray-800 min-h-screen flex items-center justify-center">
+    <!-- Language + theme controls (top end corner: right in LTR, left in RTL) -->
+    <div class="fixed top-4 end-4 flex items-center gap-2">
+        {% include "_lang_switcher.html" %}
+        <button onclick="toggleTheme()" class="p-2 rounded-lg bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 transition shadow-md" title="{{ t('common.toggle_dark') }}">
+            <span id="theme-icon">🌙</span>
+        </button>
+    </div>
+
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 w-full max-w-md">
+        {% block card %}{% endblock %}
+    </div>
+
+    <script>window.I18N = {{ js_i18n|tojson }};</script>
+    <script src="{{ url_for('static', filename='js/i18n.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+    <script>
+        // Update theme icon based on current theme
+        function updateThemeIcon() {
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            const icon = document.getElementById('theme-icon');
+            if (icon) {
+                icon.textContent = isDark ? '☀️' : '🌙';
+            }
+        }
+        updateThemeIcon();
+        document.addEventListener('themechange', updateThemeIcon);
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

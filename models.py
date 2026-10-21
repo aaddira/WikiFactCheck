@@ -41,6 +41,11 @@ class User(db.Model):
     confirmation_token_expires_at = db.Column(db.DateTime, nullable=True)
     last_confirmation_resend_at = db.Column(db.DateTime, nullable=True)  # Track resend rate limiting
 
+    # Language preferences (see i18n/). Separate on purpose: the UI language can be
+    # switched freely while email_language controls every email we send this user.
+    language = db.Column(db.String(8), nullable=False, default="en", server_default="en")
+    email_language = db.Column(db.String(8), nullable=False, default="en", server_default="en")
+
     # Relationships
     annotations = db.relationship("Annotation", backref="annotator", lazy=True)
     claims = db.relationship("Claim", backref="user", lazy=True)

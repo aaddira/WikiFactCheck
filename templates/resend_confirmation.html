@@ -1,41 +1,11 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Resend Confirmation Email - WikiFactCheck</title>
+{% extends "auth_base.html" %}
 
-    <script>
-        (function() {
-            const stored = localStorage.getItem('theme');
-            const theme = stored === 'light' || stored === 'dark' ? stored :
-                         (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-            if (theme === 'dark') {
-                document.documentElement.classList.add('dark');
-                document.documentElement.setAttribute('data-theme', 'dark');
-            }
-        })();
-    </script>
+{% block title %}{{ t('resend.title') }}{% endblock %}
 
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class'
-        };
-    </script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-</head>
-<body class="bg-gradient-to-br from-emerald-50 to-teal-100 dark:from-gray-900 dark:to-gray-800 min-h-screen flex items-center justify-center">
-    <div class="fixed top-4 right-4">
-        <button onclick="toggleTheme()" class="p-2 rounded-lg bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 transition shadow-md" title="Toggle dark mode">
-            <span id="theme-icon">🌙</span>
-        </button>
-    </div>
-
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 w-full max-w-md">
-        <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2 text-center">📧 Resend Confirmation</h1>
+{% block card %}
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2 text-center">{{ t('resend.heading') }}</h1>
         <p class="text-center text-gray-600 dark:text-gray-400 mb-8 text-sm">
-            Didn't receive the confirmation email? We'll send it again.
+            {{ t('resend.subtitle') }}
         </p>
 
         {% if success %}
@@ -43,10 +13,10 @@
             ✅ {{ message }}
         </div>
         <p class="text-center text-gray-600 dark:text-gray-400 text-sm mb-4">
-            Click the link in your email to confirm your account, then <a href="{{ url_for('login_page') }}" class="text-emerald-600 dark:text-emerald-400 font-semibold hover:underline">log in</a>.
+            {{ t('resend.after_success_html', login_url=url_for('login_page')) }}
         </p>
         <a href="{{ url_for('login_page') }}" class="w-full block text-center bg-emerald-600 text-white py-2 rounded-lg font-medium hover:bg-emerald-700 transition">
-            Back to Login
+            {{ t('common.back_to_login_btn') }}
         </a>
 
         {% elif already_confirmed %}
@@ -54,7 +24,7 @@
             ℹ️ {{ message }}
         </div>
         <a href="{{ url_for('login_page') }}" class="w-full block text-center bg-emerald-600 text-white py-2 rounded-lg font-medium hover:bg-emerald-700 transition">
-            Go to Login
+            {{ t('common.go_to_login') }}
         </a>
 
         {% elif error %}
@@ -73,15 +43,16 @@
         {% if not success and not already_confirmed %}
         <form method="POST" class="space-y-4">
             <div>
-                <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Email Address</label>
+                <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{{ t('common.email_address') }}</label>
                 <input
                     type="email"
                     id="email"
                     name="email"
+                    dir="ltr"
                     required
                     autofocus
                     class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                    placeholder="your@email.com"
+                    placeholder="{{ t('common.email_placeholder') }}"
                 />
             </div>
 
@@ -89,7 +60,7 @@
                 type="submit"
                 class="w-full bg-emerald-600 text-white py-2 rounded-lg font-medium hover:bg-emerald-700 transition"
             >
-                Resend Confirmation Email
+                {{ t('common.resend_confirmation_btn') }}
             </button>
         </form>
         {% endif %}
@@ -97,23 +68,8 @@
         <div class="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700 text-center">
             <p class="text-xs text-gray-500 dark:text-gray-400">
                 <a href="{{ url_for('login_page') }}" class="text-emerald-600 dark:text-emerald-400 font-semibold hover:underline">
-                    ← Back to Login
+                    {{ t('common.back_to_login') }}
                 </a>
             </p>
         </div>
-    </div>
-
-    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script>
-        function updateThemeIcon() {
-            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-            const icon = document.getElementById('theme-icon');
-            if (icon) {
-                icon.textContent = isDark ? '☀️' : '🌙';
-            }
-        }
-        updateThemeIcon();
-        document.addEventListener('themechange', updateThemeIcon);
-    </script>
-</body>
-</html>
+{% endblock %}

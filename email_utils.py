@@ -170,54 +170,17 @@ def send_email(to_email, subject, html_content, cc_email=None, app=None, backgro
 
 
 def send_confirmation_email(user, confirmation_token, app_url, app=None, background=True,
-                            admin_cc='aaddira@gmail.com', subject=None, heading=None,
-                            intro_html=None, expiry_text="This link expires in 24 hours."):
-    """Send the email-confirmation link to a user, CC'ing the admin.
+                            admin_cc='aaddira@gmail.com', reminder=False, days=None):
+    """Send the email-confirmation link to a user in THEIR email language, CC'ing the admin.
 
-    subject/heading/intro_html/expiry_text override the registration wording so
-    other flows (e.g. the verification-reminder blast) reuse this one template
-    instead of copying the markup.
+    reminder=True switches to the one-time verification-reminder wording (token
+    lifetime `days`); both variants share one template in email_templates.py.
     """
+    from email_templates import email_lang, render_confirmation
+
     confirmation_link = f"{app_url}/confirm/{confirmation_token}"
-    subject = subject or "Confirm Your Email - WikiFactCheck"
-    heading = heading or "Welcome to WikiFactCheck! 👋"
-    intro_html = intro_html or (
-        "<p>Thank you for registering! To complete your registration and start "
-        "annotating, please confirm your email address by clicking the button below:</p>"
-    )
-
-    html_content = f"""
-    <html>
-    <head>
-        <style>
-            body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif; line-height: 1.6; color: #333; }}
-            a.button {{ background: #059669; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; display: inline-block; font-weight: bold; }}
-            .footer {{ color: #666; font-size: 0.9em; margin-top: 2em; border-top: 1px solid #eee; padding-top: 1em; }}
-        </style>
-    </head>
-    <body>
-        <h2>{heading}</h2>
-        <p>Hello {user.wiki_username or user.email},</p>
-        {intro_html}
-
-        <p style="margin: 20px 0;">
-            <a href="{confirmation_link}" class="button">Confirm My Email</a>
-        </p>
-
-        <p>Or copy and paste this link if the button doesn't work:</p>
-        <p><code style="background: #f5f5f5; padding: 10px; display: inline-block; border-radius: 4px;">{confirmation_link}</code></p>
-
-        <p><strong>⏱️ Important:</strong> {expiry_text}</p>
-
-        <p>If you didn't register for WikiFactCheck, please ignore this email or contact us if you have questions.</p>
-
-        <div class="footer">
-            <p>Best regards,<br><strong>WikiFactCheck Team</strong></p>
-            <p>Questions? Visit us at {app_url}</p>
-        </div>
-    </body>
-    </html>
-    """
+    subject, html_content = render_confirmation(
+        user, confirmation_link, app_url, email_lang(user), reminder=reminder, days=days)
 
     return send_email(
         user.email,
@@ -227,16 +190,6 @@ def send_confirmation_email(user, confirmation_token, app_url, app=None, backgro
         app=app,
         background=background,
     )
-
-
-REMINDER_SUBJECT = "Reminder to verify your WikiFactCheck account"
-REMINDER_HEADING = "Please verify your WikiFactCheck account"
-REMINDER_INTRO = (
-    "<p>You registered for WikiFactCheck but your email address was never verified. "
-    "A technical problem on our side stopped those verification emails from being "
-    "delivered. That issue is now fixed, and we're sorry for the delay.</p>"
-    "<p>To activate your account, please confirm your email address:</p>"
-)
 
 
 def send_verification_reminders(app, days=7, pace=1.0, progress=None):
@@ -267,9 +220,7 @@ def send_verification_reminders(app, days=7, pace=1.0, progress=None):
                 ok = send_confirmation_email(
                     user, user.confirmation_token, app.config["APP_URL"],
                     app=app, background=False, admin_cc=None,
-                    subject=REMINDER_SUBJECT, heading=REMINDER_HEADING,
-                    intro_html=REMINDER_INTRO,
-                    expiry_text=f"This link expires in {days} days.",
+                    reminder=True, days=days,
                 )
                 sent += 1 if ok else 0
                 failed += 0 if ok else 1

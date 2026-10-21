@@ -1,0 +1,30 @@
+{# Shared <head> internals: theme anti-FOUC, Tailwind, Arabic font, stylesheet. Single source for base.html and auth_base.html. #}
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- Anti-FOUC: Prevent flash of wrong theme by reading theme before page renders -->
+<script>
+    (function() {
+        const stored = localStorage.getItem('theme');
+        const theme = stored === 'light' || stored === 'dark' ? stored :
+                     (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        if (theme === 'dark') {
+            document.documentElement.classList.add('dark');
+            document.documentElement.setAttribute('data-theme', 'dark');
+        }
+    })();
+</script>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<!-- Configure Tailwind for dark mode class-based detection -->
+<script>
+    tailwind.config = {
+        darkMode: 'class'
+    };
+</script>
+{% if is_rtl %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+{% endif %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">

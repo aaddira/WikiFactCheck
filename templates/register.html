@@ -1,88 +1,39 @@
 {% extends "base.html" %}
 
-{% block title %}Register - WikiFactCheck{% endblock %}
+{% block title %}{{ t('register.title') }}{% endblock %}
 
 {% block content %}
 <div class="max-w-md mx-auto px-4 py-16">
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8">
-        <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Create Account</h1>
-        <p class="text-gray-600 dark:text-gray-400 mb-6">Join our research team as an annotator</p>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">{{ t('register.heading') }}</h1>
+        <p class="text-gray-600 dark:text-gray-400 mb-6">{{ t('register.subtitle') }}</p>
 
         {% if success %}
-        <div class="bg-green-50 dark:bg-green-900 border-l-4 border-green-500 p-4 rounded-lg mb-6">
-            <h2 class="text-lg font-semibold text-green-900 dark:text-green-100 mb-2">✓ Registration Successful</h2>
+        <div class="bg-green-50 dark:bg-green-900 border-s-4 border-green-500 p-4 rounded-lg mb-6">
+            <h2 class="text-lg font-semibold text-green-900 dark:text-green-100 mb-2">{{ t('register.success_heading') }}</h2>
             <p class="text-green-900 dark:text-green-100 mb-4">
-                A confirmation email has been sent to <strong>{{ email }}</strong>
+                {{ t('register.success_sent', email=email) }}
             </p>
             <p class="text-sm text-green-800 dark:text-green-200 mb-4">
-                Please check your email (including spam/promotions folder) and click the confirmation link to complete your registration.
+                {{ t('register.success_check') }}
             </p>
             <p class="text-sm text-green-800 dark:text-green-200 mb-4">
-                This link expires in 24 hours. If you don't receive it, you can resend it below.
+                {{ t('register.success_expiry') }}
             </p>
             <button
                 type="button"
                 id="resendBtn"
-                onclick="resendConfirmationEmail('{{ email }}')"
+                data-email="{{ email }}"
                 class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 px-4 rounded-lg transition"
             >
-                Resend Confirmation Email
+                {{ t('common.resend_confirmation_btn') }}
             </button>
             <p id="resendMessage" class="text-sm text-green-800 dark:text-green-200 mt-2" style="display:none;"></p>
         </div>
-
-        <script>
-        function resendConfirmationEmail(email) {
-            const btn = document.getElementById('resendBtn');
-            const msg = document.getElementById('resendMessage');
-            
-            btn.disabled = true;
-            btn.style.opacity = '0.5';
-            msg.textContent = 'Sending...';
-            msg.style.display = 'block';
-            
-            fetch('/api/resend-confirmation', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({email: email})
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    msg.textContent = '✓ Confirmation email sent! Check your inbox.';
-                    msg.className = 'text-sm text-green-800 dark:text-green-200 mt-2';
-                    // Disable for 60 seconds
-                    let countdown = 60;
-                    const timer = setInterval(() => {
-                        btn.textContent = `Resend in ${countdown}s`;
-                        countdown--;
-                        if (countdown < 0) {
-                            clearInterval(timer);
-                            btn.textContent = 'Resend Confirmation Email';
-                            btn.disabled = false;
-                            btn.style.opacity = '1';
-                            msg.style.display = 'none';
-                        }
-                    }, 1000);
-                } else {
-                    msg.textContent = '✗ ' + (data.error || 'Failed to resend email');
-                    msg.className = 'text-sm text-red-800 dark:text-red-200 mt-2';
-                    btn.disabled = false;
-                    btn.style.opacity = '1';
-                }
-            })
-            .catch(err => {
-                msg.textContent = '✗ Error: ' + err.message;
-                msg.className = 'text-sm text-red-800 dark:text-red-200 mt-2';
-                btn.disabled = false;
-                btn.style.opacity = '1';
-            });
-        }
-        </script>
         {% endif %}
 
         {% if error %}
-        <div class="bg-red-50 dark:bg-red-900 border-l-4 border-red-500 p-4 rounded-lg mb-6">
+        <div class="bg-red-50 dark:bg-red-900 border-s-4 border-red-500 p-4 rounded-lg mb-6">
             <p class="text-red-900 dark:text-red-100">{{ error }}</p>
         </div>
         {% endif %}
@@ -91,35 +42,37 @@
         <form method="POST" class="space-y-4">
             <div>
                 <label for="email" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                    Email Address
+                    {{ t('common.email_address') }}
                 </label>
                 <input
                     type="email"
                     id="email"
                     name="email"
+                    dir="ltr"
                     placeholder="your.email@example.com"
                     required
                     class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                 >
                 <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    We'll send a confirmation link to this email
+                    {{ t('register.email_hint') }}
                 </p>
             </div>
 
             <div>
                 <label for="wiki_username" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                    Wikipedia Username
+                    {{ t('common.wiki_username') }}
                 </label>
                 <input
                     type="text"
                     id="wiki_username"
                     name="wiki_username"
-                    placeholder="e.g., MyWikiUsername"
+                    dir="auto"
+                    placeholder="{{ t('register.username_placeholder') }}"
                     required
                     class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                 >
                 <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Your Wikipedia username (or your preferred annotator name)
+                    {{ t('register.username_hint') }}
                 </p>
             </div>
 
@@ -127,19 +80,76 @@
                 type="submit"
                 class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 rounded-lg transition mt-6"
             >
-                Create Account
+                {{ t('register.submit') }}
             </button>
         </form>
 
         <div class="mt-6 text-center">
             <p class="text-gray-600 dark:text-gray-400">
-                Already have an account?
+                {{ t('register.have_account') }}
                 <a href="{{ url_for('login_page') }}" class="text-emerald-600 dark:text-emerald-400 font-semibold hover:underline">
-                    Log In
+                    {{ t('common.log_in') }}
                 </a>
             </p>
         </div>
         {% endif %}
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+{% if success %}
+<script>
+function resendConfirmationEmail(email) {
+    const btn = document.getElementById('resendBtn');
+    const msg = document.getElementById('resendMessage');
+
+    btn.disabled = true;
+    btn.style.opacity = '0.5';
+    msg.textContent = i18n('js.sending');
+    msg.style.display = 'block';
+
+    fetch('/api/resend-confirmation', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({email: email})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            msg.textContent = i18n('js.resend_ok');
+            msg.className = 'text-sm text-green-800 dark:text-green-200 mt-2';
+            // Disable for 60 seconds
+            let countdown = 60;
+            const timer = setInterval(() => {
+                btn.textContent = i18n('js.resend_in', {s: countdown});
+                countdown--;
+                if (countdown < 0) {
+                    clearInterval(timer);
+                    btn.textContent = i18n('js.resend_btn');
+                    btn.disabled = false;
+                    btn.style.opacity = '1';
+                    msg.style.display = 'none';
+                }
+            }, 1000);
+        } else {
+            msg.textContent = '✗ ' + (data.error || i18n('js.resend_failed'));
+            msg.className = 'text-sm text-red-800 dark:text-red-200 mt-2';
+            btn.disabled = false;
+            btn.style.opacity = '1';
+        }
+    })
+    .catch(err => {
+        msg.textContent = '✗ ' + i18n('js.error_prefix', {msg: err.message});
+        msg.className = 'text-sm text-red-800 dark:text-red-200 mt-2';
+        btn.disabled = false;
+        btn.style.opacity = '1';
+    });
+}
+
+document.getElementById('resendBtn').addEventListener('click', function () {
+    resendConfirmationEmail(this.dataset.email);
+});
+</script>
+{% endif %}
 {% endblock %}

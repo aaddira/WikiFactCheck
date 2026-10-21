@@ -3,20 +3,20 @@
 {# Fact highlighting instruction box - SINGLE SOURCE OF TRUTH #}
 {% macro fact_check_note() %}
 <div class="fact-check-note">
-    <span>Passage to Fact Check Underlined in Red.</span>
+    <span>{{ t('components.fact_note') }}</span>
 </div>
 {% endmacro %}
 
 {# Annotation instructions - SINGLE SOURCE OF TRUTH #}
 {% macro annotation_instructions() %}
 <div class="instructions">
-    <h4>📋 How to Fact-Check This Citation</h4>
+    <h4>{{ t('instructions.title') }}</h4>
     <ol>
-        <li><strong>Carefully read</strong> the quoted Wikipedia passage and compare it to the source content</li>
-        <li><strong>Select a label:</strong> Supported, Not Supported, Mixed, Unverifiable, or Source Link Error</li>
-        <li><strong>Quote exact verbatim</strong> text from the source that supports or contradicts the passage</li>
-        <li><strong>Explain</strong> how the quote relates to the passage, note any uncertainties</li>
-        <li><strong>Skip</strong> any statement you're unsure about or don't wish to evaluate</li>
+        <li>{{ t('instructions.step1') }}</li>
+        <li>{{ t('instructions.step2') }}</li>
+        <li>{{ t('instructions.step3') }}</li>
+        <li>{{ t('instructions.step4') }}</li>
+        <li>{{ t('instructions.step5') }}</li>
     </ol>
 </div>
 {% endmacro %}

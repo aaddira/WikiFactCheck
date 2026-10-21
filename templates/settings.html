@@ -88,6 +88,26 @@
             <div id="email-message" class="hidden text-sm"></div>
         </form>
     </div>
+
+    <!-- Language Preferences Card -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Language Preferences</h2>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Choose the language of the interface and, separately, the language of the emails we send you.</p>
+        <form id="language-form" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="ui-language-select">Interface language</label>
+                <select id="ui-language-select" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"></select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="email-language-select">Email language</label>
+                <select id="email-language-select" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"></select>
+            </div>
+            <button type="submit" class="bg-emerald-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-emerald-700 transition">
+                Save Language Preferences
+            </button>
+            <div id="language-message" class="hidden text-sm"></div>
+        </form>
+    </div>
 </div>
 
 <script>
@@ -195,7 +215,52 @@ document.getElementById('email-form').addEventListener('submit', async (e) => {
     }
 });
 
+// Language preferences (names are shown in their own script, so they are never translated)
+async function loadLanguagePrefs() {
+    try {
+        const response = await fetch('/api/settings/language');
+        if (!response.ok) throw new Error('Failed to load language preferences');
+        const prefs = await response.json();
+        for (const [selectId, current] of [['ui-language-select', prefs.language], ['email-language-select', prefs.email_language]]) {
+            const select = document.getElementById(selectId);
+            select.innerHTML = '';
+            prefs.supported.forEach(l => {
+                const option = new Option(l.name, l.code, false, l.code === current);
+                option.lang = l.code;
+                select.add(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading language preferences:', error);
+    }
+}
+
+document.getElementById('language-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const messageDiv = document.getElementById('language-message');
+    try {
+        const response = await fetch('/api/settings/language', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                language: document.getElementById('ui-language-select').value,
+                email_language: document.getElementById('email-language-select').value,
+            })
+        });
+        if (!response.ok) throw new Error('Failed to save language preferences');
+        messageDiv.textContent = '✓ Language preferences saved';
+        messageDiv.className = 'text-sm text-emerald-600';
+        messageDiv.classList.remove('hidden');
+        setTimeout(() => messageDiv.classList.add('hidden'), 3000);
+    } catch (error) {
+        messageDiv.textContent = '✗ ' + error.message;
+        messageDiv.className = 'text-sm text-red-600';
+        messageDiv.classList.remove('hidden');
+    }
+});
+
 // Load profile on page load
 loadProfile();
+loadLanguagePrefs();
 </script>
 {% endblock %}

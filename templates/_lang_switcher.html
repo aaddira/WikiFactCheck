@@ -1,0 +1,5 @@
+{# Language switcher: shows the OTHER language by its own native name. Hidden where it cannot work. #}
+{% if lang_switcher_visible %}
+<a href="{{ url_for('i18n.set_language', lang=other_lang, next=request.full_path.rstrip('?')) }}"
+   class="lang-switch" lang="{{ other_lang }}" hreflang="{{ other_lang }}" aria-label="{{ t('common.language') }}">{{ other_lang_name }}</a>
+{% endif %}

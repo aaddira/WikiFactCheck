@@ -14,6 +14,7 @@ from models import db, User, Dataset, Pair, Annotation, Claim, Skip, Config, Tes
 from auth import do_login, do_logout, login_required, admin_required, get_current_user, is_admin_email
 from data_loader import parse_jsonl_file, seed_default_config
 from email_utils import send_confirmation_email
+from i18n.web import init_i18n, t, apply_lang_cookie, current_lang
 from scheduler import init_scheduler
 import secrets
 
@@ -100,6 +101,11 @@ else:
         f"MAIL_USERNAME={'set' if app.config['MAIL_USERNAME'] else 'MISSING'}, "
         f"MAIL_PASSWORD={'set' if app.config['MAIL_PASSWORD'] else 'MISSING'}"
     )
+
+# Bilingual UI (English + Arabic). Off by default: the switcher only appears, and Arabic is only
+# served, when ARABIC_UI_ENABLED=true. Validates the catalogs and refuses to boot if they disagree.
+app.config["ARABIC_UI_ENABLED"] = os.getenv("ARABIC_UI_ENABLED", "false").lower() == "true"
+init_i18n(app)
 
 # Scheduler configuration (P4: Progress Notifications)
 app.config["SCHEDULER_ENABLED"] = os.getenv("SCHEDULER_ENABLED", "true").lower() == "true"
@@ -274,24 +280,24 @@ def register_page():
 
         # Validation
         if not email or not wiki_username:
-            return render_template("register.html", error="Email and Wikipedia username are required")
+            return render_template("register.html", error=t("register.err_required"))
 
         if "@" not in email or "." not in email:
-            return render_template("register.html", error="Please enter a valid email address")
+            return render_template("register.html", error=t("register.err_invalid_email"))
 
         # Check if email already registered
         existing = User.query.filter_by(email=email).first()
         if existing:
-            return render_template("register.html", error="This email is already registered. Please log in.")
+            return render_template("register.html", error=t("register.err_email_exists"))
 
         # Check if username taken (by confirmed users)
         username_taken = User.query.filter_by(wiki_username=wiki_username, wiki_username_provided=True).first()
         if username_taken:
-            return render_template("register.html", error="This Wikipedia username is already taken. Please choose another.")
+            return render_template("register.html", error=t("register.err_username_taken"))
 
         # Reject admin emails
         if is_admin_email(email):
-            return render_template("register.html", error="Admin accounts cannot self-register. Contact support.")
+            return render_template("register.html", error=t("register.err_admin"))
 
         # Create user with confirmation token
         confirmation_token = secrets.token_hex(16)
@@ -303,7 +309,10 @@ def register_page():
             wiki_username_provided=True,
             confirmation_token=confirmation_token,
             confirmation_token_expires_at=expires_at,
-            email_confirmed=False
+            email_confirmed=False,
+            # Accounts created through the Arabic UI default to Arabic UI + Arabic emails.
+            language=current_lang(),
+            email_language=current_lang(),
         )
         db.session.add(user)
         db.session.commit()
@@ -322,13 +331,13 @@ def confirm_email_page(token):
     user = User.query.filter_by(confirmation_token=token).first()
 
     if not user:
-        return render_template("confirm_email.html", error="Invalid confirmation link")
+        return render_template("confirm_email.html", error=t("confirm.err_invalid"))
 
     if user.email_confirmed:
-        return render_template("confirm_email.html", message="Email already confirmed. You can now log in.")
+        return render_template("confirm_email.html", message=t("confirm.msg_already"))
 
     if user.confirmation_token_expired():
-        return render_template("confirm_email.html", error="Confirmation link has expired. Please register again.")
+        return render_template("confirm_email.html", error=t("confirm.err_expired"))
 
     if request.method == "POST":
         # Confirm the email
@@ -348,18 +357,18 @@ def resend_confirmation_page():
         email = request.form.get("email", "").strip().lower()
 
         if not email:
-            return render_template("resend_confirmation.html", error="Email address is required")
+            return render_template("resend_confirmation.html", error=t("resend.err_email_required"))
 
         user = User.query.filter_by(email=email).first()
 
         if not user:
             # Security: Don't reveal if email exists
             return render_template("resend_confirmation.html",
-                message="If this email is registered, a confirmation link will be sent shortly.")
+                message=t("resend.msg_if_registered"))
 
         if user.email_confirmed:
             return render_template("resend_confirmation.html",
-                message="This email is already confirmed. You can log in now.",
+                message=t("resend.msg_already_confirmed"),
                 already_confirmed=True)
 
         # Generate new confirmation token
@@ -374,7 +383,7 @@ def resend_confirmation_page():
         send_confirmation_email(user, confirmation_token, app.config["APP_URL"], app=app)
 
         return render_template("resend_confirmation.html",
-            message="Confirmation email sent! Check your inbox for the verification link.",
+            message=t("resend.msg_sent"),
             success=True)
 
     return render_template("resend_confirmation.html")
@@ -387,32 +396,23 @@ def forgot_username_page():
         email = request.form.get("email", "").strip().lower()
 
         if not email:
-            return render_template("forgot_username.html", error="Email address is required")
+            return render_template("forgot_username.html", error=t("resend.err_email_required"))
 
         user = User.query.filter_by(email=email).first()
 
         if not user:
             # Security: Don't reveal if email exists
             return render_template("forgot_username.html",
-                message="If this email is registered, your Wikipedia username will be sent shortly.")
+                message=t("forgot.msg_if_registered"))
 
-        # Send username reminder email
+        # Send username reminder email in the user's chosen EMAIL language
         from email_utils import send_email
-        html_content = f"""
-        <h2>Your WikiFactCheck Username</h2>
-        <p>Hello {user.wiki_username or user.email},</p>
-        <p>Your Wikipedia username associated with your WikiFactCheck account is:</p>
-        <p><strong style="font-size: 1.2em; font-family: monospace; background: #f5f5f5; padding: 10px; border-radius: 4px; display: inline-block;">{user.wiki_username or 'Not set'}</strong></p>
-        <p>You can now <a href="{app.config['APP_URL']}/login">log in</a> using this username and your email.</p>
-        <p>If you didn't request this, you can safely ignore this email.</p>
-        <p style="color: #666; font-size: 0.9em; margin-top: 2em; border-top: 1px solid #eee; padding-top: 1em;">
-            Best regards,<br><strong>WikiFactCheck Team</strong>
-        </p>
-        """
-        send_email(user.email, "Your WikiFactCheck Username", html_content, app=app)
+        from email_templates import email_lang, render_username_reminder
+        subject, html_content = render_username_reminder(user, app.config["APP_URL"], email_lang(user))
+        send_email(user.email, subject, html_content, app=app)
 
         return render_template("forgot_username.html",
-            message="Your Wikipedia username has been sent to your email.",
+            message=t("forgot.msg_sent"),
             success=True)
 
     return render_template("forgot_username.html")
@@ -425,27 +425,28 @@ def login_page():
         email = request.form.get("email", "").strip().lower()
         wiki_username = request.form.get("wiki_username", "").strip()
         if not email:
-            return render_template("login.html", error="Email is required")
+            return render_template("login.html", error=t("login.err_email_required"))
         if not wiki_username:
-            return render_template("login.html", error="Wikipedia username is required")
+            return render_template("login.html", error=t("login.err_username_required"))
 
         # Reject admin emails from regular login
         if is_admin_email(email):
-            return render_template("login.html", error="Admin accounts must log in via /admin/login with a secret token")
+            return render_template("login.html", error=t("login.err_admin_use_admin_login"))
 
         # Check if user exists and is confirmed
         user = User.query.filter_by(email=email, wiki_username=wiki_username).first()
         if not user:
-            return render_template("login.html", error="Email/username combination not found. Please register first.")
+            return render_template("login.html", error=t("login.err_not_found"))
 
         if not user.email_confirmed:
             return render_template("login.html",
-                error="Your email is not confirmed. Check your inbox for a confirmation link.",
+                error=t("login.err_not_confirmed"),
                 unconfirmed_email=email)
 
         do_login(email, wiki_username=wiki_username)
-        # All logged-in annotators go to dashboard (test is optional)
-        return redirect(url_for("dashboard_page"))
+        # All logged-in annotators go to dashboard (test is optional). Sync the language cookie
+        # to the saved preference so the logged-out pages match after they log out.
+        return apply_lang_cookie(redirect(url_for("dashboard_page")), user.language)
     return render_template("login.html")
 
 
@@ -681,21 +682,21 @@ def api_resend_confirmation():
     email = data.get('email', '').strip().lower()
     
     if not email:
-        return jsonify({"success": False, "error": "Email required"}), 400
-    
+        return jsonify({"success": False, "error": str(t("api.err_email_required"))}), 400
+
     user = User.query.filter_by(email=email).first()
     if not user:
-        return jsonify({"success": False, "error": "User not found"}), 404
-    
+        return jsonify({"success": False, "error": str(t("api.err_user_not_found"))}), 404
+
     if user.email_confirmed:
-        return jsonify({"success": False, "error": "Email already confirmed"}), 400
-    
+        return jsonify({"success": False, "error": str(t("api.err_already_confirmed"))}), 400
+
     # Rate limit: check if resend was requested in last 60 seconds
     now = datetime.utcnow()
     if user.last_confirmation_resend_at:
         seconds_since_last = (now - user.last_confirmation_resend_at).total_seconds()
         if seconds_since_last < 60:
-            return jsonify({"success": False, "error": f"Please wait {int(60 - seconds_since_last)}s before resending"}), 429
+            return jsonify({"success": False, "error": str(t("api.err_wait_resend", s=int(60 - seconds_since_last)))}), 429
     
     # Generate new token
     user.confirmation_token = secrets.token_urlsafe(32)
@@ -707,7 +708,7 @@ def api_resend_confirmation():
     from email_utils import send_confirmation_email
     send_confirmation_email(user, user.confirmation_token, app.config["APP_URL"], app=app)
     
-    return jsonify({"success": True, "message": "Confirmation email sent"}), 200
+    return jsonify({"success": True, "message": str(t("api.msg_resent"))}), 200
 
 
 @app.route("/api/admin/smtp-diagnostic", methods=["GET"])

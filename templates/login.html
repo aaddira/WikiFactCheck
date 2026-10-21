@@ -1,57 +1,24 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - WikiFactCheck</title>
+{% extends "auth_base.html" %}
 
-    <!-- Anti-FOUC: Prevent flash of wrong theme by reading theme before page renders -->
-    <script>
-        (function() {
-            const stored = localStorage.getItem('theme');
-            const theme = stored === 'light' || stored === 'dark' ? stored :
-                         (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-            if (theme === 'dark') {
-                document.documentElement.classList.add('dark');
-                document.documentElement.setAttribute('data-theme', 'dark');
-            }
-        })();
-    </script>
+{% block title %}{{ t('login.title') }}{% endblock %}
 
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Configure Tailwind for dark mode class-based detection -->
-    <script>
-        tailwind.config = {
-            darkMode: 'class'
-        };
-    </script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-</head>
-<body class="bg-gradient-to-br from-emerald-50 to-teal-100 dark:from-gray-900 dark:to-gray-800 min-h-screen flex items-center justify-center">
-    <!-- Theme Toggle Button (top-right) -->
-    <div class="fixed top-4 right-4">
-        <button onclick="toggleTheme()" class="p-2 rounded-lg bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 transition shadow-md" title="Toggle dark mode">
-            <span id="theme-icon">🌙</span>
-        </button>
-    </div>
-
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 w-full max-w-md">
-        <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2 text-center">WikiFactCheck</h1>
-        <p class="text-center text-gray-600 dark:text-gray-400 mb-8">Citation Support Labeling System</p>
+{% block card %}
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2 text-center">{{ t('common.brand') }}</h1>
+        <p class="text-center text-gray-600 dark:text-gray-400 mb-8">{{ t('login.subtitle') }}</p>
 
         {% if error %}
         <div class="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 text-red-700 dark:text-red-200 px-4 py-3 rounded-lg mb-6 text-sm">
             <p class="font-semibold mb-2">{{ error }}</p>
             {% if unconfirmed_email %}
             <div class="mt-3 pt-3 border-t border-red-300 dark:border-red-700">
-                <p class="text-xs mb-2">Need to resend the confirmation email?</p>
+                <p class="text-xs mb-2">{{ t('login.need_resend') }}</p>
                 <button
                     type="button"
                     id="resendBtn"
-                    onclick="resendConfirmationEmail('{{ unconfirmed_email }}')"
+                    data-email="{{ unconfirmed_email }}"
                     class="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-3 rounded transition text-xs"
                 >
-                    Resend Confirmation Email
+                    {{ t('common.resend_confirmation_btn') }}
                 </button>
                 <p id="resendMessage" class="text-xs mt-2" style="display:none;"></p>
             </div>
@@ -61,126 +28,121 @@
 
         <form method="POST" class="space-y-4">
             <div>
-                <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Email Address</label>
+                <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{{ t('common.email_address') }}</label>
                 <input
                     type="email"
                     id="email"
                     name="email"
+                    dir="ltr"
                     required
                     autofocus
                     class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                    placeholder="your@email.com"
+                    placeholder="{{ t('common.email_placeholder') }}"
                 />
             </div>
 
             <div>
-                <label for="wiki_username" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Wikipedia Username</label>
+                <label for="wiki_username" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{{ t('common.wiki_username') }}</label>
                 <input
                     type="text"
                     id="wiki_username"
                     name="wiki_username"
+                    dir="auto"
                     required
                     class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                    placeholder="Your Wikipedia username"
+                    placeholder="{{ t('login.username_placeholder') }}"
                 />
-                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Required for leaderboard display. Can be changed later in Preferences.</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ t('login.username_hint') }}</p>
             </div>
 
             <button
                 type="submit"
                 class="w-full bg-emerald-600 text-white py-2 rounded-lg font-medium hover:bg-emerald-700 transition"
             >
-                Sign In
+                {{ t('login.submit') }}
             </button>
         </form>
 
         <div class="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700 text-center space-y-3">
             <p class="text-xs text-gray-500 dark:text-gray-400">
-                Don't have an account?
+                {{ t('login.no_account') }}
                 <a href="{{ url_for('register_page') }}" class="text-emerald-600 dark:text-emerald-400 font-semibold hover:underline">
-                    Sign up here
+                    {{ t('login.sign_up_here') }}
                 </a>
             </p>
 
             <div class="text-xs space-y-1">
                 <p>
                     <a href="{{ url_for('forgot_username_page') }}" class="text-blue-600 dark:text-blue-400 hover:underline">
-                        🤔 Forgot your Wikipedia username?
+                        {{ t('login.forgot_username') }}
                     </a>
                 </p>
                 <p>
                     <a href="{{ url_for('resend_confirmation_page') }}" class="text-blue-600 dark:text-blue-400 hover:underline">
-                        📧 Didn't receive confirmation email?
+                        {{ t('login.no_confirmation') }}
                     </a>
                 </p>
             </div>
 
             <p class="text-xs text-gray-500 dark:text-gray-400">
-                This is a trusted internal tool for a small team of annotators.
+                {{ t('login.internal_tool') }}
             </p>
         </div>
-    </div>
+{% endblock %}
 
-    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script>
-        // Update theme icon based on current theme
-        function updateThemeIcon() {
-            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-            const icon = document.getElementById('theme-icon');
-            if (icon) {
-                icon.textContent = isDark ? '☀️' : '🌙';
-            }
-        }
-        updateThemeIcon();
-        document.addEventListener('themechange', updateThemeIcon);
+{% block extra_js %}
+<script>
+    // Resend confirmation email
+    function resendConfirmationEmail(email) {
+        const btn = document.getElementById('resendBtn');
+        const msg = document.getElementById('resendMessage');
 
-        // Resend confirmation email
-        function resendConfirmationEmail(email) {
-            const btn = document.getElementById('resendBtn');
-            const msg = document.getElementById('resendMessage');
-            
-            btn.disabled = true;
-            btn.style.opacity = '0.5';
-            msg.textContent = 'Sending...';
-            msg.style.display = 'block';
-            
-            fetch('/api/resend-confirmation', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({email: email})
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    msg.textContent = '✓ Confirmation email sent! Check your inbox.';
-                    msg.className = 'text-xs text-green-700 dark:text-green-300 mt-2';
-                    // Disable for 60 seconds
-                    let countdown = 60;
-                    const timer = setInterval(() => {
-                        btn.textContent = `Resend in ${countdown}s`;
-                        countdown--;
-                        if (countdown < 0) {
-                            clearInterval(timer);
-                            btn.textContent = 'Resend Confirmation Email';
-                            btn.disabled = false;
-                            btn.style.opacity = '1';
-                            msg.style.display = 'none';
-                        }
-                    }, 1000);
-                } else {
-                    msg.textContent = '✗ ' + (data.error || 'Failed to resend email');
-                    msg.className = 'text-xs text-red-600 dark:text-red-400 mt-2';
-                    btn.disabled = false;
-                    btn.style.opacity = '1';
-                }
-            })
-            .catch(err => {
-                msg.textContent = '✗ Error: ' + err.message;
+        btn.disabled = true;
+        btn.style.opacity = '0.5';
+        msg.textContent = i18n('js.sending');
+        msg.style.display = 'block';
+
+        fetch('/api/resend-confirmation', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({email: email})
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                msg.textContent = i18n('js.resend_ok');
+                msg.className = 'text-xs text-green-700 dark:text-green-300 mt-2';
+                // Disable for 60 seconds
+                let countdown = 60;
+                const timer = setInterval(() => {
+                    btn.textContent = i18n('js.resend_in', {s: countdown});
+                    countdown--;
+                    if (countdown < 0) {
+                        clearInterval(timer);
+                        btn.textContent = i18n('js.resend_btn');
+                        btn.disabled = false;
+                        btn.style.opacity = '1';
+                        msg.style.display = 'none';
+                    }
+                }, 1000);
+            } else {
+                msg.textContent = '✗ ' + (data.error || i18n('js.resend_failed'));
                 msg.className = 'text-xs text-red-600 dark:text-red-400 mt-2';
                 btn.disabled = false;
                 btn.style.opacity = '1';
-            });
-        }
-    </script>
-</body>
-</html>
+            }
+        })
+        .catch(err => {
+            msg.textContent = '✗ ' + i18n('js.error_prefix', {msg: err.message});
+            msg.className = 'text-xs text-red-600 dark:text-red-400 mt-2';
+            btn.disabled = false;
+            btn.style.opacity = '1';
+        });
+    }
+
+    const resendBtn = document.getElementById('resendBtn');
+    if (resendBtn) {
+        resendBtn.addEventListener('click', () => resendConfirmationEmail(resendBtn.dataset.email));
+    }
+</script>
+{% endblock %}

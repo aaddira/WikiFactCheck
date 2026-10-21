@@ -2,6 +2,8 @@ from flask import Blueprint, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 from auth import login_required, get_current_user, is_admin_email
 from models import db, User, Annotation
+from i18n import SUPPORTED_LANGS, LANG_NAMES
+from i18n.web import t, apply_lang_cookie
 from sqlalchemy.exc import IntegrityError
 
 settings_bp = Blueprint("settings", __name__, url_prefix="/api/settings")
@@ -24,6 +26,8 @@ def api_settings_profile():
         "test_approved_by_admin": user.test_approved_by_admin,
         "annotations_count": actual_count,
         "annotation_target": user.annotation_target,
+        "language": user.language,
+        "email_language": user.email_language,
         "created_at": user.created_at.isoformat() if user.created_at else None,
         "last_login": user.last_login.isoformat() if user.last_login else None,
     })
@@ -74,6 +78,40 @@ def api_settings_email():
     except IntegrityError:
         db.session.rollback()
         return jsonify({"error": "Email already in use"}), 409
+
+
+@settings_bp.route("/language", methods=["GET"])
+@login_required
+def api_settings_language_get():
+    """Current language preferences (UI language and email language)."""
+    user = get_current_user()
+    return jsonify({
+        "language": user.language,
+        "email_language": user.email_language,
+        "supported": [{"code": c, "name": LANG_NAMES[c]} for c in SUPPORTED_LANGS],
+    })
+
+
+@settings_bp.route("/language", methods=["PUT"])
+@login_required
+def api_settings_language_update():
+    """Set UI language and/or email language. Either field may be omitted."""
+    user = get_current_user()
+    data = request.get_json() or {}
+
+    updates = {}
+    for field in ("language", "email_language"):
+        if field in data:
+            if data[field] not in SUPPORTED_LANGS:
+                return jsonify({"error": str(t("settings.lang_err_invalid"))}), 400
+            updates[field] = data[field]
+
+    for field, value in updates.items():
+        setattr(user, field, value)
+    db.session.commit()
+
+    response = jsonify({"status": "success", "language": user.language, "email_language": user.email_language})
+    return apply_lang_cookie(response, user.language)
 
 
 @settings_bp.route("/target", methods=["POST"])

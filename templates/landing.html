@@ -1,32 +1,32 @@
 {% extends "base.html" %}
 {% import "_fact_check_components.html" as components %}
 
-{% block title %}WikiFactCheck - Fact-Checking Platform{% endblock %}
+{% block title %}{{ t('landing.title') }}{% endblock %}
 
 {% block content %}
 <div class="max-w-7xl mx-auto px-4 py-6">
     <!-- Login/Register prompt banner -->
-    <div class="mb-6 bg-emerald-50 dark:bg-emerald-900 border-l-4 border-emerald-500 p-4 rounded">
+    <div class="mb-6 bg-emerald-50 dark:bg-emerald-900 border-s-4 border-emerald-500 p-4 rounded">
         <p class="text-emerald-900 dark:text-emerald-100 font-semibold">
-            Join our research team to start annotating Wikipedia citations for accuracy.
+            {{ t('landing.join_banner') }}
         </p>
         <div class="flex gap-2 mt-3">
             <a href="{{ url_for('login_page') }}" class="inline-block bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded font-semibold transition">
-                Log In
+                {{ t('common.log_in') }}
             </a>
             <a href="{{ url_for('register_page') }}" class="inline-block bg-emerald-100 dark:bg-emerald-800 hover:bg-emerald-200 dark:hover:bg-emerald-700 text-emerald-900 dark:text-emerald-100 px-4 py-2 rounded font-semibold transition">
-                Sign Up
+                {{ t('common.sign_up') }}
             </a>
         </div>
     </div>
 
     <!-- Annotation interface (disabled demo) -->
     <div>
-        <!-- Article Header -->
+        <!-- Article Header (English Wikipedia title -> stays LTR) -->
         <div class="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow p-6">
             <div class="flex flex-col items-center justify-center">
-                <div id="articleTitle" class="text-3xl font-bold text-gray-400 text-center">
-                    Loading example...
+                <div id="articleTitle" class="wiki-content text-3xl font-bold text-gray-400 text-center">
+                    {{ t('landing.loading_example') }}
                 </div>
                 <div class="mt-3 flex items-center gap-2">
                     <img src="{{ url_for('static', filename='images/wikipedia_logo.svg') }}" alt="Wikipedia" class="h-12 opacity-50">
@@ -36,42 +36,42 @@
 
         <!-- Main annotation panels -->
         <div class="annotation-container">
-            <!-- Left panel: Passage -->
+            <!-- Passage panel -->
             <div class="panel">
-                <div class="panel-title">Passage to Evaluate</div>
+                <div class="panel-title">{{ t('landing.passage_title') }}</div>
 
                 <!-- Fact highlighting instruction - shared component -->
                 <div style="margin-bottom: 12px;">{{ components.fact_check_note() }}</div>
 
                 <div class="passage-text-box" id="passageText" style="color: #999;">
-                    <span class="empty-state">Loading example...</span>
+                    <span class="empty-state">{{ t('landing.loading_example') }}</span>
                 </div>
             </div>
 
-            <!-- Right panel: Citation -->
+            <!-- Citation panel -->
             <div class="panel">
-                <div class="panel-title">Citation Text (Reference)</div>
+                <div class="panel-title">{{ t('landing.citation_title') }}</div>
 
                 <!-- Citation URL shown at top -->
                 <div class="metadata-section" style="margin-bottom: 12px;">
                     <div class="metadata-item">
-                        <div class="metadata-label">Citation Source</div>
+                        <div class="metadata-label">{{ t('landing.citation_source') }}</div>
                         <div class="citation-url-box">
-                            <a href="#" onclick="return false" style="color: #999; cursor: not-allowed;">View Source</a>
+                            <a href="#" onclick="return false" style="color: #999; cursor: not-allowed;">{{ t('landing.view_source') }}</a>
                         </div>
                     </div>
                 </div>
 
                 <!-- Citation text -->
                 <div class="citation-text-box" id="citationText" style="color: #999;">
-                    <span class="empty-state">Loading example...</span>
+                    <span class="empty-state">{{ t('landing.loading_example') }}</span>
                 </div>
 
                 <!-- Additional metadata -->
                 <div class="metadata-section" style="margin-top: 12px;">
                     <div class="metadata-item">
-                        <div class="metadata-label">Citation Details</div>
-                        <div class="metadata-value" id="citationMeta">—</div>
+                        <div class="metadata-label">{{ t('landing.citation_details') }}</div>
+                        <div class="metadata-value wiki-content" id="citationMeta">—</div>
                     </div>
                 </div>
             </div>
@@ -82,107 +82,111 @@
             <!-- Instructions - shared component -->
             {{ components.annotation_instructions() }}
 
-            <!-- Label selection -->
+            <!-- Label selection. The radio `value`s are the stored English labels; only the text is translated. -->
             <div class="form-section">
-                <div class="form-section-title">Fact-Check Decision</div>
+                <div class="form-section-title">{{ t('landing.decision_title') }}</div>
                 <div class="label-options">
                     <div class="label-radio">
                         <input type="radio" id="label-supported" name="label" value="Supported" disabled>
                         <label for="label-supported" style="opacity: 0.5; cursor: not-allowed;">
-                            <span>✅ <strong>Supported</strong></span>
-                            <span class="label-shortcut">Press 1</span>
+                            <span>✅ <strong>{{ t('label.supported') }}</strong></span>
+                            <span class="label-shortcut">{{ t('landing.press_key', n=1) }}</span>
                         </label>
                     </div>
                     <div class="label-radio">
                         <input type="radio" id="label-not-supported" name="label" value="Not Supported" disabled>
                         <label for="label-not-supported" style="opacity: 0.5; cursor: not-allowed;">
-                            <span>❌ <strong>Not Supported</strong></span>
-                            <span class="label-shortcut">Press 2</span>
+                            <span>❌ <strong>{{ t('label.not_supported') }}</strong></span>
+                            <span class="label-shortcut">{{ t('landing.press_key', n=2) }}</span>
                         </label>
                     </div>
                     <div class="label-radio">
                         <input type="radio" id="label-mixed" name="label" value="Mixed" disabled>
                         <label for="label-mixed" style="opacity: 0.5; cursor: not-allowed;">
-                            <span>⚠️ <strong>Mixed</strong></span>
-                            <span class="label-shortcut">Press 3</span>
+                            <span>⚠️ <strong>{{ t('label.mixed') }}</strong></span>
+                            <span class="label-shortcut">{{ t('landing.press_key', n=3) }}</span>
                         </label>
                     </div>
                     <div class="label-radio">
                         <input type="radio" id="label-unverifiable" name="label" value="Unverifiable" disabled>
                         <label for="label-unverifiable" style="opacity: 0.5; cursor: not-allowed;">
-                            <span>🔍 <strong>Unverifiable</strong></span>
-                            <span class="label-shortcut">Press 4</span>
+                            <span>🔍 <strong>{{ t('label.unverifiable') }}</strong></span>
+                            <span class="label-shortcut">{{ t('landing.press_key', n=4) }}</span>
                         </label>
                     </div>
                     <div class="label-radio">
                         <input type="radio" id="label-source-link-error" name="label" value="Source link error" disabled>
                         <label for="label-source-link-error" style="opacity: 0.5; cursor: not-allowed;">
-                            <span>🔗 <strong>Source Link Error</strong></span>
-                            <span class="label-shortcut">Press 5</span>
+                            <span>🔗 <strong>{{ t('label.source_link_error') }}</strong></span>
+                            <span class="label-shortcut">{{ t('landing.press_key', n=5) }}</span>
                         </label>
                     </div>
                 </div>
             </div>
 
-            <!-- Quote field -->
+            <!-- Quote field (quotes are pasted from English sources -> dir="auto") -->
             <div class="form-field">
-                <label for="quote">Supporting or Contradicting Quote</label>
+                <label for="quote">{{ t('landing.quote_label') }}</label>
                 <textarea
                     id="quote"
                     name="quote"
-                    placeholder="Paste exact verbatim text from the citation that supports or contradicts the passage..."
+                    dir="auto"
+                    placeholder="{{ t('landing.quote_placeholder') }}"
                     disabled
                 ></textarea>
                 <div class="form-field-hint">
-                    Copy and paste the exact text from the source. This is required unless you skip.
+                    {{ t('landing.quote_hint') }}
                 </div>
             </div>
 
             <!-- Explanation field -->
             <div class="form-field">
-                <label for="explanation">Explanation</label>
+                <label for="explanation">{{ t('landing.explanation_label') }}</label>
                 <textarea
                     id="explanation"
                     name="explanation"
-                    placeholder="Briefly explain how the quote supports or contradicts the passage. Mention uncertainties or difficulties if any."
+                    dir="auto"
+                    placeholder="{{ t('landing.explanation_placeholder') }}"
                     disabled
                 ></textarea>
                 <div class="form-field-hint">
-                    Provide context for your decision. This is required unless you skip.
+                    {{ t('landing.explanation_hint') }}
                 </div>
             </div>
 
             <!-- Buttons -->
             <div class="btn-group">
                 <button type="button" class="btn btn-secondary" disabled onclick="return false">
-                    Skip
+                    {{ t('landing.skip') }}
                 </button>
                 <button type="button" class="btn btn-primary" disabled onclick="return false">
-                    Save & Next
+                    {{ t('landing.save_next') }}
                 </button>
             </div>
 
             <!-- Login prompt -->
             <div class="text-center mt-16 pt-8 border-t border-gray-200 dark:border-gray-700">
-                <p class="text-gray-600 dark:text-gray-400 mb-4">Log in to start fact-checking Wikipedia citations</p>
+                <p class="text-gray-600 dark:text-gray-400 mb-4">{{ t('landing.login_prompt') }}</p>
                 <a href="{{ url_for('login_page') }}" class="inline-block bg-emerald-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-emerald-700 transition">
-                    Log In to Start
+                    {{ t('landing.login_to_start') }}
                 </a>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
 
+{% block extra_js %}
 <script>
 async function loadExamplePair() {
     try {
         const res = await fetch('/api/pair/preview');
         const data = await res.json();
         if (data.pair) {
-            document.getElementById('articleTitle').textContent = data.pair.article_title || 'Wikipedia Article';
+            document.getElementById('articleTitle').textContent = data.pair.article_title || i18n('js.default_article');
             document.getElementById('passageText').innerHTML = data.pair.passage_text;
             document.getElementById('citationText').innerHTML = data.pair.citation_raw_text;
-            const citation = data.pair.citation_title || 'Citation';
+            const citation = data.pair.citation_title || i18n('js.default_citation');
             document.getElementById('citationMeta').textContent = citation;
         }
     } catch (err) {

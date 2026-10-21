@@ -1,59 +1,59 @@
 {% extends "base.html" %}
 
-{% block title %}Confirm Email - WikiFactCheck{% endblock %}
+{% block title %}{{ t('confirm.title') }}{% endblock %}
 
 {% block content %}
 <div class="max-w-md mx-auto px-4 py-16">
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8">
         {% if error %}
-        <div class="bg-red-50 dark:bg-red-900 border-l-4 border-red-500 p-6 rounded-lg text-center">
-            <h2 class="text-xl font-bold text-red-900 dark:text-red-100 mb-3">❌ Confirmation Failed</h2>
+        <div class="bg-red-50 dark:bg-red-900 border-s-4 border-red-500 p-6 rounded-lg text-center">
+            <h2 class="text-xl font-bold text-red-900 dark:text-red-100 mb-3">{{ t('confirm.failed_heading') }}</h2>
             <p class="text-red-900 dark:text-red-100 mb-6">{{ error }}</p>
             <a href="{{ url_for('register_page') }}" class="inline-block bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 px-6 rounded-lg transition">
-                Register Again
+                {{ t('confirm.register_again') }}
             </a>
         </div>
 
         {% elif success %}
-        <div class="bg-green-50 dark:bg-green-900 border-l-4 border-green-500 p-6 rounded-lg text-center">
-            <h2 class="text-xl font-bold text-green-900 dark:text-green-100 mb-3">✓ Email Confirmed</h2>
+        <div class="bg-green-50 dark:bg-green-900 border-s-4 border-green-500 p-6 rounded-lg text-center">
+            <h2 class="text-xl font-bold text-green-900 dark:text-green-100 mb-3">{{ t('confirm.success_heading') }}</h2>
             <p class="text-green-900 dark:text-green-100 mb-6">
-                Your email has been successfully confirmed! You can now log in to start annotating.
+                {{ t('confirm.success_text') }}
             </p>
             <a href="{{ url_for('login_page') }}" class="inline-block bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 px-6 rounded-lg transition">
-                Log In Now
+                {{ t('confirm.login_now') }}
             </a>
         </div>
 
         {% elif message %}
-        <div class="bg-blue-50 dark:bg-blue-900 border-l-4 border-blue-500 p-6 rounded-lg text-center">
-            <h2 class="text-xl font-bold text-blue-900 dark:text-blue-100 mb-3">ℹ️ Already Confirmed</h2>
+        <div class="bg-blue-50 dark:bg-blue-900 border-s-4 border-blue-500 p-6 rounded-lg text-center">
+            <h2 class="text-xl font-bold text-blue-900 dark:text-blue-100 mb-3">{{ t('confirm.already_heading') }}</h2>
             <p class="text-blue-900 dark:text-blue-100 mb-6">{{ message }}</p>
             <a href="{{ url_for('login_page') }}" class="inline-block bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 px-6 rounded-lg transition">
-                Log In
+                {{ t('common.log_in') }}
             </a>
         </div>
 
         {% else %}
         <!-- Confirmation form -->
-        <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2 text-center">Confirm Your Email</h1>
-        <p class="text-gray-600 dark:text-gray-400 mb-6 text-center">Click the button below to confirm your email address</p>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2 text-center">{{ t('confirm.form_heading') }}</h1>
+        <p class="text-gray-600 dark:text-gray-400 mb-6 text-center">{{ t('confirm.form_subtitle') }}</p>
 
         <form method="POST" class="text-center">
             <p class="text-sm text-gray-600 dark:text-gray-400 mb-6">
-                This will complete your registration and allow you to start annotating
+                {{ t('confirm.form_note') }}
             </p>
             <button
                 type="submit"
                 class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 rounded-lg transition mb-4"
             >
-                ✓ Confirm Email
+                {{ t('confirm.form_button') }}
             </button>
         </form>
 
         <div class="mt-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
             <p class="text-xs text-gray-600 dark:text-gray-400 text-center">
-                This confirmation link expires in 24 hours
+                {{ t('confirm.form_expiry') }}
             </p>
         </div>
         {% endif %}

@@ -96,7 +96,7 @@ html.dark .panel {
 /* Passage panel (left) */
 .passage-text-box {
     background: #f0f4f8;
-    border-left: 4px solid var(--color-primary);
+    border-inline-start: 4px solid var(--color-primary);
     padding: 16px;
     border-radius: 4px;
     line-height: 1.6;
@@ -126,7 +126,7 @@ html.dark .panel {
 /* Fact highlighting note */
 .fact-check-note {
     background: #fee2e2;
-    border-left: 4px solid #dc2626;
+    border-inline-start: 4px solid #dc2626;
     padding: 12px 16px;
     margin-bottom: 12px;
     border-radius: 4px;
@@ -239,7 +239,7 @@ html.dark .fact-highlight {
 /* Citation panel (right) */
 .citation-text-box {
     background: #f0f4f8;
-    border-left: 4px solid var(--color-success);
+    border-inline-start: 4px solid var(--color-success);
     padding: 16px;
     border-radius: 4px;
     flex: 1;
@@ -397,7 +397,7 @@ html.dark .fact-highlight {
 }
 
 .label-radio input[type="radio"] {
-    margin-right: 8px;
+    margin-inline-end: 8px;
     margin-top: 2px;
     cursor: pointer;
 }
@@ -562,7 +562,7 @@ html.dark .form-field label {
     background: #f9fafb;
     border: 1px solid var(--color-border);
     padding: 12px;
-    text-align: left;
+    text-align: start;
     font-weight: 600;
 }
 
@@ -594,7 +594,7 @@ html.dark .form-field label {
 }
 
 .instructions ol, .instructions ul {
-    margin-left: 20px;
+    margin-inline-start: 20px;
     margin-bottom: 8px;
     color: #1f2937;
 }
@@ -679,7 +679,7 @@ html.dark .citation-text-box {
 [data-theme="dark"] .fact-check-note,
 html.dark .fact-check-note {
     background: #7f1d1d;
-    border-left-color: #dc2626;
+    border-inline-start-color: #dc2626;
 }
 
 [data-theme="dark"] .fact-check-note span,
@@ -1018,3 +1018,62 @@ html.dark .rounded-lg {
 html.dark .border-l-4 {
     border-left-color: #34d399;
 }
+
+[data-theme="dark"] .border-s-4,
+html.dark .border-s-4 {
+    border-inline-start-color: #34d399;
+}
+
+/* ==========================================================================
+   Bilingual support (English / Arabic, RTL)
+   ========================================================================== */
+
+/* Arabic UI typography. Wikipedia content below stays in its own (LTR) font. */
+html[lang="ar"] body {
+    font-family: 'IBM Plex Sans Arabic', 'Noto Naskh Arabic', Tahoma, 'Segoe UI', Arial, sans-serif;
+    line-height: 1.75;
+}
+
+/* Wikipedia passages, citation text, URLs and titles are English source material.
+   They stay left-to-right and bidi-isolated inside an RTL page. */
+.wiki-content,
+.passage-text-box,
+.citation-text-box {
+    direction: ltr;
+    text-align: left;
+    unicode-bidi: isolate;
+}
+
+/* The URL box holds either a URL (Latin -> LTR) or a UI label (Arabic -> RTL): let the text decide. */
+.citation-url-box a {
+    unicode-bidi: plaintext;
+}
+
+/* Emails, URLs and codes typed by the user are LTR even in an RTL form. */
+html[dir="rtl"] input[type="email"],
+html[dir="rtl"] input[type="url"] {
+    direction: ltr;
+    text-align: right; /* placeholder/caret hug the start side; value still LTR */
+}
+
+/* Directional glyphs in Latin-script UI (e.g. "Back" arrows) are authored per language in the catalog. */
+html[dir="rtl"] .rtl-flip { transform: scaleX(-1); }
+
+/* Language switcher */
+.lang-switch {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.4rem 0.75rem;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1;
+    text-decoration: none;
+    background: #f3f4f6;
+    color: #374151;
+}
+.lang-switch:hover { background: #e5e7eb; }
+[data-theme="dark"] .lang-switch,
+html.dark .lang-switch { background: #374151; color: #d1d5db; }
+[data-theme="dark"] .lang-switch:hover,
+html.dark .lang-switch:hover { background: #4b5563; }
